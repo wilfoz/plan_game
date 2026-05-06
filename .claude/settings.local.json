@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "Bash(npm install:*)",
+      "Bash(node -e \"require\\(''''@anthropic-ai/sdk''''\\)\")",
+      "Bash(npx prisma:*)",
+      "Bash(find c:/Users/Wilerson/Desktop/plan/13022026/planner_2026-refactor-modernization/backend -name *.prisma)",
+      "Bash(grep -E \"\\\\.\\(ts|json\\)$\")",
+      "Bash(npx ng *)",
+      "Bash(docker info *)",
+      "Bash(docker compose *)",
+      "Bash(docker build *)",
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")"
+    ]
+  }
+}

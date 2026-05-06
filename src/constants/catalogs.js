@@ -1,0 +1,108 @@
+export const MO_CAT = [
+  { id: "mo1", cargo: "AJUDANTE GERAL", sal: 2564.10 },
+  { id: "mo2", cargo: "MONTADOR I", sal: 2811.44 },
+  { id: "mo3", cargo: "MONTADOR II", sal: 3092.58 },
+  { id: "mo4", cargo: "MONTADOR III", sal: 3401.83 },
+  { id: "mo5", cargo: "ENCARREGADO DE TURMA", sal: 8614.07 },
+  { id: "mo6", cargo: "OPERADOR DE GUINDASTE", sal: 8614.07 },
+  { id: "mo7", cargo: "OPERADOR DE PULLER/FREIO", sal: 8614.07 },
+  { id: "mo8", cargo: "MOTORISTA DE CAMINHÃO", sal: 3095.40 },
+  { id: "mo9", cargo: "MOTORISTA OPERADOR MUNCK I", sal: 2965.78 },
+  { id: "mo10", cargo: "MOTORISTA OPERADOR MUNCK II", sal: 3742.55 },
+  { id: "mo11", cargo: "TECNICO DE SEGURANCA DO TRABALHO", sal: 5557.47 },
+  { id: "mo12", cargo: "SUPERVISOR TECNICO LT", sal: 13351.83 },
+  { id: "mo13", cargo: "ENGENHEIRO DE SEGURANCA", sal: 14345.10 },
+  { id: "mo14", cargo: "ELETRICISTA I", sal: 2395.60 },
+  { id: "mo15", cargo: "ELETRICISTA II", sal: 2486.00 },
+  { id: "mo16", cargo: "ESPOREIRO I", sal: 2652.30 },
+  { id: "mo17", cargo: "ESPOREIRO II", sal: 2895.25 },
+  { id: "mo18", cargo: "ESPOREIRO III", sal: 3155.85 },
+  { id: "mo19", cargo: "OPERADOR DE MAQUINAS PESADAS I", sal: 3467.69 },
+  { id: "mo20", cargo: "OPERADOR DE MAQUINAS PESADAS II", sal: 3779.80 },
+  { id: "mo21", cargo: "TOPOGRAFO DE OBRAS", sal: 8614.07 },
+  { id: "mo22", cargo: "AUXILIAR DE TOPOGRAFIA", sal: 2096.63 },
+  { id: "mo23", cargo: "PEDREIRO", sal: 2617.78 },
+  { id: "mo24", cargo: "SOLDADOR", sal: 3172.44 },
+  { id: "mo25", cargo: "SUPERVISOR DE OBRAS", sal: 13351.83 },
+];
+
+export const EQ_CAT = [
+  { id: "eq1", nome: "GUINDASTE", loc: 150000 },
+  { id: "eq2", nome: "CONJUNTO LANÇAMENTO - CONDUTOR", loc: 287500 },
+  { id: "eq3", nome: "CONJUNTO LANÇAMENTO - OPGW", loc: 195500 },
+  { id: "eq4", nome: "PULLER P/ CABO CONDUTOR", loc: 28750 },
+  { id: "eq5", nome: "PULLER P/ CABO OPGW", loc: 23000 },
+  { id: "eq6", nome: "FREIO P/ CABO CONDUTOR", loc: 34500 },
+  { id: "eq7", nome: "FREIO P/ CABO OPGW", loc: 23000 },
+  { id: "eq8", nome: "CAMINHÃO TRUCK COM MUNCK", loc: 31000 },
+  { id: "eq9", nome: "CAMINHÃO TRUCK COM CARROCERIA", loc: 6012.50 },
+  { id: "eq10", nome: "CAMINHÃO TRUCK COM PRANCHA", loc: 18000 },
+  { id: "eq11", nome: "CAMINHONETE 4X4", loc: 8500 },
+  { id: "eq12", nome: "TRATOR PNEU 4X4 C/ GUINCHO CAÇADOR", loc: 17000 },
+  { id: "eq13", nome: "RETROESCAVADEIRA 4X4", loc: 15000 },
+  { id: "eq14", nome: "ESCAVADEIRA HIDRÁULICA", loc: 25000 },
+  { id: "eq15", nome: "GUINCHO P/ MONTAGEM", loc: 6900 },
+  { id: "eq16", nome: "PRENSA HIDRAULICA P/ EMENDAS", loc: 5290 },
+  { id: "eq17", nome: "MOTOSSERRA", loc: 3397.10 },
+  { id: "eq18", nome: "ÔNIBUS 40 PASSAGEIROS", loc: 19000 },
+  { id: "eq19", nome: "MICRO ÔNIBUS", loc: 8500 },
+  { id: "eq20", nome: "VAN ADMINISTRAÇÃO", loc: 2500 },
+  { id: "eq21", nome: "GRUPO GERADOR 100 KVA", loc: 11500 },
+  { id: "eq22", nome: "RÁDIO COMUNICAÇÃO PORTÁTIL", loc: 203.33 },
+  { id: "eq23", nome: "GPS RTK", loc: 10580 },
+  { id: "eq24", nome: "TRATOR DE ESTEIRA", loc: 40000 },
+  { id: "eq25", nome: "PÁ CARREGADEIRA", loc: 25000 },
+];
+
+export const EPI_CAT = [
+  { id: "epi1", desc: "Calças operacionais", custo: 50 },
+  { id: "epi2", desc: "Camisas operacionais", custo: 50 },
+  { id: "epi3", desc: "Touca árabe", custo: 50 },
+  { id: "epi4", desc: "Botina biq de PVC", custo: 50 },
+  { id: "epi5", desc: "Luva de vaqueta", custo: 50 },
+  { id: "epi6", desc: "Óculos escuro antirrisco", custo: 50 },
+  { id: "epi7", desc: "Perneira bindim c/ velcro 3T", custo: 50 },
+  { id: "epi8", desc: "Capacete MSA aba frontal c/ carneira", custo: 50 },
+  { id: "epi9", desc: "Protetor solar FPS60", custo: 50 },
+  { id: "epi10", desc: "Colete refletivo laranja", custo: 50 },
+  { id: "epi11", desc: "Protetor auricular tipo plug", custo: 50 },
+  { id: "epi12", desc: "Cinto de Segurança", custo: 50 },
+  { id: "epi13", desc: "Talabarte em Y", custo: 50 },
+  { id: "epi14", desc: "Trava Quedas", custo: 50 },
+  { id: "epi15", desc: "Talabarte Abdominal", custo: 50 },
+  { id: "epi16", desc: "Bolsa p/ Cinto", custo: 50 },
+  { id: "epi17", desc: "Botina para operador de motosserra", custo: 50 },
+  { id: "epi18", desc: "Calça para operador de motosserra", custo: 50 },
+  { id: "epi19", desc: "Camisa para operador de motosserra", custo: 50 },
+  { id: "epi20", desc: "Luva vaqueta motosserrista", custo: 50 },
+];
+
+export const EPC_CAT = [
+  { id: "epc1", desc: "Sinalização viária", custo: 2000 },
+  { id: "epc2", desc: "Corda linha de vida", custo: 1500 },
+  { id: "epc3", desc: "Barreira de proteção", custo: 800 },
+  { id: "epc4", desc: "Cone de sinalização (cx)", custo: 200 },
+];
+
+export const ATIVS = [
+  { id: "a1", grp: "M", desc: "Montagem e Revisão Torre Estaiada no Solo", und: "TON", eKey: "tonEstaiada" },
+  { id: "a2", grp: "M", desc: "Içamento Torre Estaiada", und: "TON", eKey: "tonEstaiada" },
+  { id: "a3", grp: "M", desc: "Montagem Manual de Torre Estaiada", und: "TON", eKey: "tonEstaiada" },
+  { id: "a4", grp: "M", desc: "Pré Montagem Torre Autoportante", und: "TON", eKey: "tonAuto" },
+  { id: "a5", grp: "M", desc: "Montagem Mecanizada Torre Autoportante", und: "TON", eKey: "tonAuto" },
+  { id: "a6", grp: "M", desc: "Montagem Manual Torre Autoportante", und: "TON", eKey: "tonAuto" },
+  { id: "a7", grp: "M", desc: "Revisão Torre Autoportante", und: "TON", eKey: "tonAuto" },
+  { id: "a8", grp: "L", desc: "Lançamento de Cabo Condutor", und: "KM", eKey: "extCondutor" },
+  { id: "a9", grp: "L", desc: "Grampeação de Cabo Condutor", und: "TORRE", eKey: "totalTorres" },
+  { id: "a10", grp: "L", desc: "Ancoragem de Cabo Condutor", und: "TORRE", eKey: "totalTorres" },
+];
+
+export const REQ_CATEGORIAS = ["Procedimento", "EPC", "EPIs", "Treinamentos", "Outros"];
+export const REQ_TEMPOS = [0, 15, 30, 45, 60, 90, 120];
+export const REQ_CAT_COLORS = { 
+  Procedimento: "#6366F1", 
+  EPC: "#F59E0B", 
+  EPIs: "#10B981", 
+  Treinamentos: "#EC4899", 
+  Outros: "#9CA3AF" 
+};
