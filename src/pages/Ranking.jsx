@@ -65,15 +65,32 @@ export default function Ranking() {
 
       {rank.some(g => g.desq) && (
         <Card b={C.redL + "44"}>
-          <Hdr2 col={C.redL} ch="💬 DEBRIEFING" />
-          <div style={{ padding: 14, fontSize: 12, color: C.txt2, lineHeight: 1.9 }}>
+          <Hdr2 col={C.redL} ch="💬 DEBRIEFING — REQUISITOS NÃO ATENDIDOS" />
+          <div style={{ padding: 14 }}>
             {rank.filter(g => g.desq).map(g => (
-              <div key={g.id} style={{ marginBottom: 6 }}>
-                <strong style={{ color: C.txt }}>{g.nome}</strong> — Segurança{" "}
-                <strong style={{ color: C.redL }}>{g.sS}%</strong> (mínimo 70%).
+              <div key={g.id} style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.txt, marginBottom: 6 }}>
+                  ❌ {g.nome} — {g.missing.length} requisito(s) aplicável(is) não considerado(s):
+                </div>
+                <table style={{ ...S.tbl, marginBottom: 4 }}>
+                  <thead><tr>
+                    <TH ch="ATIVIDADE" w={180} />
+                    <TH ch="CATEGORIA" w={130} />
+                    <TH ch="DESCRIÇÃO DO REQUISITO" />
+                  </tr></thead>
+                  <tbody>
+                    {g.missing.map((m, mi) => (
+                      <tr key={mi} style={{ borderBottom: `1px solid ${C.border}`, background: C.redL + "08" }}>
+                        <td style={{ padding: "5px 9px", fontSize: 10, color: C.txt2 }}>{m.atividade}</td>
+                        <td style={{ padding: "5px 9px" }}><Tag text={m.categoria} col={C.redL} /></td>
+                        <td style={{ padding: "5px 9px", fontSize: 10, color: C.txt }}>{m.desc || "(sem descrição)"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             ))}
-            <div style={{ marginTop: 10, padding: "10px 14px", borderRadius: 5, background: C.gold + "10", border: `1px solid ${C.gold}33`, color: C.txt }}>
+            <div style={{ marginTop: 6, padding: "10px 14px", borderRadius: 5, background: C.gold + "10", border: `1px solid ${C.gold}33`, color: C.txt, fontSize: 11 }}>
               💡 <strong>"A Liderança que Protege sabe dimensionar o recurso certo para o risco da atividade. Segurança não é custo — é parte da composição de alta performance."</strong>
             </div>
           </div>

@@ -17,7 +17,7 @@ export default function Equipes() {
         } />
         <table style={S.tbl}>
           <thead><tr>
-            <TH ch="#" w={30} /><TH ch="NOME DO GRUPO" /><TH ch="RESPONSÁVEL" /><TH ch="" w={40} />
+            <TH ch="#" w={30} /><TH ch="NOME DO GRUPO" /><TH ch="RESPONSÁVEL" /><TH ch="SENHA DE ACESSO" w={160} /><TH ch="" w={40} />
           </tr></thead>
           <tbody>
             {grupos.map((g, i) => (
@@ -28,6 +28,9 @@ export default function Equipes() {
                 </td>
                 <td style={{ padding: "4px 8px" }}>
                   <TextInp v={g.resp} placeholder="Nome do responsável..." onChange={e => uGrupo(g.id, "resp", e.target.value)} />
+                </td>
+                <td style={{ padding: "4px 8px" }}>
+                  <TextInp v={g.senha || ""} placeholder="Senha do grupo..." onChange={e => uGrupo(g.id, "senha", e.target.value)} />
                 </td>
                 <td style={{ padding: "4px 8px", textAlign: "center" }}>
                   {grupos.length > 1 && <BtnDel onClick={() => delGrupo(i)} />}

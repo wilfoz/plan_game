@@ -3,10 +3,31 @@ import { S } from "../styles";
 import { useApp } from "../context/AppContext";
 
 export default function Intro() {
-  const { setRole, setScreen, lt, totalTorres } = useApp();
+  const { setRole, setScreen, setActiveSessionId, sess } = useApp();
+
+  const voltarSessoes = () => {
+    setRole(null);
+    setActiveSessionId(null);
+    setScreen("session-manager");
+  };
+
   return (
     <div style={S.app}>
-      <div style={{ ...S.pg, textAlign: "center", paddingTop: 60 }}>
+      {/* barra superior com nome da sessão e botão voltar */}
+      <div style={{
+        padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "space-between",
+        borderBottom: `1px solid ${C.border}`
+      }}>
+        <div style={{ fontSize: 11, color: C.txt3, letterSpacing: 1 }}>
+          <span style={{ color: C.gold, fontWeight: 700 }}>⚡</span>{" "}
+          {sess?.nome || "Sessão"}
+        </div>
+        <button style={{ ...S.btnS, fontSize: 10 }} onClick={voltarSessoes}>
+          ← SESSÕES
+        </button>
+      </div>
+
+      <div style={{ ...S.pg, textAlign: "center", paddingTop: 52 }}>
         <div style={{ fontSize: 50, marginBottom: 12 }}>⚡</div>
         <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: 6, margin: 0 }}>JORNADAS LT</h1>
         <p style={{ fontSize: 11, color: C.gold, letterSpacing: 4, margin: "8px 0 20px" }}>
@@ -28,13 +49,9 @@ export default function Intro() {
           <button style={{ ...S.btnP, fontSize: 12 }} onClick={() => { setRole("F"); setScreen("config"); }}>
             ⚙️ FACILITADOR
           </button>
-          <button style={{ ...S.btnS, fontSize: 12 }} onClick={() => {
-            if (!lt.nome || lt.ext <= 0 || totalTorres <= 0) {
-              alert("O Facilitador ainda não configurou a Linha de Transmissão. Aguarde a configuração para iniciar.");
-              return;
-            }
-            setRole("G"); setScreen("composicao");
-          }}>👥 GRUPO</button>
+          <button style={{ ...S.btnS, fontSize: 12 }} onClick={() => setScreen("grupo-login")}>
+            👥 GRUPO
+          </button>
         </div>
       </div>
     </div>

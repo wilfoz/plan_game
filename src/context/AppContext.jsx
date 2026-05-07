@@ -1,86 +1,126 @@
 import { createContext, useContext, useState } from "react";
 import { ATIVS, MO_CAT, EQ_CAT } from "../constants/catalogs";
 import { uid } from "../utils/formatters";
-import { calcA as calcABase, calcSeg as calcSegBase } from "../utils/calculations";
+import { calcA as calcABase, calcSeg as calcSegBase, DIAS_MES } from "../utils/calculations";
 
 const mkComp = () => ({
   moRows: [], eqRows: [], reqIds: [],
-  verbas: { ferramentas: 0, materiais: 0 }, kpi: 0, equipes: 1
+  kpi: 0, equipes: 1
 });
 const mkGrupoComps = () => Object.fromEntries(ATIVS.map(a => [a.id, mkComp()]));
+
+const mkSession = (nome) => ({
+  id: uid(),
+  nome: nome || "Nova Sessão",
+  lt: { nome: "", tensao: "500kV", ext: 0, circ: "simples", cabFase: 4, pararaios: 2, opgw: 1 },
+  torres: {
+    crossrope: { qtd: 0, ton: 280 }, suspensao: { qtd: 0, ton: 180 },
+    ancoragem: { qtd: 0, ton: 320 }, estaiada: { qtd: 0, ton: 420 },
+  },
+  grupos: [],
+  comps: [],
+  kpisBase: Object.fromEntries(ATIVS.map(a => [a.id, 0])),
+  requisitos: [],
+  epiCargo: {},
+});
 
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
-  const [screen, setScreen] = useState("intro");
+  const [screen, setScreen] = useState("login");
   const [role, setRole] = useState(null);
   const [gIdx, setGIdx] = useState(0);
   const [aTab, setATab] = useState("a1");
   const [epiCargoAtivo, setEpiCargoAtivo] = useState("mo1");
 
-  const [lt, setLt] = useState({
-    nome: "LT 500 kV Norte — Trecho 01", tensao: "500kV",
-    ext: 120, circ: "simples", cabFase: 4, pararaios: 2, opgw: 1
-  });
-  const [torres, setTorres] = useState({
-    crossrope: { qtd: 10, ton: 280 }, suspensao: { qtd: 20, ton: 180 },
-    ancoragem: { qtd: 10, ton: 320 }, estaiada: { qtd: 10, ton: 420 },
-  });
-  const uLt = (k, v) => setLt(p => ({ ...p, [k]: v }));
-  const uTorre = (t, k, v) => setTorres(p => ({ ...p, [t]: { ...p[t], [k]: +v || 0 } }));
+  const [sessions, setSessions] = useState([]);
+  const [activeSessionId, setActiveSessionId] = useState(null);
 
-  const [grupos, setGrupos] = useState([
-    { id: "g1", nome: "Grupo A", resp: "" },
-    { id: "g2", nome: "Grupo B", resp: "" }
-  ]);
-  const [comps, setComps] = useState([mkGrupoComps(), mkGrupoComps()]);
+  const sess = sessions.find(s => s.id === activeSessionId) || null;
+  const upd = fn => setSessions(p => p.map(s => s.id === activeSessionId ? fn(s) : s));
 
-  const addGrupo = () => {
-    setGrupos(p => [...p, { id: "g" + (p.length + 1), nome: `Grupo ${String.fromCharCode(65 + p.length)}`, resp: "" }]);
-    setComps(p => [...p, mkGrupoComps()]);
+  // Sessions CRUD
+  const addSession = (nome) => {
+    const s = mkSession(nome);
+    setSessions(p => [...p, s]);
+    return s.id;
   };
-  const uGrupo = (id, k, v) => setGrupos(p => p.map(g => g.id === id ? { ...g, [k]: v } : g));
+  const delSession = (id) => setSessions(p => p.filter(s => s.id !== id));
+  const uSessionNome = (id, nome) => setSessions(p => p.map(s => s.id === id ? { ...s, nome } : s));
+
+  // LT
+  const _emptyLt = { nome: "", tensao: "500kV", ext: 0, circ: "simples", cabFase: 4, pararaios: 2, opgw: 1 };
+  const _emptyTorres = { crossrope: { qtd: 0, ton: 280 }, suspensao: { qtd: 0, ton: 180 }, ancoragem: { qtd: 0, ton: 320 }, estaiada: { qtd: 0, ton: 420 } };
+  const lt = sess?.lt ?? _emptyLt;
+  const torres = sess?.torres ?? _emptyTorres;
+  const uLt = (k, v) => upd(s => ({ ...s, lt: { ...s.lt, [k]: v } }));
+  const uTorre = (t, k, v) => upd(s => ({ ...s, torres: { ...s.torres, [t]: { ...s.torres[t], [k]: +v || 0 } } }));
+
+  // Grupos
+  const grupos = sess?.grupos ?? [];
+  const comps = sess?.comps ?? [];
+  const addGrupo = () => upd(s => ({
+    ...s,
+    grupos: [...s.grupos, { id: String(uid()), nome: `Grupo ${String.fromCharCode(65 + s.grupos.length)}`, resp: "", senha: "" }],
+    comps: [...s.comps, mkGrupoComps()]
+  }));
+  const uGrupo = (id, k, v) => upd(s => ({ ...s, grupos: s.grupos.map(g => g.id === id ? { ...g, [k]: v } : g) }));
   const delGrupo = (gi) => {
     if (grupos.length <= 1) return;
-    setGrupos(p => p.filter((_, i) => i !== gi));
-    setComps(p => p.filter((_, i) => i !== gi));
+    upd(s => ({
+      ...s,
+      grupos: s.grupos.filter((_, i) => i !== gi),
+      comps: s.comps.filter((_, i) => i !== gi)
+    }));
     if (gIdx >= grupos.length - 1) setGIdx(Math.max(0, grupos.length - 2));
   };
 
-  const [kpisBase, setKpisBase] = useState(Object.fromEntries(ATIVS.map(a => [a.id, 0])));
+  // KPIs
+  const kpisBase = sess?.kpisBase ?? Object.fromEntries(ATIVS.map(a => [a.id, 0]));
+  const setKpisBase = (fn) => upd(s => ({ ...s, kpisBase: typeof fn === "function" ? fn(s.kpisBase) : fn }));
 
-  const [requisitos, setRequisitos] = useState([]);
-  const addRequisito = (aId) => {
-    setRequisitos(p => [...p, { _id: uid(), aId, categoria: "Procedimento", desc: "", tempo: 0, score: 50 }]);
-  };
-  const delRequisito = (_id) => setRequisitos(p => p.filter(r => r._id !== _id));
-  const updRequisito = (_id, k, v) => setRequisitos(p => p.map(r => r._id === _id ? { ...r, [k]: v } : r));
+  // Requisitos
+  const requisitos = sess?.requisitos ?? [];
+  const addRequisito = (aId) => upd(s => ({
+    ...s, requisitos: [...s.requisitos, { _id: uid(), aId, categoria: "Procedimento", desc: "", aplicavel: true }]
+  }));
+  const delRequisito = (_id) => upd(s => ({ ...s, requisitos: s.requisitos.filter(r => r._id !== _id) }));
+  const updRequisito = (_id, k, v) => upd(s => ({
+    ...s, requisitos: s.requisitos.map(r => r._id === _id ? { ...r, [k]: v } : r)
+  }));
 
-  const [epiCargo, setEpiCargo] = useState({});
-  const togEpi = (moId, epiId) =>
-    setEpiCargo(p => ({ ...p, [moId]: { ...(p[moId] || {}), [epiId]: !(p[moId] || {})[epiId] } }));
+  // EPI
+  const epiCargo = sess?.epiCargo ?? {};
+  const togEpi = (moId, epiId) => upd(s => ({
+    ...s,
+    epiCargo: { ...s.epiCargo, [moId]: { ...(s.epiCargo[moId] || {}), [epiId]: !(s.epiCargo[moId] || {})[epiId] } }
+  }));
 
+  // Composições
   const gc = (gi, aId) => comps[gi]?.[aId] || mkComp();
-
-  const updateComp = (gi, aId, fn) => setComps(p => {
-    const n = [...p];
-    n[gi] = { ...n[gi], [aId]: fn(n[gi]?.[aId] || mkComp()) };
-    return n;
+  const updateComp = (gi, aId, fn) => upd(s => {
+    const nc = [...s.comps];
+    nc[gi] = { ...nc[gi], [aId]: fn(nc[gi]?.[aId] || mkComp()) };
+    return { ...s, comps: nc };
   });
 
-  const toggleReq = (gi, aId, reqId) => updateComp(gi, aId, c => ({
-    ...c,
-    reqIds: (c.reqIds || []).includes(reqId)
-      ? (c.reqIds || []).filter(id => id !== reqId)
-      : [...(c.reqIds || []), reqId]
-  }));
+  const toggleReq = (gi, aId, reqId) => {
+    const rid = +reqId;
+    updateComp(gi, aId, c => {
+      const ids = (c.reqIds || []).map(Number);
+      return {
+        ...c,
+        reqIds: ids.includes(rid) ? ids.filter(id => id !== rid) : [...ids, rid]
+      };
+    });
+  };
 
   const moAdd = (gi, aId, catId) => {
     const cat = MO_CAT.find(r => r.id === catId);
     if (!cat) return;
     updateComp(gi, aId, c => ({
       ...c,
-      moRows: [...c.moRows, { _id: uid(), catId, cargo: cat.cargo, sal: cat.sal, qtd: 1, alim: 63.53, aloj: 19.09, saude: 0.77, folgas: 12.20 }]
+      moRows: [...c.moRows, { _id: uid(), catId, cargo: cat.cargo, sal: cat.sal, qtd: 1 }]
     }));
   };
   const moDel = (gi, aId, _id) => updateComp(gi, aId, c => ({ ...c, moRows: c.moRows.filter(r => r._id !== _id) }));
@@ -101,38 +141,41 @@ export function AppProvider({ children }) {
     ...c, eqRows: c.eqRows.map(r => r._id === _id ? { ...r, [k]: +v || 0 } : r)
   }));
 
-  const uVb = (gi, aId, k, v) => updateComp(gi, aId, c => ({ ...c, verbas: { ...c.verbas, [k]: +v || 0 } }));
   const uKpi = (gi, aId, v) => updateComp(gi, aId, c => ({ ...c, kpi: +v || 0 }));
   const uEq = (gi, aId, v) => updateComp(gi, aId, c => ({ ...c, equipes: Math.max(1, +v || 1) }));
 
+  // Valores derivados
   const fator = lt.circ === "duplo" ? 2 : 1;
-  const totalCabos = (lt.cabFase * 3 + lt.pararaios + lt.opgw) * fator;
-  const extCondutor = lt.ext * lt.cabFase * 3 * fator;
+  const totalCabos = ((lt.cabFase || 0) * 3 + (lt.pararaios || 0) + (lt.opgw || 0)) * fator;
+  const extCondutor = (lt.ext || 0) * (lt.cabFase || 0) * 3 * fator;
   const totalTorres = Object.values(torres).reduce((s, t) => s + t.qtd, 0);
   const tonTotal = Object.values(torres).reduce((s, t) => s + t.ton, 0);
   const ESC = {
-    ext: lt.ext, extCondutor, totalTorres,
+    ext: lt.ext || 0, extCondutor, totalTorres,
     tonEstaiada: torres.estaiada.ton, qtdEstaiada: torres.estaiada.qtd,
     tonCrossrope: torres.crossrope.ton, qtdCrossrope: torres.crossrope.qtd,
     tonAuto: torres.suspensao.ton + torres.ancoragem.ton,
   };
 
-  const calcA = (comp, esc, aId) => calcABase(comp, esc, aId, requisitos);
+  const calcA = (comp, esc) => calcABase(comp, esc);
   const calcSeg = (gi) => calcSegBase(requisitos, (aId) => gc(gi, aId));
 
   const buildRank = () => {
     const res = grupos.map((g, i) => {
-      const ct = ATIVS.reduce((s, a) => s + calcA(gc(i, a.id), ESC[a.eKey] || 0, a.id).total, 0);
-      const dm = Math.max(0, ...ATIVS.map(a => calcA(gc(i, a.id), ESC[a.eKey] || 0, a.id).dur));
-      return { ...g, gi: i, ct, dm, seg: calcSeg(i) };
+      const ct = ATIVS.reduce((s, a) => s + calcA(gc(i, a.id), ESC[a.eKey] || 0).total, 0);
+      const dm = Math.max(0, ...ATIVS.map(a => calcA(gc(i, a.id), ESC[a.eKey] || 0).dur));
+      const seg = calcSeg(i);
+      return { ...g, gi: i, ct, dm, seg: seg.score, desq: seg.desq, missing: seg.missing };
     });
-    const mc = Math.min(...res.map(r => r.ct).filter(v => v > 0), Infinity);
-    const md = Math.min(...res.map(r => r.dm).filter(v => v > 0), Infinity);
+    const valid = res.filter(r => !r.desq);
+    const mc = Math.min(...valid.map(r => r.ct).filter(v => v > 0), Infinity);
+    const md = Math.min(...valid.map(r => r.dm).filter(v => v > 0), Infinity);
     return res.map(r => {
       const sC = r.ct > 0 ? Math.round(Math.min(100, (mc / r.ct) * 100)) : 0;
       const sD = r.dm > 0 ? Math.round(Math.min(100, (md / r.dm) * 100)) : 0;
       const sS = r.seg;
-      return { ...r, sC, sD, sS, total: Math.round(sC * .3 + sD * .3 + sS * .4), desq: sS < 70 };
+      const total = r.desq ? 0 : Math.round(sC * .3 + sD * .3 + sS * .4);
+      return { ...r, sC, sD, sS, total };
     }).sort((a, b) => b.total - a.total);
   };
 
@@ -140,6 +183,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       screen, setScreen, role, setRole, gIdx, setGIdx, aTab, setATab,
       epiCargoAtivo, setEpiCargoAtivo,
+      sessions, activeSessionId, setActiveSessionId, addSession, delSession, uSessionNome, sess,
       lt, torres, uLt, uTorre,
       grupos, addGrupo, uGrupo, delGrupo,
       kpisBase, setKpisBase,
@@ -148,7 +192,7 @@ export function AppProvider({ children }) {
       comps, gc, updateComp, toggleReq,
       moAdd, moDel, moUpd,
       eqAdd, eqDel, eqUpd,
-      uVb, uKpi, uEq,
+      uKpi, uEq,
       ESC, fator, totalCabos, extCondutor, totalTorres, tonTotal,
       calcA, calcSeg, buildRank
     }}>

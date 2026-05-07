@@ -1,8 +1,7 @@
 import { C } from "../constants/colors";
 import { S } from "../styles";
 import { fmt, fmtI } from "../utils/formatters";
-import { DIAS_MES } from "../utils/calculations";
-import { ATIVS, MO_CAT, EQ_CAT, EPI_CAT, REQ_CATEGORIAS, REQ_CAT_COLORS } from "../constants/catalogs";
+import { ATIVS, MO_CAT, EQ_CAT, EPI_CAT, REQ_CAT_COLORS } from "../constants/catalogs";
 import { useApp } from "../context/AppContext";
 import { Card } from "../components/ui/Card";
 import { BtnDel } from "../components/ui/Card";
@@ -12,35 +11,45 @@ import { NumInp, Sel } from "../components/ui/Inputs";
 
 export default function Composicao() {
   const {
-    grupos, gIdx, setGIdx, setScreen,
+    grupos, gIdx, setGIdx, setScreen, role,
     aTab, setATab,
     gc, calcA, ESC,
     moAdd, moDel, moUpd,
     eqAdd, eqDel, eqUpd,
-    uVb, uKpi, uEq,
+    uKpi, uEq,
     epiCargo, requisitos, toggleReq
   } = useApp();
 
   const aObj = ATIVS.find(a => a.id === aTab) || ATIVS[0];
   const comp = gc(gIdx, aObj.id);
   const esc = ESC[aObj.eKey] || 0;
-  const calc = calcA(comp, esc, aObj.id);
+  const calc = calcA(comp, esc);
   const colGrp = aObj.grp === "M" ? C.blueL : C.greenL;
-  const totalGeral = ATIVS.reduce((s, a) => s + calcA(gc(gIdx, a.id), ESC[a.eKey] || 0, a.id).total, 0);
+  const totalGeral = ATIVS.reduce((s, a) => s + calcA(gc(gIdx, a.id), ESC[a.eKey] || 0).total, 0);
   const reqsAtiv = requisitos.filter(r => r.aId === aObj.id);
 
   const moUsados = new Set(comp.moRows.map(r => r.catId));
   const moOpts = MO_CAT.filter(r => !moUsados.has(r.id)).map(r => ({ id: r.id, label: r.cargo }));
   const eqOpts = EQ_CAT.map(r => ({ id: r.id, label: r.nome }));
 
+  const addedReqIds = (comp.reqIds || []).map(Number);
+  const addedReqs = reqsAtiv.filter(r => addedReqIds.includes(+r._id));
+  const availReqOpts = reqsAtiv
+    .filter(r => !addedReqIds.includes(+r._id))
+    .map(r => ({ id: r._id, label: `[${r.categoria}] ${r.desc || "(sem descrição)"}` }));
+
   return (
     <div style={S.pg}>
-      {/* seletor grupo */}
+      {/* barra de grupo ativo */}
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
         <span style={{ fontSize: 9, color: C.txt3, letterSpacing: 2 }}>GRUPO:</span>
-        {grupos.map((g, i) => (
-          <Pill key={g.id} on={gIdx === i} onClick={() => setGIdx(i)} ch={g.nome} />
-        ))}
+        {role === "F" ? (
+          grupos.map((g, i) => (
+            <Pill key={g.id} on={gIdx === i} onClick={() => setGIdx(i)} ch={g.nome} />
+          ))
+        ) : (
+          <span style={{ fontSize: 12, fontWeight: 700, color: C.goldL }}>{grupos[gIdx]?.nome}</span>
+        )}
         <button style={{ ...S.btnP, marginLeft: "auto", fontSize: 10 }} onClick={() => setScreen("cronograma")}>
           CRONOGRAMA →
         </button>
@@ -103,7 +112,7 @@ export default function Composicao() {
             </div>
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <div>
-                <div style={{ fontSize: 8, color: C.txt3, letterSpacing: 2, marginBottom: 3 }}>KPI (un/mês/eq)</div>
+                <div style={{ fontSize: 8, color: C.txt3, letterSpacing: 2, marginBottom: 3 }}>KPI (un/dia/eq)</div>
                 <NumInp v={comp.kpi || ""} onChange={e => uKpi(gIdx, aObj.id, e.target.value)} w={80} />
               </div>
               <div>
@@ -124,59 +133,41 @@ export default function Composicao() {
             <Hdr2 col={C.blueL} ch={`👷 MÃO DE OBRA — ${aObj.desc.slice(0, 28)}`} />
             <table style={S.tbl}>
               <thead><tr>
-                <TH ch="CARGO" w={180} />
-                <TH ch="QTD" right w={50} />
+                <TH ch="CARGO" w={200} />
+                <TH ch="QTD" right w={60} />
                 <TH ch="SALÁRIO/MÊS" right />
-                <TH ch="ALIMENT./MÊS" right />
-                <TH ch="ALOJAM./MÊS" right />
-                <TH ch="SAÚDE/MÊS" right />
-                <TH ch="FOLGAS/MÊS" right />
                 <TH ch="TOTAL/MÊS" right accent />
                 <TH ch="" w={30} />
               </tr></thead>
               <tbody>
                 {comp.moRows.length === 0 && (
-                  <tr><td colSpan={9} style={{ padding: "12px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
+                  <tr><td colSpan={5} style={{ padding: "12px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
                     Nenhum cargo adicionado. Use o seletor abaixo para adicionar.
                   </td></tr>
                 )}
-                {comp.moRows.map((r, i) => {
-                  const tot = (r.sal + r.alim + r.aloj + r.saude + r.folgas) * r.qtd;
-                  return (
-                    <tr key={r._id} style={S.trOn(C.blueL)}>
-                      <td style={{ padding: "4px 9px", fontSize: 11, fontWeight: 600, color: C.txt }}>{r.cargo}</td>
-                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                        <NumInp v={r.qtd} onChange={e => moUpd(gIdx, aObj.id, r._id, "qtd", e.target.value)} w={46} />
-                      </td>
-                      <TD ch={fmt(r.sal)} right />
-                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                        <NumInp v={r.alim} onChange={e => moUpd(gIdx, aObj.id, r._id, "alim", e.target.value)} w={68} />
-                      </td>
-                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                        <NumInp v={r.aloj} onChange={e => moUpd(gIdx, aObj.id, r._id, "aloj", e.target.value)} w={68} />
-                      </td>
-                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                        <NumInp v={r.saude} onChange={e => moUpd(gIdx, aObj.id, r._id, "saude", e.target.value)} w={68} />
-                      </td>
-                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                        <NumInp v={r.folgas} onChange={e => moUpd(gIdx, aObj.id, r._id, "folgas", e.target.value)} w={68} />
-                      </td>
-                      <td style={{ padding: "4px 9px", textAlign: "right", fontWeight: 700, color: C.goldL, fontSize: 11 }}>
-                        {fmt(tot)}
-                      </td>
-                      <td style={{ padding: "3px 6px", textAlign: "center" }}>
-                        <BtnDel onClick={() => moDel(gIdx, aObj.id, r._id)} />
-                      </td>
-                    </tr>
-                  );
-                })}
+                {comp.moRows.map((r) => (
+                  <tr key={r._id} style={S.trOn(C.blueL)}>
+                    <td style={{ padding: "4px 9px", fontSize: 11, fontWeight: 600, color: C.txt }}>{r.cargo}</td>
+                    <td style={{ padding: "3px 7px", textAlign: "right" }}>
+                      <NumInp v={r.qtd} onChange={e => moUpd(gIdx, aObj.id, r._id, "qtd", e.target.value)} w={50} />
+                    </td>
+                    <td style={{ padding: "3px 7px", textAlign: "right" }}>
+                      <NumInp v={r.sal} onChange={e => moUpd(gIdx, aObj.id, r._id, "sal", e.target.value)} w={100} />
+                    </td>
+                    <td style={{ padding: "4px 9px", textAlign: "right", fontWeight: 700, color: C.goldL, fontSize: 11 }}>
+                      {fmt(r.sal * r.qtd)}
+                    </td>
+                    <td style={{ padding: "3px 6px", textAlign: "center" }}>
+                      <BtnDel onClick={() => moDel(gIdx, aObj.id, r._id)} />
+                    </td>
+                  </tr>
+                ))}
                 {comp.moRows.length > 0 && (
                   <tr style={S.totRow}>
                     <td style={{ padding: "5px 9px", fontSize: 11, fontWeight: 700, color: C.goldL }}>
                       TOTAL MO — {calc.moQtd} profissionais
                     </td>
-                    <td colSpan={5} />
-                    <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 10, color: C.txt2 }}>/mês</td>
+                    <td colSpan={2} />
                     <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 12, fontWeight: 700, color: C.goldL }}>
                       {fmt(calc.custoMo)}
                     </td>
@@ -223,9 +214,11 @@ export default function Composicao() {
                   <tr key={r._id} style={S.trOn(C.yellow)}>
                     <td style={{ padding: "4px 9px", fontSize: 11, fontWeight: 600, color: C.txt }}>{r.nome}</td>
                     <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                      <NumInp v={r.qtd} onChange={e => eqUpd(gIdx, aObj.id, r._id, "qtd", e.target.value)} w={46} />
+                      <NumInp v={r.qtd} onChange={e => eqUpd(gIdx, aObj.id, r._id, "qtd", e.target.value)} w={50} />
                     </td>
-                    <TD ch={fmt(r.loc)} right />
+                    <td style={{ padding: "3px 7px", textAlign: "right" }}>
+                      <NumInp v={r.loc} onChange={e => eqUpd(gIdx, aObj.id, r._id, "loc", e.target.value)} w={100} />
+                    </td>
                     <td style={{ padding: "4px 9px", textAlign: "right", fontWeight: 700, color: C.goldL, fontSize: 11 }}>
                       {fmt(r.loc * r.qtd)}
                     </td>
@@ -262,91 +255,63 @@ export default function Composicao() {
 
           {/* REQUISITOS DE SEGURANÇA */}
           <Card>
-            <Hdr2 col={C.greenL} ch={`🛡️ Requisitos de Segurança — ${aObj.desc.slice(0, 28)}`} />
-            {reqsAtiv.length === 0 ? (
-              <div style={{ padding: 14, fontSize: 11, color: C.txt3, fontStyle: "italic", textAlign: "center" }}>
-                Nenhum requisito cadastrado pelo facilitador para esta atividade.
-              </div>
-            ) : (
-              <div style={{ padding: "10px 12px" }}>
-                <div style={{ fontSize: 9, color: C.txt3, letterSpacing: 2, marginBottom: 8 }}>
-                  SELECIONE OS REQUISITOS APLICÁVEIS (⏱️ tempo impacta duração · 🎯 score impacta segurança)
+            <Hdr2 col={C.greenL} ch={`🛡️ REQUISITOS DE SEGURANÇA — ${aObj.desc.slice(0, 28)}`} />
+            <table style={S.tbl}>
+              <thead><tr>
+                <TH ch="CATEGORIA" w={140} />
+                <TH ch="DESCRIÇÃO" />
+                <TH ch="STATUS" right w={120} />
+                <TH ch="" w={30} />
+              </tr></thead>
+              <tbody>
+                {addedReqs.length === 0 && (
+                  <tr><td colSpan={4} style={{ padding: "12px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
+                    {reqsAtiv.length === 0
+                      ? "Nenhum requisito cadastrado pelo facilitador para esta atividade."
+                      : "Nenhum requisito adicionado. Use o seletor abaixo."}
+                  </td></tr>
+                )}
+                {addedReqs.map((req) => {
+                  const isAplic = req.aplicavel !== false;
+                  const aplCol = isAplic ? C.greenL : C.yellow;
+                  return (
+                    <tr key={req._id} style={S.trOn(C.greenL)}>
+                      <td style={{ padding: "4px 9px" }}>
+                        <Tag text={req.categoria} col={REQ_CAT_COLORS[req.categoria]} />
+                      </td>
+                      <td style={{ padding: "4px 9px", fontSize: 10, color: C.txt }}>
+                        {req.desc || "(sem descrição)"}
+                      </td>
+                      <td style={{ padding: "4px 9px", textAlign: "right" }}>
+                        <Tag text={isAplic ? "✅ Aplicável" : "⚠️ N.Aplicável"} col={aplCol} />
+                      </td>
+                      <td style={{ padding: "3px 6px", textAlign: "center" }}>
+                        <BtnDel onClick={() => toggleReq(gIdx, aObj.id, req._id)} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {reqsAtiv.length > 0 && (
+              <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8, alignItems: "center" }}>
+                <div style={{ flex: 1 }}>
+                  <Sel
+                    v=""
+                    onChange={e => { if (e.target.value) toggleReq(gIdx, aObj.id, +e.target.value); }}
+                    opts={availReqOpts}
+                    placeholder={availReqOpts.length === 0 ? "✅ Todos os requisitos adicionados" : "+ Selecione um requisito para adicionar..."}
+                  />
                 </div>
-                {REQ_CATEGORIAS.filter(cat => reqsAtiv.some(r => r.categoria === cat)).map(cat => (
-                  <div key={cat} style={{ marginBottom: 8 }}>
-                    <div style={{
-                      fontSize: 9, fontWeight: 700, letterSpacing: 2, color: REQ_CAT_COLORS[cat],
-                      padding: "3px 0", borderBottom: `1px solid ${REQ_CAT_COLORS[cat]}33`, marginBottom: 4
-                    }}>{cat.toUpperCase()}</div>
-                    {reqsAtiv.filter(r => r.categoria === cat).map(req => {
-                      const on = (comp.reqIds || []).includes(req._id);
-                      return (
-                        <div key={req._id}
-                          onClick={() => toggleReq(gIdx, aObj.id, req._id)}
-                          style={{
-                            display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", marginBottom: 3,
-                            borderRadius: 4, cursor: "pointer", fontSize: 10,
-                            background: on ? REQ_CAT_COLORS[cat] + "12" : C.surf2,
-                            border: `1px solid ${on ? REQ_CAT_COLORS[cat] + "55" : C.border}`,
-                            transition: "all 0.15s"
-                          }}>
-                          <span style={{ fontSize: 13, flexShrink: 0 }}>{on ? "✅" : "⬜"}</span>
-                          <span style={{ color: on ? C.txt : C.txt2, flex: 1 }}>{req.desc || "(sem descrição)"}</span>
-                          <span style={{ background: C.blueL + "18", color: C.blueL, padding: "1px 6px", borderRadius: 3, fontSize: 9, fontWeight: 700, whiteSpace: "nowrap" }}>
-                            ⏱️ {req.tempo}min
-                          </span>
-                          <span style={{ background: C.gold + "18", color: C.gold, padding: "1px 6px", borderRadius: 3, fontSize: 9, fontWeight: 700, whiteSpace: "nowrap" }}>
-                            🎯 {req.score}pts
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-                {(comp.reqIds || []).length > 0 && (
-                  <div style={{
-                    marginTop: 6, padding: "8px 10px", borderRadius: 4,
-                    background: C.greenL + "0A", border: `1px solid ${C.greenL}22`,
-                    display: "flex", gap: 14, fontSize: 10, flexWrap: "wrap"
-                  }}>
-                    <span style={{ color: C.txt2 }}>✅ Selecionados: <strong style={{ color: C.greenL }}>
-                      {(comp.reqIds || []).length}/{reqsAtiv.length}
-                    </strong></span>
-                    <span style={{ color: C.txt2 }}>⏱️ Tempo por dia: <strong style={{ color: C.blueL }}>
-                      {reqsAtiv.filter(r => (comp.reqIds || []).includes(r._id)).reduce((s, r) => s + (r.tempo || 0), 0)} min/dia
-                    </strong></span>
-                    <span style={{ color: C.txt2 }}>🎯 Score: <strong style={{ color: C.gold }}>
-                      {calc.scoreOk}/{calc.scoreMax} pts
-                    </strong></span>
-                    {calc.diasReq > 0 && (
-                      <span style={{ color: C.txt2 }}>📅 Impacto duração: <strong style={{ color: C.yellow }}>
-                        +{calc.diasReq} dias ({(calc.diasReq / DIAS_MES).toFixed(2)} meses)
-                      </strong></span>
-                    )}
-                  </div>
+                {addedReqs.length > 0 && (
+                  <span style={{ fontSize: 10, color: C.txt3, whiteSpace: "nowrap" }}>
+                    {addedReqs.length}/{reqsAtiv.length} requisitos
+                  </span>
                 )}
               </div>
             )}
           </Card>
 
-          {/* VERBAS */}
-          <Card>
-            <Hdr2 col={C.txt2} ch="💼 VERBAS DIVERSAS" />
-            <table style={S.tbl}>
-              <thead><tr><TH ch="DESCRIÇÃO" /><TH ch="VALOR (R$)" right accent /></tr></thead>
-              <tbody>
-                {[["Ferramentas","ferramentas"],["Materiais","materiais"]].map(([l, k]) => (
-                  <tr key={k} style={{ borderBottom: `1px solid ${C.border}`, background: comp.verbas[k] > 0 ? C.gold + "0D" : "transparent" }}>
-                    <TD ch={l} />
-                    <td style={{ padding: "3px 9px", textAlign: "right" }}>
-                      <NumInp v={comp.verbas[k]} onChange={e => uVb(gIdx, aObj.id, k, e.target.value)} w={110} />
-                    </td>
-                  </tr>
-                ))}
-                <TotRow label="TOTAL VERBAS" value={calc.custoVb} cols={1} />
-              </tbody>
-            </table>
-          </Card>
         </div>
 
         {/* DIREITA — RESUMO */}
@@ -360,7 +325,7 @@ export default function Composicao() {
                     <td style={{ padding: "8px 9px", fontSize: 12, fontWeight: 700, color: C.goldL }}>💰 Custo desta Atividade</td>
                     <td style={{ padding: "8px 9px", textAlign: "right", fontSize: 14, fontWeight: 700, color: C.goldL }}>{fmt(calc.total)}</td>
                   </tr>
-                  {[["└ 👷 MO /mês", calc.custoMo, C.blueL], ["└ 🏗️ Equip. /mês", calc.custoEq, C.yellow], ["└ 💼 Verbas", calc.custoVb, C.txt2]].map(([l, v, col]) => (
+                  {[["└ 👷 MO /mês", calc.custoMo, C.blueL], ["└ 🏗️ Equip. /mês", calc.custoEq, C.yellow]].map(([l, v, col]) => (
                     <tr key={l} style={{ borderBottom: `1px solid ${C.border}` }}>
                       <td style={{ padding: "5px 9px 5px 18px", fontSize: 11, color: C.txt2 }}>{l}</td>
                       <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 12, fontWeight: 700, color: col }}>{fmt(v)}</td>
@@ -420,21 +385,21 @@ export default function Composicao() {
                 <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, marginBottom: 10 }}>
                   <div style={{ fontSize: 9, color: C.txt3, letterSpacing: 3, marginBottom: 6 }}>🛡️ REQUISITOS DE SEGURANÇA</div>
                   {reqsAtiv.map(req => {
-                    const on = (comp.reqIds || []).includes(req._id);
+                    const on = addedReqIds.includes(+req._id);
+                    const isAplic = req.aplicavel !== false;
                     return (
                       <div key={req._id} style={{
                         fontSize: 9, color: on ? C.txt : C.txt3, padding: "2px 0 2px 10px",
                         borderLeft: `2px solid ${on ? REQ_CAT_COLORS[req.categoria] + "88" : C.border}`,
                         display: "flex", gap: 4, alignItems: "center"
                       }}>
-                        <span>{on ? "✅" : "⬜"}</span>
+                        <span>{on ? (isAplic ? "✅" : "⚠️") : "⬜"}</span>
                         <span style={{ flex: 1 }}>{req.desc || req.categoria}</span>
-                        <span style={{ color: C.blueL, fontSize: 8 }}>{req.tempo}min</span>
                       </div>
                     );
                   })}
                   <div style={{ marginTop: 4, fontSize: 9, color: C.greenL, fontWeight: 700 }}>
-                    Score: {calc.scoreOk}/{calc.scoreMax} pts ({calc.scoreMax > 0 ? Math.round((calc.scoreOk / calc.scoreMax) * 100) : 100}%)
+                    {addedReqs.length}/{reqsAtiv.length} adicionados
                   </div>
                 </div>
               )}
