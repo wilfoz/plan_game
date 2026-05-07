@@ -1,100 +1,151 @@
 # State
 
-**Last Updated:** 2026-05-05
-**Current Work:** V1 implementado — Prioridade em V1.1 (correções críticas de bugs em `addGrupo` e `calcSeg`)
+**Last Updated:** 2026-05-07
+**Current Milestone:** V2.1 — refatoração de volumes e atividades
 
 ---
 
-## Status do App
+## Status Geral
 
-O app `template/jornadas-lt-v5.jsx` está **funcionalmente completo** para o fluxo principal da Jornada. Todos os módulos P1 (MVP) estão implementados. Existem dois bugs críticos identificados e 29 itens de backlog distribuídos nos 10 módulos.
-
-**Arquivo de trabalho:** `template/jornadas-lt-v5.jsx` (~1.214 linhas)
-**Versão anterior (referência):** `template/jornadas-lt-v2.jsx`
+O app está **funcionalmente completo** para o fluxo principal da Jornada v2. A arquitetura foi migrada de arquivo único (~1.200 linhas) para SPA multi-arquivo com Vite + Context API + Sessions. Todos os módulos críticos estão implementados e os bugs de tipo (type mismatch em reqIds) foram corrigidos.
 
 ---
 
-## Bugs Críticos Identificados
+## Implementações Concluídas (v2.1)
 
-### BUG-001: addGrupo não expande comps
+### Refatoração de Volumes e Atividades
 
-**Localização:** `jornadas-lt-v5.jsx` linha 229
-**Descrição:** `addGrupo()` adiciona entrada em `grupos` mas não chama `setComps` para expandir o array de composições. O estado inicial de `comps` é `[mkGrupoComps(), mkGrupoComps()]` (2 grupos fixos). Ao adicionar um 3º grupo via botão "+ ADICIONAR", `grupos[2]` existe mas `comps[2]` é `undefined`. `gc(2, aId)` retorna `mkComp()` temporário mas alterações são perdidas — o grupo existe no cadastro mas não persiste composições.
-**Impacto:** Dinâmicas com mais de 2 grupos funcionam incorretamente.
-**Fix:** Em `addGrupo`, adicionar `setComps(p => [...p, mkGrupoComps()])`.
-
-### BUG-002: calcSeg é placeholder — sempre retorna 100 ou 85
-
-**Localização:** `jornadas-lt-v5.jsx` linhas 296–308
-**Descrição:** `calcSeg(gi)` incrementa `req` e `ok` pelo mesmo valor (`epis.length`), fazendo `ok/req = 1` sempre. O score de segurança é sempre 100 (quando EPIs configurados) ou 85 (quando nenhum EPI configurado). Nenhum grupo pode ser desclassificado por segurança independentemente da composição montada.
-**Impacto:** Critério pedagógico central (segurança 40%) não funciona corretamente. O debriefing perde impacto.
-**Fix:** Implementar comparação real entre EPIs exigidos pelo gabarito e EPIs fornecidos pela composição do grupo.
-
----
-
-## Recent Decisions
-
-### AD-001: Linhas dinâmicas em vez de tabelas estáticas (v5 vs v2)
-
-**Decision:** Substituir tabelas estáticas com 25 cargos/equipamentos fixos por tabelas vazias com add/remove dinâmico.
-**Reason:** Em sessões com a v2, os grupos se perdiam em 50 linhas maioritariamente zeradas; o debriefing ficava ilegível.
-**Trade-off:** Mais complexidade na lógica de estado (uid, moUsados, moAdd/Del); comportamento mais intuitivo para os grupos.
-**Impact:** `moRows[]` e `eqRows[]` por atividade; `uid()` para IDs únicos; `moUsados` derivado via Set; Sel filtrado.
-
-### AD-002: Estado centralizado no App (sem Context API)
-
-**Decision:** Todo o estado da aplicação vive em um único componente `App` via `useState`.
-**Reason:** App de sessão única com escopo limitado; Context API adicionaria complexidade sem benefício real.
-**Trade-off:** Prop drilling via closures (PgConfig, PgGrupos, etc. acessam estado do App diretamente por closure, não por props).
-**Impact:** Componentes de página definidos como funções internas ao App — não são componentes React independentes.
-
-### AD-003: Inline styles com paleta constante C
-
-**Decision:** Usar inline styles com objeto de constantes `C` em vez de CSS externo ou framework.
-**Reason:** Portabilidade máxima — funciona sem sistema de build configurado; paleta consistente sem cascata de CSS.
-**Trade-off:** Verbosidade nos componentes; sem responsividade automática; difícil extrair para CSS externo.
-**Impact:** Paleta `C` com 17 tokens de cor; todos os estilos como objetos JS literais.
+- [x] Campo `torres` removido do estado da sessão e de toda a interface
+- [x] `ESC` (objeto de escopos derivados de torres) removido do AppContext
+- [x] `volumesPrev: { [aId]: number }` — volume previsto editável diretamente por atividade
+- [x] `comentariosAtiv: { [aId]: string }` — comentário livre editável por atividade
+- [x] Tela Atividades: coluna ESCOPO (read-only) substituída por VOLUME PREVISTO (editável); coluna COMENTÁRIO adicionada
+- [x] Tela Engenharia: bloco "TIPOS DE TORRES" removido; cards simplificados para 3 (CONDUTORES, TOTAL CABOS, KM CONDUTOR)
+- [x] Composição e Cronograma: `ESC[a.eKey]` substituído por `volumesPrev[a.id]` em todos os cálculos
+- [x] `buildRank` e `calcA` atualizados para usar `volumesPrev[a.id]`
+- [x] `eKey` removido de todos os objetos `ATIVS` em catalogs.js
+- [x] `TextInp` agora aceita prop `w` para controle de largura
 
 ---
 
-## Active Blockers
+## Implementações Concluídas (v2)
 
-- **BUG-001 bloqueia dinâmicas com 3+ grupos** — impacto direto na experiência pedagógica.
-- **Sem sistema de build configurado** — o JSX não pode ser executado diretamente no browser sem um transpilador (Babel/Vite). Atualmente requer configuração manual ou CDN.
+### Arquitetura
+
+- [x] Migração de arquivo único (`jornadas-lt-v5.jsx`) para SPA multi-arquivo com Vite
+- [x] Context API (`AppContext`) substituindo prop-drilling via closures
+- [x] Sessions como top-level state — `sessions[]`, `activeSessionId`, `upd(fn)`
+- [x] Separação em módulos: constants, utils, components, pages
+
+### Autenticação e Acesso
+
+- [x] Página de Login universal (primeiro ponto de acesso; sem acesso antes de autenticar)
+- [x] Facilitador: `FACILITADOR` + `elecnorbrasil` → Session Manager
+- [x] Grupos: nome do grupo + senha → busca em todas as sessões, acesso direto à composição
+- [x] Isolamento completo de grupos (sem visibilidade cruzada de composições)
+- [x] Session Manager protegido (acessível apenas após login como facilitador)
+- [x] Header: **☰ SESSÕES** (facilitador volta ao gerenciador sem logout) + **SAIR** (logout total)
+
+### Sessões
+
+- [x] CRUD de sessões (criar, renomear, excluir, entrar)
+- [x] Encapsulamento: cada sessão tem seu `lt`, `torres`, `grupos`, `comps`, `kpisBase`, `requisitos`, `epiCargo`
+- [x] Grupos + senhas definidos pelo facilitador dentro da sessão
+
+### Composição
+
+- [x] MO simplificada: apenas QTD, SALÁRIO/MÊS, TOTAL/MÊS (SAL editável)
+- [x] Equipamentos simplificados: apenas QTD, LOCAÇÃO/MÊS, TOTAL/MÊS (LOC editável)
+- [x] Verbas diversas removidas completamente
+- [x] KPI label corrigido para `KPI (un/dia/eq)`
+- [x] Requisitos de segurança via add/remove (mesma UX de MO/Equipamentos)
+- [x] Facilitador vê seletor de grupo (pills) para trocar entre grupos; grupo não vê switcher
+
+### Requisitos de Segurança
+
+- [x] Campo `tempo` e campo `score` removidos
+- [x] Campo `aplicavel` (Aplicável / Não Aplicável) por requisito
+- [x] Grupos adicionam requisitos via dropdown (categoria + descrição)
+- [x] `calcSeg` real: desclassificado se qualquer requisito aplicável não for adicionado pelo grupo
+- [x] Score: `addedAplicaveis / (addedAplicaveis + addedNaoAplicaveis) × 100`
+- [x] Bug de type mismatch (string vs number em reqIds) corrigido em 3 camadas: `toggleReq`, `calcSeg`, display
+
+### Cronograma
+
+- [x] Seletor de grupo apenas para facilitador (grupos veem apenas o próprio cronograma)
+- [x] Gantt mensal com volumes por célula via `monthlyVolumes(esc, kpi, equipes)`
+- [x] Tabela de duração sem coluna redundante de volumes (migrado para o Gantt)
+
+### Ranking
+
+- [x] Acessível apenas para facilitador (removido do navG)
+- [x] Debriefing mostra tabela de requisitos não atendidos por grupo desclassificado
+- [x] `buildRank` usa `seg.desq` diretamente; grupos desq têm `total: 0`
 
 ---
 
-## Lessons Learned
+## Bugs Corrigidos (v2)
 
-### L-001: calcSeg exige comparação explícita de EPIs por cargo
-
-**Context:** A lógica original assumiu que bastava iterar sobre EPIs configurados pelo facilitador.
-**Problem:** O loop incrementa `req` e `ok` pelo mesmo valor — nunca há divergência. A comparação deve verificar se o cargo existe na composição do grupo E se os EPIs exigidos estão sendo fornecidos.
-**Solution (pendente):** Para v1.1 mais simples: checar apenas EPCs por atividade (binário: atividade tem/não tem os EPCs exigidos). Para v2 completo: adicionar seleção explícita de EPI por linha de MO na composição.
-
-### L-002: Funções de página definidas dentro de App não são componentes React
-
-**Context:** `PgConfig`, `PgGrupos`, etc. são funções declaradas com `const` dentro de `App`.
-**Problem:** Ao usar `{screen==="config" && <PgConfig/>}`, React trata como elemento de função anônima a cada render — causará remount completo se `screen` não mudar. Não é um bug visível, mas pode causar perda de foco de input em rerenders.
-**Solution (futura):** Extrair PgX para componentes React independentes recebendo props explícitas.
+| Bug | Causa | Fix |
+|-----|-------|-----|
+| `addGrupo` não expandia `comps` | Bug arquitetural do arquivo único | Resolvido ao migrar para Sessions architecture |
+| `calcSeg` sempre retornava 100 | Placeholder sem lógica real | Reescrito com comparação real em `calculations.js` |
+| Score SEG não mudava após adicionar requisito | Type mismatch: `uid()` retorna `number`, `e.target.value` é `string` | `toggleReq` normaliza com `+reqId`; `calcSeg` usa `.map(Number)` + `+r._id` |
+| Composição não persistia ao trocar grupo | Mesma raiz que BUG-001 | Resolvido pela Sessions architecture |
 
 ---
 
-## Todos
+## Arquivos Órfãos
 
-- [x] Corrigir BUG-001: `addGrupo` deve expandir `comps` com `mkGrupoComps()`
-- [x] Corrigir BUG-001: Criar `delGrupo(gi)` e botão de remoção em PgGrupos
-- [x] Corrigir BUG-002: `calcSeg` com lógica real de aderência de EPIs/EPCs
-- [x] Configurar sistema de build (Vite + React) com package.json
-- [x] Validação: mostrar aviso quando LT não configurada antes de acessar Composição
+| Arquivo | Situação |
+|---------|----------|
+| `src/pages/Intro.jsx` | Substituído por `Login.jsx` — não referenciado em App.jsx |
+| `src/pages/GrupoLogin.jsx` | Substituído por `Login.jsx` — não referenciado em App.jsx |
+| `src/pages/SessionSelect.jsx` | Nunca finalizado — não referenciado em App.jsx |
 
 ---
 
-## Deferred Ideas
+## Decisões Arquiteturais
 
-- [ ] Reset sem reload ("Nova Jornada") — V1.2
-- [ ] Gabarito dinâmico baseado na LT configurada — V2
-- [ ] Exportar ranking em PNG/PDF — V2
-- [ ] Tutorial de onboarding para perfil Grupo — V2
-- [ ] Seletor de grupo na intro (antes de acessar Composição) — V1.2
-- [ ] Suporte a TypeScript — V2
+### AD-001: Sessions como top-level state
+
+**Decisão:** Toda a configuração da jornada (LT, grupos, composições, requisitos) aninhada dentro de `sessions[]`. `activeSessionId` seleciona a sessão ativa. `upd(fn)` muta apenas a sessão ativa.
+
+**Razão:** Permitir múltiplas jornadas coexistindo sem conflito; isolamento completo entre sessões.
+
+**Trade-off:** Mais profundidade no estado; `sess?.lt ?? _empty` em toda derivação.
+
+### AD-002: Login universal como ponto de entrada
+
+**Decisão:** App inicia em `screen: "login"`. Nenhuma tela é acessível antes de autenticar.
+
+**Razão:** Requisito de isolamento de grupos — grupos não devem ver dados de outros grupos ou criar sessões.
+
+**Trade-off:** Facilitador precisa se autenticar a cada recarga (estado efêmero).
+
+### AD-003: KPI como unidade diária (un/dia/eq)
+
+**Decisão:** `durDias = esc / (equipes × kpi)` — KPI é unidades por dia por equipe.
+
+**Razão:** Fidelidade ao domínio real de LT (produtividade diária por equipe).
+
+**Impact:** `monthlyVolumes = equipes × kpi × DIAS_MES (22)` por mês.
+
+### AD-004: Requisitos — desclassificação absoluta
+
+**Decisão:** Um único requisito aplicável não atendido desclassifica o grupo (`desq: true`, `score: 0`).
+
+**Razão:** Critério pedagógico inegociável — segurança não tem tolerância parcial.
+
+**Trade-off:** Grupos precisam ser diligentes em adicionar todos os requisitos para cada atividade.
+
+---
+
+## Backlog / Deferred
+
+- [ ] Supabase integration (plano escrito — não implementado)
+- [ ] Exportar ranking PNG/PDF
+- [ ] Reset de sessão sem reload ("Nova Jornada")
+- [ ] Tutorial de onboarding para perfil Grupo
+- [ ] Limpeza dos arquivos órfãos (Intro.jsx, GrupoLogin.jsx, SessionSelect.jsx)
+- [ ] Suporte a TypeScript nos catálogos

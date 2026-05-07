@@ -9,10 +9,10 @@ export const NumInp = ({ v, onChange, w = 50 }) => (
     }} />
 );
 
-export const TextInp = ({ v, onChange, placeholder = "" }) => (
+export const TextInp = ({ v, onChange, placeholder = "", w = "100%" }) => (
   <input value={v} onChange={onChange} placeholder={placeholder}
     style={{
-      width: "100%", background: C.surf3, border: `1px solid ${C.border2}`,
+      width: w, background: C.surf3, border: `1px solid ${C.border2}`,
       borderRadius: 3, color: C.txt, padding: "5px 9px", fontSize: 11,
       fontFamily: "inherit", boxSizing: "border-box"
     }} />

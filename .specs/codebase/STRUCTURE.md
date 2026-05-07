@@ -4,110 +4,113 @@
 
 ## Directory Tree
 
-```
+```text
 plan_game/
-├── .specs/                          # Documentação spec-driven
+├── .specs/                              # Documentação spec-driven
 │   ├── project/
-│   │   ├── PROJECT.md               # Visão, tech stack, escopo
-│   │   ├── ROADMAP.md               # Milestones e features
-│   │   └── STATE.md                 # Estado atual, bugs, decisões
+│   │   ├── PROJECT.md                   # Visão, tech stack, escopo
+│   │   ├── ROADMAP.md                   # Milestones e features
+│   │   └── STATE.md                     # Estado atual, bugs, decisões
 │   ├── codebase/
-│   │   ├── STACK.md                 # Dependências e ferramentas
-│   │   ├── ARCHITECTURE.md          # Padrões arquiteturais
-│   │   ├── STRUCTURE.md             # Estrutura de diretórios (este arquivo)
-│   │   ├── CONVENTIONS.md           # Convenções de código
-│   │   ├── TESTING.md               # Estratégia de testes
-│   │   ├── INTEGRATIONS.md          # Integrações externas
-│   │   └── CONCERNS.md              # Tech debt e riscos
+│   │   ├── STACK.md                     # Dependências e ferramentas
+│   │   ├── ARCHITECTURE.md              # Padrões arquiteturais
+│   │   ├── STRUCTURE.md                 # Estrutura de diretórios (este arquivo)
+│   │   ├── CONVENTIONS.md              # Convenções de código
+│   │   ├── TESTING.md                  # Estratégia de testes
+│   │   ├── INTEGRATIONS.md             # Integrações externas
+│   │   └── CONCERNS.md                 # Tech debt e riscos
 │   └── features/
-│       ├── config-lt/spec.md        # CFG — Configuração da LT
-│       ├── grupos/spec.md           # GRP — Gestão de Grupos
-│       ├── atividades-kpis/spec.md  # KPI — Atividades e KPIs Base
-│       ├── epi-epc/spec.md          # EPI — EPI e EPC
-│       ├── composicao/spec.md       # COMP — Composição por Atividade
+│       ├── config-lt/spec.md           # CFG — Configuração da LT
+│       ├── grupos/spec.md              # GRP — Gestão de Grupos
+│       ├── atividades-kpis/spec.md     # KPI — Atividades e KPIs Base
+│       ├── epi-epc/spec.md             # EPI — EPI e EPC
+│       ├── composicao/spec.md          # COMP — Composição por Atividade
 │       ├── composicao-dinamica/spec.md # DYN — Linhas Add/Remove
-│       ├── cronograma/spec.md       # CRON — Cronograma Mensal
-│       ├── ranking/spec.md          # RANK — Ranking e Debriefing
-│       ├── intro-acesso/spec.md     # INTRO — Tela Inicial e Acesso
-│       └── fluxo-completo/spec.md   # FLOW — Fluxo End-to-End
+│       ├── cronograma/spec.md          # CRON — Cronograma Mensal
+│       ├── ranking/spec.md             # RANK — Ranking e Debriefing
+│       ├── intro-acesso/spec.md        # INTRO — Login e Acesso
+│       └── fluxo-completo/spec.md      # FLOW — Fluxo End-to-End
 │
-├── template/                        # Versões do app Jornadas LT
-│   ├── jornadas-lt-v5.jsx           # ← ARQUIVO DE TRABALHO ATUAL (~1.214 linhas)
-│   └── jornadas-lt-v2.jsx           # Versão anterior (referência / tabelas estáticas)
+├── src/
+│   ├── main.jsx                        # Ponto de entrada — monta AppProvider
+│   ├── App.jsx                         # Roteador de screen — AppInner
+│   ├── styles.js                       # Estilos reutilizáveis (S.pg, S.tbl, etc.)
+│   │
+│   ├── constants/
+│   │   ├── colors.js                   # Paleta C (dark theme — 17+ tokens)
+│   │   └── catalogs.js                 # ATIVS, MO_CAT, EQ_CAT, EPI_CAT, REQ_CATEGORIAS, REQ_CAT_COLORS
+│   │
+│   ├── utils/
+│   │   ├── formatters.js               # fmt, fmtI, sc, uid
+│   │   └── calculations.js            # calcA, monthlyVolumes, calcSeg, DIAS_MES
+│   │
+│   ├── context/
+│   │   └── AppContext.jsx              # AppProvider + useApp — estado global e mutadores
+│   │
+│   ├── components/
+│   │   ├── layout/
+│   │   │   └── Header.jsx             # Barra de navegação (navF / navG) + SESSÕES + SAIR
+│   │   └── ui/
+│   │       ├── Card.jsx               # Card + BtnDel
+│   │       ├── Inputs.jsx             # NumInp, TextInp, Sel
+│   │       ├── Table.jsx              # TH, TD, TotRow
+│   │       └── Typography.jsx         # Hdr2, Tag, Pill, ScoreRing
+│   │
+│   └── pages/
+│       ├── Login.jsx                  # ← PONTO DE ENTRADA — login universal
+│       ├── SessionManager.jsx         # Facilitador — CRUD de sessões
+│       ├── Engenharia.jsx             # screen: "config" — Configuração da LT
+│       ├── Equipes.jsx                # screen: "grupos" — Gestão de grupos + senhas
+│       ├── Atividades.jsx             # screen: "atividades" — KPIs base por atividade
+│       ├── Requisitos.jsx             # screen: "requisitos" — Requisitos de segurança
+│       ├── Composicao.jsx             # screen: "composicao" — Composição MO/EQ/REQ
+│       ├── Cronograma.jsx             # screen: "cronograma" — Gantt com volumes mensais
+│       ├── Ranking.jsx                # screen: "ranking" — Score e debriefing (F only)
+│       │
+│       └── [ÓRFÃOS — não referenciados em App.jsx]
+│           ├── Intro.jsx              # Substituído por Login.jsx
+│           ├── GrupoLogin.jsx         # Substituído por Login.jsx
+│           └── SessionSelect.jsx      # Nunca finalizado
 │
-└── .claude/                         # Configuração de agentes (não modificar manualmente)
-    └── worktrees/
-        └── agent-aceb490b/          # Worktree do projeto LT Planner (projeto diferente)
-```
-
-## Arquivo Principal
-
-**`template/jornadas-lt-v5.jsx`** — Arquivo único contendo todo o app (~1.214 linhas):
-
-```
-jornadas-lt-v5.jsx
-├── PALETA (C — objeto de cores)
-├── FORMATADORES (fmt, fmtI, sc)
-├── uid() — gerador de IDs de linhas
-│
-├── CATÁLOGOS (constantes globais)
-│   ├── MO_CAT      — 25 cargos com salário base
-│   ├── EQ_CAT      — 25 equipamentos com locação/mês
-│   ├── EPI_CAT     — 20 EPIs (R$ 50 cada)
-│   ├── EPC_CAT     — 4 EPCs com custo
-│   └── ATIVS       — 16 atividades (10M + 6L)
-│
-├── FÁBRICAS DE ESTADO
-│   ├── mkComp()         — composição vazia por atividade
-│   └── mkGrupoComps()   — composições para as 16 atividades
-│
-├── UI ATOMS (fora do App, reutilizáveis)
-│   ├── TH, TD           — células de tabela
-│   ├── NumInp, TextInp  — inputs tipados
-│   ├── Sel              — select dropdown com placeholder
-│   ├── Pill             — botão de seleção toggle
-│   ├── Tag              — badge colorido
-│   ├── Hdr2             — cabeçalho de card
-│   ├── ScoreRing        — anel de score circular
-│   ├── Card             — container com borda
-│   ├── BtnAdd           — botão "+ ADICIONAR LINHA"
-│   ├── BtnDel           — botão ✕ com hover vermelho
-│   └── TotRow           — linha de total em tabela
-│
-└── App (componente raiz — exportado como default)
-    ├── Estado (useState ×12)
-    ├── Mutadores (uLt, uTorre, addGrupo, sc2, moAdd/Del, eqAdd/Del, etc.)
-    ├── Derivações (fator, totalCabos, extCondutor, ESC, etc.)
-    ├── Funções de cálculo (calcA, calcSeg, buildRank)
-    ├── Estilos (objeto S — layouts reutilizáveis)
-    ├── Nav (componente de navegação inline)
-    ├── Intro (tela inicial — renderizada inline)
-    └── Páginas (closures do App)
-        ├── PgConfig     — Config LT
-        ├── PgGrupos     — Gestão de Grupos
-        ├── PgAtividades — Atividades e KPIs
-        ├── PgEpiEpc     — EPI e EPC
-        ├── PgComposicao — Composição por Atividade
-        ├── PgCronograma — Cronograma Mensal
-        └── PgRanking    — Ranking e Debriefing
+├── index.html
+├── vite.config.js
+└── package.json
 ```
 
 ## Onde Ficam as Coisas
 
-**Catálogos de dados:**
-- Cargos de MO: `MO_CAT` (linhas 14–40)
-- Equipamentos: `EQ_CAT` (linhas 41–67)
-- EPIs: `EPI_CAT` (linhas 68–89)
-- EPCs: `EPC_CAT` (linhas 90–95)
-- Atividades: `ATIVS` (linhas 96–113)
+### Lógica de negócio central
 
-**Lógica de negócio central:**
-- `calcA(comp, esc)` — cálculo de custo e duração por atividade (linhas 286–295)
-- `calcSeg(gi)` — score de segurança (linhas 296–308) ⚠️ placeholder
-- `buildRank()` — montagem do ranking final (linhas 309–323)
+| Símbolo | Arquivo | Descrição |
+| --- | --- | --- |
+| `calcA` | `utils/calculations.js` | Custo + duração por atividade |
+| `monthlyVolumes` | `utils/calculations.js` | Array de volumes por mês para o Gantt |
+| `calcSeg` | `utils/calculations.js` | Score de segurança + desclassificação |
+| `buildRank` | `context/AppContext.jsx` | Ranking final com scores normalizados |
+| `upd(fn)` | `context/AppContext.jsx` | Mutador de sessão ativa |
+| `ESC` | `context/AppContext.jsx` | Derivações de escopo por atividade |
 
-**Geração do Gantt:**
-- `PgCronograma` — cursores `cM`/`cL` e mapeamento de timeline (linhas 1000–1117)
+### Catálogos de dados (constants/catalogs.js)
 
-**Ranking e gabarito:**
-- `PgRanking` — tabela de scores e gabarito hardcoded (linhas 1119–1198)
+| Constante | Conteúdo |
+| --- | --- |
+| `ATIVS` | 16 atividades (10 Montagem + 6 Lançamento) com `id`, `grp`, `desc`, `und`, `eKey` |
+| `MO_CAT` | 25 cargos de mão de obra com `id`, `cargo`, `sal` |
+| `EQ_CAT` | 25 equipamentos com `id`, `nome`, `loc` |
+| `EPI_CAT` | 20 EPIs com `id`, `desc` |
+| `REQ_CATEGORIAS` | Categorias de requisitos de segurança |
+| `REQ_CAT_COLORS` | Mapa categoria → cor para tags |
+
+### Paleta de cores (constants/colors.js)
+
+Todos os estilos inline referenciam o objeto `C`. Tokens principais:
+
+```text
+C.gold / C.goldL / C.goldDim  — destaque principal
+C.blueL                        — montagem (grupo M)
+C.greenL                       — lançamento (grupo L)
+C.yellow                       — avisos
+C.redL                         — erros / desclassificação
+C.txt / C.txt2 / C.txt3        — hierarquia de texto
+C.surf2 / C.surf3 / C.border   — superfícies e bordas
+```

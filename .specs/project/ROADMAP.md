@@ -1,153 +1,116 @@
 # Roadmap
 
-**Current Milestone:** V1 — Simulador Completo (MVP funcional)
-**Status:** Implementado — Backlog de qualidade e features incrementais em aberto
+**Current Milestone:** V2 — implementado e estável
+**Próximo:** V3 — Persistência (Supabase)
 
 ---
 
-## V1 — Simulador Completo (MVP)
+## V1 — MVP Arquivo Único (CONCLUÍDO)
 
-**Goal:** App funcional ponta-a-ponta: do facilitador configurando a LT até o ranking ao vivo com debriefing.
-**Target:** ✅ Implementado em `template/jornadas-lt-v5.jsx`
+**Goal:** App funcional ponta-a-ponta em arquivo único JSX.
 
-### Features
+**Entregues:**
 
-**Tela Inicial e Controle de Acesso** — COMPLETE
+- Configuração de LT (tensão, extensão, torres)
+- Gestão de grupos
+- Composição dinâmica MO + Equipamentos + Verbas
+- Cronograma Gantt mensal (10 meses)
+- Ranking 30/30/40 com debriefing básico
 
-- Seleção de perfil (Facilitador / Grupo) sem autenticação
-- Menu de navegação diferenciado por perfil
-- Botão de retorno à intro (Trocar Perfil)
-
-**Configuração da LT** — COMPLETE
-
-- Formulário completo: nome, tensão, extensão, circuito (simples/duplo), cabos/fase, para-raios, OPGW
-- Tabela de 4 tipos de torre (Crossrope, Suspensão, Ancoragem, Estaiada) com qtd e tonelagem
-- Cálculos automáticos: `totalCabos`, `extCondutor`, `totalTorres`, `tonTotal`, `ESC`
-- Cards de resumo: CONDUTORES, PARA-RAIOS, TOTAL CABOS, KM CONDUTOR
-
-**Gestão de Grupos** — COMPLETE (⚠️ com bug conhecido — ver CONCERNS.md)
-
-- Formulário de adição com nome e responsável
-- Listagem de grupos
-- Edição inline de nome e responsável
-- ⚠️ Bug: `addGrupo()` não expande `comps` — grupos adicionados após a inicialização não têm estado de composição
-
-**Atividades e KPIs Base** — COMPLETE
-
-- 16 atividades pré-definidas, read-only (10 Montagem + 6 Lançamento)
-- Campo KPI editável por atividade
-- Exibição de escopo derivado da LT configurada
-
-**EPI e EPC** — COMPLETE (⚠️ score com placeholder — ver CONCERNS.md)
-
-- Catálogo de 20 EPIs com seleção por cargo (painel interativo)
-- Matriz EPC × Atividade com checkboxes
-- Resumo de configuração (EPIs por cargo, EPCs por atividade)
-- ⚠️ Placeholder: `calcSeg()` não avalia aderência real — sempre retorna 100 ou 85
-
-**Composição por Atividade** — COMPLETE
-
-- Tabela MO dinâmica: select de cargos filtrado (sem duplicatas), add/remove com BtnDel
-- Tabela Equipamentos dinâmica: select sem filtro (pode repetir), add/remove
-- Seção Verbas: Ferramentas + Materiais editáveis
-- Campos KPI override e Equipes com cálculo de duração em tempo real
-- Resumo lateral: custo por componente, duração, EPIs requeridos, EPCs necessários
-- Barra de custo total (todas atividades)
-
-**Cronograma Mensal** — COMPLETE
-
-- Cursores independentes `cM` (Montagem) e `cL` (Lançamento)
-- Cards de resumo: Montagem, Lançamento, Duração Total, Custo Total
-- Tabela de atividades (8 colunas: GRP, ATIVIDADE, UND, ESCOPO, KPI, EQ., DURAÇÃO, CUSTO)
-- Gantt visual: 10 meses (Mai/26 a Fev/27) com ▓/·
-- Seletor de grupo
-
-**Ranking e Debriefing** — COMPLETE
-
-- Score 30% Custo + 30% Prazo + 40% Segurança
-- Desclassificação automática para sS < 70
-- ScoreRings visuais por dimensão
-- Gabarito hardcoded do facilitador (Montagem + Lançamento com itens corretos para LT 500 kV)
-- Mensagem de debriefing sobre liderança e segurança
+**Arquivo:** `template/jornadas-lt-v5.jsx` (~1.214 linhas) — mantido como referência histórica
 
 ---
 
-## V1.1 — Correções Críticas
+## V2 — SPA Multi-Arquivo + Sessions + Auth (CONCLUÍDO)
 
-**Goal:** Resolver os dois bugs que comprometem a fidelidade pedagógica da dinâmica.
-**Target:** Backlog prioritário
+**Goal:** Arquitetura escalável, isolamento real de grupos, requisitos de segurança funcionais.
 
-### Features
+### Arquitetura
 
-**Correção: addGrupo expande comps** — BACKLOG
+- [x] Migração para Vite + React multi-arquivo
+- [x] Context API (`AppContext`) com padrão `upd(fn)`
+- [x] Sessions como top-level state — múltiplas jornadas coexistem
 
-- `addGrupo()` deve chamar `setComps(p => [...p, mkGrupoComps()])` além de atualizar `grupos`
-- `delGrupo(gi)` deve remover `grupos[gi]` e `comps[gi]` simultaneamente
-- Adicionar botão de remoção de grupo na PgGrupos
+### Autenticação e Acesso
 
-**Correção: calcSeg com aderência real** — BACKLOG
+- [x] Login universal como ponto de entrada obrigatório
+- [x] Facilitador: `FACILITADOR` + `elecnorbrasil`
+- [x] Grupos: nome + senha definida pelo facilitador
+- [x] Busca de grupo em todas as sessões no login
+- [x] Isolamento completo — grupos não veem composições uns dos outros
+- [x] Ranking acessível apenas pelo facilitador
 
-- Implementar verificação real: para cada `moRow` na composição do grupo, verificar se os EPIs exigidos por `epiCargo[mo.catId]` estão sendo fornecidos
-- Como EPIs não são selecionados explicitamente na composição, definir estratégia: (a) score baseado apenas em EPCs obrigatórios por atividade, ou (b) adicionar seleção explícita de EPI por linha de MO
-- A variante (a) é mais simples e suficiente para v1.1
+### Composição
 
----
+- [x] MO simplificada (QTD, SAL, TOTAL — sem verbas)
+- [x] Equipamentos simplificados (QTD, LOC, TOTAL)
+- [x] KPI como `un/dia/eq` (label e cálculo alinhados)
+- [x] Requisitos de segurança via add/remove (UX idêntica a MO/EQ)
 
-## V1.2 — Qualidade e UX
+### Requisitos de Segurança
 
-**Goal:** Melhorias de UX identificadas em sessões de jornada.
-**Target:** Backlog
+- [x] `aplicavel` (Aplicável / Não Aplicável) por requisito
+- [x] `calcSeg` real com desclassificação absoluta
+- [x] Bug de type mismatch em `reqIds` corrigido nas 3 camadas
 
-### Features
+### Cronograma
 
-**Reset de sessão sem reload** — BACKLOG
+- [x] Volumes mensais por célula no Gantt (`monthlyVolumes`)
+- [x] Seletor de grupo visível apenas para facilitador
 
-- Botão "Nova Jornada" que reseta todos os estados para valores iniciais sem F5
-- Diálogo de confirmação antes do reset
+### Ranking
 
-**Validação de LT antes de Composição** — BACKLOG
-
-- Alerta ou bloqueio quando extensão = 0 ou todas as torres = 0
-- Indicador visual de atividades com KPI = 0
-
-**Seletor de grupo na tela Intro (perfil Grupo)** — BACKLOG
-
-- Atualmente o grupo seleciona via Pill na tela de Composição
-- Mover seleção de grupo para logo após clicar "GRUPO" na intro
-- Mensagem de espera quando nenhum grupo foi cadastrado
+- [x] Debriefing com tabela de requisitos não atendidos por grupo
+- [x] `buildRank` com desclassificação direta via `seg.desq`
 
 ---
 
-## V2 — Features Incrementais
+## V3 — Persistência com Supabase (PLANEJADO)
 
-**Goal:** Features de valor pedagógico adicional sem comprometer a simplicidade do app.
-**Target:** Planejado
+**Goal:** Estado persistido em banco de dados — facilitador retoma sessões entre recarregamentos; grupos se reconectam sem perder composições.
 
-### Features
+**Plano escrito:** disponível no histórico de conversação. Não implementado ainda.
 
-**Gabarito Dinâmico** — PLANNED
+### Features Planejadas
 
-- Substituir gabarito hardcoded por composição calculada dinamicamente com base na LT configurada
-- Facilitador pode ajustar o gabarito antes de revelar
+**Banco de dados (PostgreSQL via Supabase):**
 
-**Exportar Ranking** — PLANNED
+- Tabelas: `sessions`, `lt_config`, `torres`, `grupos`, `atividades_kpi`, `requisitos`, `composicoes`, `mo_rows`, `eq_rows`, `req_ids`, `epi_cargo`
+- RLS (Row Level Security): facilitadores veem todas as sessões; grupos veem apenas a própria sessão
+- Realtime subscriptions para ranking ao vivo
 
-- Botão para baixar ranking em PNG/PDF para distribuição pós-jornada
+**Auth:**
 
-**Exportar Cronograma** — PLANNED
+- Facilitadores: Supabase Auth (email/senha)
+- Grupos: JWT customizado via Edge Function (valida nome + senha sem criar usuário)
 
-- Botão para baixar Gantt como imagem
+**Refactoring:**
 
-**Configurar até 8 grupos** — PLANNED
+- `AppContext` passa a buscar/salvar via TanStack Query (async state)
+- `upd(fn)` local substituído por mutations com optimistic updates
 
-- Layout do ranking adaptado para até 8 grupos simultâneos
+**Deploy:** Vercel (SPA estática) + Supabase (DB + Auth + Edge Functions)
 
 ---
 
-## Future Considerations
+## V4 — Features Incrementais (BACKLOG)
 
-- Build system configurado (Vite + React) para facilitar deploy
-- Suporte a TypeScript para maior segurança de tipos nos catálogos
-- Persistência opcional via localStorage (reutilizar configuração de LT entre sessões)
-- Tutorial de onboarding de 30 segundos para perfil Grupo
-- Comparação side-by-side de dois cronogramas no debriefing
+**Goal:** Valor pedagógico adicional sem comprometer a simplicidade.
+
+- [ ] Exportar ranking em PNG/PDF para distribuição pós-jornada
+- [ ] Exportar Gantt como imagem
+- [ ] Reset de sessão sem reload ("Nova Jornada" com confirmação)
+- [ ] Tutorial de onboarding de 30 segundos para perfil Grupo
+- [ ] Gabarito dinâmico baseado na LT configurada (substituir hardcoded)
+- [ ] Comparação side-by-side de dois cronogramas no debriefing
+- [ ] Suporte a até 8 grupos simultâneos
+
+---
+
+## Deferred / Fora de Escopo
+
+- Suporte a TypeScript nos catálogos
+- App mobile nativo
+- Integração com ERP/SAP/TOTVS
+- Multi-LT simultâneas por sessão
+- Limpeza dos arquivos órfãos (`Intro.jsx`, `GrupoLogin.jsx`, `SessionSelect.jsx`)

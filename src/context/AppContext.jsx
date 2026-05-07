@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { ATIVS, MO_CAT, EQ_CAT } from "../constants/catalogs";
 import { uid } from "../utils/formatters";
 import { calcA as calcABase, calcSeg as calcSegBase, DIAS_MES } from "../utils/calculations";
@@ -13,13 +13,11 @@ const mkSession = (nome) => ({
   id: uid(),
   nome: nome || "Nova Sessão",
   lt: { nome: "", tensao: "500kV", ext: 0, circ: "simples", cabFase: 4, pararaios: 2, opgw: 1 },
-  torres: {
-    crossrope: { qtd: 0, ton: 280 }, suspensao: { qtd: 0, ton: 180 },
-    ancoragem: { qtd: 0, ton: 320 }, estaiada: { qtd: 0, ton: 420 },
-  },
   grupos: [],
   comps: [],
   kpisBase: Object.fromEntries(ATIVS.map(a => [a.id, 0])),
+  volumesPrev: Object.fromEntries(ATIVS.map(a => [a.id, 0])),
+  comentariosAtiv: Object.fromEntries(ATIVS.map(a => [a.id, ""])),
   requisitos: [],
   epiCargo: {},
 });
@@ -33,8 +31,18 @@ export function AppProvider({ children }) {
   const [aTab, setATab] = useState("a1");
   const [epiCargoAtivo, setEpiCargoAtivo] = useState("mo1");
 
-  const [sessions, setSessions] = useState([]);
+  const [sessions, setSessions] = useState(() => {
+    try {
+      const raw = localStorage.getItem("jornadas_lt_sessions");
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  });
   const [activeSessionId, setActiveSessionId] = useState(null);
+
+  useEffect(() => {
+    try { localStorage.setItem("jornadas_lt_sessions", JSON.stringify(sessions)); }
+    catch { /* quota exceeded */ }
+  }, [sessions]);
 
   const sess = sessions.find(s => s.id === activeSessionId) || null;
   const upd = fn => setSessions(p => p.map(s => s.id === activeSessionId ? fn(s) : s));
@@ -50,11 +58,8 @@ export function AppProvider({ children }) {
 
   // LT
   const _emptyLt = { nome: "", tensao: "500kV", ext: 0, circ: "simples", cabFase: 4, pararaios: 2, opgw: 1 };
-  const _emptyTorres = { crossrope: { qtd: 0, ton: 280 }, suspensao: { qtd: 0, ton: 180 }, ancoragem: { qtd: 0, ton: 320 }, estaiada: { qtd: 0, ton: 420 } };
   const lt = sess?.lt ?? _emptyLt;
-  const torres = sess?.torres ?? _emptyTorres;
   const uLt = (k, v) => upd(s => ({ ...s, lt: { ...s.lt, [k]: v } }));
-  const uTorre = (t, k, v) => upd(s => ({ ...s, torres: { ...s.torres, [t]: { ...s.torres[t], [k]: +v || 0 } } }));
 
   // Grupos
   const grupos = sess?.grupos ?? [];
@@ -78,6 +83,13 @@ export function AppProvider({ children }) {
   // KPIs
   const kpisBase = sess?.kpisBase ?? Object.fromEntries(ATIVS.map(a => [a.id, 0]));
   const setKpisBase = (fn) => upd(s => ({ ...s, kpisBase: typeof fn === "function" ? fn(s.kpisBase) : fn }));
+
+  // Volumes Previstos e Comentários
+  const volumesPrev = sess?.volumesPrev ?? Object.fromEntries(ATIVS.map(a => [a.id, 0]));
+  const setVolumesPrev = (fn) => upd(s => ({ ...s, volumesPrev: typeof fn === "function" ? fn(s.volumesPrev) : fn }));
+
+  const comentariosAtiv = sess?.comentariosAtiv ?? Object.fromEntries(ATIVS.map(a => [a.id, ""]));
+  const setComentariosAtiv = (fn) => upd(s => ({ ...s, comentariosAtiv: typeof fn === "function" ? fn(s.comentariosAtiv) : fn }));
 
   // Requisitos
   const requisitos = sess?.requisitos ?? [];
@@ -144,26 +156,18 @@ export function AppProvider({ children }) {
   const uKpi = (gi, aId, v) => updateComp(gi, aId, c => ({ ...c, kpi: +v || 0 }));
   const uEq = (gi, aId, v) => updateComp(gi, aId, c => ({ ...c, equipes: Math.max(1, +v || 1) }));
 
-  // Valores derivados
+  // Valores derivados da LT (independentes de torres)
   const fator = lt.circ === "duplo" ? 2 : 1;
   const totalCabos = ((lt.cabFase || 0) * 3 + (lt.pararaios || 0) + (lt.opgw || 0)) * fator;
   const extCondutor = (lt.ext || 0) * (lt.cabFase || 0) * 3 * fator;
-  const totalTorres = Object.values(torres).reduce((s, t) => s + t.qtd, 0);
-  const tonTotal = Object.values(torres).reduce((s, t) => s + t.ton, 0);
-  const ESC = {
-    ext: lt.ext || 0, extCondutor, totalTorres,
-    tonEstaiada: torres.estaiada.ton, qtdEstaiada: torres.estaiada.qtd,
-    tonCrossrope: torres.crossrope.ton, qtdCrossrope: torres.crossrope.qtd,
-    tonAuto: torres.suspensao.ton + torres.ancoragem.ton,
-  };
 
   const calcA = (comp, esc) => calcABase(comp, esc);
   const calcSeg = (gi) => calcSegBase(requisitos, (aId) => gc(gi, aId));
 
   const buildRank = () => {
     const res = grupos.map((g, i) => {
-      const ct = ATIVS.reduce((s, a) => s + calcA(gc(i, a.id), ESC[a.eKey] || 0).total, 0);
-      const dm = Math.max(0, ...ATIVS.map(a => calcA(gc(i, a.id), ESC[a.eKey] || 0).dur));
+      const ct = ATIVS.reduce((s, a) => s + calcA(gc(i, a.id), volumesPrev[a.id] || 0).total, 0);
+      const dm = Math.max(0, ...ATIVS.map(a => calcA(gc(i, a.id), volumesPrev[a.id] || 0).dur));
       const seg = calcSeg(i);
       return { ...g, gi: i, ct, dm, seg: seg.score, desq: seg.desq, missing: seg.missing };
     });
@@ -184,16 +188,18 @@ export function AppProvider({ children }) {
       screen, setScreen, role, setRole, gIdx, setGIdx, aTab, setATab,
       epiCargoAtivo, setEpiCargoAtivo,
       sessions, activeSessionId, setActiveSessionId, addSession, delSession, uSessionNome, sess,
-      lt, torres, uLt, uTorre,
+      lt, uLt,
       grupos, addGrupo, uGrupo, delGrupo,
       kpisBase, setKpisBase,
+      volumesPrev, setVolumesPrev,
+      comentariosAtiv, setComentariosAtiv,
       requisitos, addRequisito, delRequisito, updRequisito,
       epiCargo, togEpi,
       comps, gc, updateComp, toggleReq,
       moAdd, moDel, moUpd,
       eqAdd, eqDel, eqUpd,
       uKpi, uEq,
-      ESC, fator, totalCabos, extCondutor, totalTorres, tonTotal,
+      fator, totalCabos, extCondutor,
       calcA, calcSeg, buildRank
     }}>
       {children}

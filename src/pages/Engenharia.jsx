@@ -1,14 +1,13 @@
 import { C } from "../constants/colors";
 import { S } from "../styles";
-import { fmt, fmtI } from "../utils/formatters";
+import { fmtI } from "../utils/formatters";
 import { useApp } from "../context/AppContext";
 import { Card } from "../components/ui/Card";
-import { Hdr2, Tag, Pill } from "../components/ui/Typography";
-import { TH, TD } from "../components/ui/Table";
+import { Hdr2, Pill } from "../components/ui/Typography";
 import { NumInp, TextInp } from "../components/ui/Inputs";
 
 export default function Engenharia() {
-  const { lt, torres, uLt, uTorre, fator, totalCabos, extCondutor, totalTorres, tonTotal } = useApp();
+  const { lt, uLt, fator, totalCabos, extCondutor } = useApp();
   return (
     <div style={S.pg}>
       <Card>
@@ -45,41 +44,9 @@ export default function Engenharia() {
             ))}
           </div>
         </div>
-      </Card>
-
-      <Card>
-        <Hdr2 col={C.blueL} ch="🏗️ TIPOS DE TORRES" />
-        <table style={S.tbl}>
-          <thead><tr>
-            <TH ch="TIPO" /><TH ch="QTD" right w={100} /><TH ch="TONELADAS" right w={110} />
-            <TH ch="TOTAL TORRES" right /><TH ch="TOTAL TON" right accent />
-          </tr></thead>
-          <tbody>
-            {[["crossrope","🔁 CROSSROPE"],["suspensao","⬆️ SUSPENSÃO"],["ancoragem","⚓ ANCORAGEM"],["estaiada","🔩 ESTAIADA"]].map(([t, l]) => (
-              <tr key={t} style={S.trOff(0)}>
-                <td style={{ padding: "6px 9px", fontSize: 11, fontWeight: 700 }}>{l}</td>
-                <td style={{ padding: "4px 8px", textAlign: "right" }}>
-                  <NumInp v={torres[t].qtd} onChange={e => uTorre(t, "qtd", e.target.value)} w={70} />
-                </td>
-                <td style={{ padding: "4px 8px", textAlign: "right" }}>
-                  <NumInp v={torres[t].ton} onChange={e => uTorre(t, "ton", e.target.value)} w={80} />
-                </td>
-                <TD ch={`${torres[t].qtd} torres`} right bold />
-                <TD ch={`${fmt(torres[t].ton)} ton`} right bold accent />
-              </tr>
-            ))}
-            <tr style={S.totRow}>
-              <td style={{ padding: "6px 9px", fontSize: 11, fontWeight: 700, color: C.goldL }}>TOTAL</td>
-              <td /><td />
-              <TD ch={`${totalTorres} torres`} right bold accent />
-              <TD ch={`${fmt(tonTotal)} ton`} right bold accent />
-            </tr>
-          </tbody>
-        </table>
-        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
+        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
           {[
             ["CONDUTORES", `${lt.cabFase * 3 * fator}`, "cabos"],
-            ["PARA-RAIOS", `${lt.pararaios * fator}`, "cabos"],
             ["TOTAL CABOS", `${totalCabos}`, "cabos"],
             ["KM CONDUTOR", fmtI(extCondutor), "km"]
           ].map(([l, v, u]) => (

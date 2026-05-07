@@ -85,16 +85,16 @@ export const EPC_CAT = [
 ];
 
 export const ATIVS = [
-  { id: "a1", grp: "M", desc: "Montagem e Revisão Torre Estaiada no Solo", und: "TON", eKey: "tonEstaiada" },
-  { id: "a2", grp: "M", desc: "Içamento Torre Estaiada", und: "TON", eKey: "tonEstaiada" },
-  { id: "a3", grp: "M", desc: "Montagem Manual de Torre Estaiada", und: "TON", eKey: "tonEstaiada" },
-  { id: "a4", grp: "M", desc: "Pré Montagem Torre Autoportante", und: "TON", eKey: "tonAuto" },
-  { id: "a5", grp: "M", desc: "Montagem Mecanizada Torre Autoportante", und: "TON", eKey: "tonAuto" },
-  { id: "a6", grp: "M", desc: "Montagem Manual Torre Autoportante", und: "TON", eKey: "tonAuto" },
-  { id: "a7", grp: "M", desc: "Revisão Torre Autoportante", und: "TON", eKey: "tonAuto" },
-  { id: "a8", grp: "L", desc: "Lançamento de Cabo Condutor", und: "KM", eKey: "extCondutor" },
-  { id: "a9", grp: "L", desc: "Grampeação de Cabo Condutor", und: "TORRE", eKey: "totalTorres" },
-  { id: "a10", grp: "L", desc: "Ancoragem de Cabo Condutor", und: "TORRE", eKey: "totalTorres" },
+  { id: "a1", grp: "M", desc: "Montagem e Revisão Torre Estaiada no Solo", und: "TON" },
+  { id: "a2", grp: "M", desc: "Içamento Torre Estaiada", und: "TON" },
+  { id: "a3", grp: "M", desc: "Montagem Manual de Torre Estaiada", und: "TON" },
+  { id: "a4", grp: "M", desc: "Pré Montagem Torre Autoportante", und: "TON" },
+  { id: "a5", grp: "M", desc: "Montagem Mecanizada Torre Autoportante", und: "TON" },
+  { id: "a6", grp: "M", desc: "Montagem Manual Torre Autoportante", und: "TON" },
+  { id: "a7", grp: "M", desc: "Revisão Torre Autoportante", und: "TON" },
+  { id: "a8", grp: "L", desc: "Lançamento de Cabo Condutor", und: "KM" },
+  { id: "a9", grp: "L", desc: "Grampeação de Cabo Condutor", und: "TORRE" },
+  { id: "a10", grp: "L", desc: "Ancoragem de Cabo Condutor", und: "TORRE" },
 ];
 
 export const REQ_CATEGORIAS = ["Procedimento", "EPC", "EPIs", "Treinamentos", "Outros"];

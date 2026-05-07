@@ -13,7 +13,7 @@ export default function Composicao() {
   const {
     grupos, gIdx, setGIdx, setScreen, role,
     aTab, setATab,
-    gc, calcA, ESC,
+    gc, calcA, volumesPrev, comentariosAtiv,
     moAdd, moDel, moUpd,
     eqAdd, eqDel, eqUpd,
     uKpi, uEq,
@@ -22,10 +22,10 @@ export default function Composicao() {
 
   const aObj = ATIVS.find(a => a.id === aTab) || ATIVS[0];
   const comp = gc(gIdx, aObj.id);
-  const esc = ESC[aObj.eKey] || 0;
+  const esc = volumesPrev[aObj.id] || 0;
   const calc = calcA(comp, esc);
   const colGrp = aObj.grp === "M" ? C.blueL : C.greenL;
-  const totalGeral = ATIVS.reduce((s, a) => s + calcA(gc(gIdx, a.id), ESC[a.eKey] || 0).total, 0);
+  const totalGeral = ATIVS.reduce((s, a) => s + calcA(gc(gIdx, a.id), volumesPrev[a.id] || 0).total, 0);
   const reqsAtiv = requisitos.filter(r => r.aId === aObj.id);
 
   const moUsados = new Set(comp.moRows.map(r => r.catId));
@@ -77,14 +77,21 @@ export default function Composicao() {
                 const c = gc(gIdx, a.id);
                 const has = c.moRows.length > 0 || c.eqRows.length > 0 || c.kpi > 0;
                 const atv = aTab === a.id;
+                const obs = comentariosAtiv[a.id];
                 return (
                   <button key={a.id} onClick={() => setATab(a.id)} style={{
                     padding: "4px 10px", borderRadius: 3, fontSize: 9, fontWeight: 700, letterSpacing: 1, cursor: "pointer",
                     border: `1px solid ${atv ? col : has ? col + "88" : C.border}`,
                     background: atv ? col + "33" : has ? col + "11" : "transparent",
-                    color: atv ? col : has ? col : C.txt3
+                    color: atv ? col : has ? col : C.txt3,
+                    textAlign: "left"
                   }}>
-                    {a.desc.split(" ").slice(0, 3).join(" ")}{has ? " ✓" : ""}
+                    <div>{a.desc.split(" ").slice(0, 3).join(" ")}{has ? " ✓" : ""}</div>
+                    {obs && (
+                      <div style={{ fontSize: 8, fontWeight: 400, color: atv ? col : C.txt3, marginTop: 2, fontStyle: "italic" }}>
+                        {obs}
+                      </div>
+                    )}
                   </button>
                 );
               })}
@@ -106,7 +113,7 @@ export default function Composicao() {
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: colGrp }}>{aObj.desc}</div>
               <div style={{ fontSize: 10, color: C.txt2, marginTop: 2 }}>
-                Escopo: <strong style={{ color: C.goldL }}>{fmtI(esc)} {aObj.und.toLowerCase()}</strong>
+                Volume Previsto: <strong style={{ color: C.goldL }}>{fmtI(esc)} {aObj.und.toLowerCase()}</strong>
                 &nbsp;·&nbsp;<Tag text={aObj.und} col={colGrp} />
               </div>
             </div>

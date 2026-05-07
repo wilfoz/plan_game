@@ -11,18 +11,19 @@ import { TH, TD } from "../components/ui/Table";
 const MESES = ["Mai/26","Jun/26","Jul/26","Ago/26","Set/26","Out/26","Nov/26","Dez/26","Jan/27","Fev/27"];
 
 export default function Cronograma() {
-  const { grupos, gIdx, setGIdx, gc, calcA, ESC, lt, totalTorres, role } = useApp();
+  const { grupos, gIdx, setGIdx, gc, calcA, volumesPrev, lt, role } = useApp();
   const g = grupos[gIdx] || { nome: "Grupo" };
 
   let cM = 0, cL = 0;
   const tl = ATIVS.map(a => {
     const comp = gc(gIdx, a.id);
-    const { total: ct, dur, durTotalDias } = calcA(comp, ESC[a.eKey] || 0);
-    const vols = monthlyVolumes(ESC[a.eKey] || 0, comp.kpi, comp.equipes);
+    const vol = volumesPrev[a.id] || 0;
+    const { total: ct, dur, durTotalDias } = calcA(comp, vol);
+    const vols = monthlyVolumes(vol, comp.kpi, comp.equipes);
     const isM = a.grp === "M";
     const st = isM ? cM : cL;
     if (dur > 0) { if (isM) cM += dur; else cL += dur; }
-    return { ...a, dur, durTotalDias, start: st, end: st + (dur || 0), ct, vols, kpi: comp.kpi, equipes: comp.equipes };
+    return { ...a, dur, durTotalDias, start: st, end: st + (dur || 0), ct, vols, kpi: comp.kpi, equipes: comp.equipes, vol };
   });
 
   const custoM = tl.filter(a => a.grp === "M").reduce((s, a) => s + a.ct, 0);
@@ -36,7 +37,7 @@ export default function Cronograma() {
             CRONOGRAMA — {g.nome.toUpperCase()}
           </h2>
           <p style={{ margin: "3px 0 0", color: C.txt2, fontSize: 11 }}>
-            {lt.nome} · {lt.ext} km · {totalTorres} torres
+            {lt.nome} · {lt.ext} km
           </p>
         </div>
         {role === "F" && (
@@ -68,7 +69,7 @@ export default function Cronograma() {
         <table style={S.tbl}>
           <thead><tr>
             <TH ch="GRP" w={30} /><TH ch="ATIVIDADE" /><TH ch="UND" right w={55} />
-            <TH ch="ESCOPO" right w={90} /><TH ch="KPI" right w={70} />
+            <TH ch="VOL. PREV." right w={90} /><TH ch="KPI" right w={70} />
             <TH ch="EQ." right w={50} /><TH ch="DURAÇÃO" right accent w={100} />
             <TH ch="CUSTO" right w={110} />
           </tr></thead>
@@ -82,7 +83,7 @@ export default function Cronograma() {
                   <td style={{ padding: "5px 9px", textAlign: "center" }}><Tag text={a.und} col={col} /></td>
                   <TD ch={a.desc} />
                   <TD ch={a.und} right muted />
-                  <TD ch={fmtI(ESC[a.eKey] || 0)} right muted />
+                  <TD ch={fmtI(a.vol)} right muted />
                   <TD ch={a.kpi || "—"} right muted />
                   <TD ch={a.equipes} right muted />
                   <td style={{

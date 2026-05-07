@@ -1,130 +1,201 @@
 # Architecture
 
-**Pattern:** Single-File React SPA — estado centralizado com derivações memoizadas
+**Pattern:** Multi-file React SPA — estado global via Context API, navegação por estado `screen`, sem backend.
 
 ## High-Level Structure
 
-```
-┌─────────────────────────────────────────────────┐
-│              Browser (SPA)                       │
-│                                                  │
-│  template/jornadas-lt-v5.jsx                     │
-│  ┌───────────────────────────────────────────┐   │
-│  │  App (componente raiz)                    │   │
-│  │  ├── Estado global (useState ×N)          │   │
-│  │  ├── Derivações (useMemo / cálculos)      │   │
-│  │  ├── Mutadores (moAdd, eqAdd, etc.)       │   │
-│  │  └── Páginas (PgConfig, PgGrupos, etc.)  │   │
-│  │       └── UI Atoms (TH, TD, Sel, etc.)   │   │
-│  └───────────────────────────────────────────┘   │
-│                                                  │
-│  Sem backend. Sem API. Sem banco de dados.        │
-└─────────────────────────────────────────────────┘
+```text
+┌───────────────────────────────────────────────────────┐
+│                    Browser (SPA)                       │
+│                                                        │
+│  main.jsx → App.jsx                                    │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  AppProvider (Context)                           │  │
+│  │  ├── sessions[]        ← top-level state         │  │
+│  │  ├── activeSessionId                             │  │
+│  │  ├── role / gIdx / screen / aTab                │  │
+│  │  └── upd(fn)           ← mutador de sessão ativa │  │
+│  │                                                  │  │
+│  │  AppInner (roteador de screen)                   │  │
+│  │  ├── "login"           → Login                   │  │
+│  │  ├── "session-manager" → SessionManager          │  │
+│  │  └── * (com Header)                              │  │
+│  │       ├── config       → Engenharia              │  │
+│  │       ├── grupos       → Equipes                 │  │
+│  │       ├── atividades   → Atividades              │  │
+│  │       ├── requisitos   → Requisitos              │  │
+│  │       ├── composicao   → Composicao              │  │
+│  │       ├── cronograma   → Cronograma              │  │
+│  │       └── ranking      → Ranking                 │  │
+│  └──────────────────────────────────────────────────┘  │
+│                                                        │
+│  Sem backend. Sem API. Sem banco de dados.             │
+└───────────────────────────────────────────────────────┘
 ```
 
-## Estado Global
+## Fluxo de Navegação
 
-Todo o estado vive em `useState` hooks dentro de `App`:
+```text
+App abre → screen: "login"
+  │
+  ├── FACILITADOR + senha → screen: "session-manager"  (role: "F")
+  │     │
+  │     ├── Criar/entrar sessão → screen: "config"
+  │     │     └── navF: config → grupos → atividades → requisitos
+  │     │                     → composicao → cronograma → ranking
+  │     │
+  │     └── ☰ SESSÕES (volta ao session-manager sem logout)
+  │
+  └── [grupo] + senha → busca em sessions[] → screen: "composicao"  (role: "G")
+        └── navG: composicao → cronograma
+```
+
+## Estado Global (AppContext)
+
+### Estado de sessão (fora de sessions\[\])
 
 | Estado | Tipo | Descrição |
-|---|---|---|
-| `screen` | `string` | Tela ativa ("intro", "config", "grupos", etc.) |
-| `role` | `null \| "F" \| "G"` | Perfil ativo |
+| --- | --- | --- |
+| `screen` | `string` | Tela ativa — navega o app |
+| `role` | `null \| "F" \| "G"` | Perfil autenticado |
 | `gIdx` | `number` | Índice do grupo ativo |
 | `aTab` | `string` | ID da atividade ativa na composição |
-| `epiCargoAtivo` | `string` | ID do cargo ativo no painel EPI |
-| `lt` | `object` | Parâmetros da LT (nome, tensão, ext, circ, etc.) |
-| `torres` | `object` | Quantitativos de 4 tipos de torre |
-| `grupos` | `array` | Grupos participantes |
-| `kpisBase` | `object` | KPI base por atividade `{ [aId]: number }` |
-| `epiCargo` | `object` | EPIs obrigatórios por cargo `{ [moId]: { [epiId]: bool } }` |
-| `epcAtiv` | `object` | EPCs por atividade `{ [aId]: { [epcId]: bool } }` |
-| `comps` | `array` | Composições `[gi][aId]` com moRows, eqRows, verbas, kpi, equipes |
+| `epiCargoAtivo` | `string` | Cargo ativo no painel EPI |
+| `sessions` | `Session[]` | Todas as sessões criadas |
+| `activeSessionId` | `string \| null` | Sessão em uso |
 
-## Derivações (Cálculos Derivados)
+### Estrutura de uma Session
 
-Calculadas inline a cada render (não useMemo explícito — declarações `const` no corpo do `App`):
-
+```js
+{
+  id: uid(),
+  nome: string,
+  lt: { nome, tensao, ext, circ, cabFase, pararaios, opgw },
+  torres: { crossrope, suspensao, ancoragem, estaiada }, // cada: { qtd, ton }
+  grupos: [{ id, nome, resp, senha }],
+  comps: [                   // índice = grupo
+    {                        // chave = aId
+      [aId]: {
+        moRows: [{ _id, catId, cargo, sal, qtd }],
+        eqRows: [{ _id, catId, nome, loc, qtd }],
+        reqIds: number[],    // IDs dos requisitos adicionados pelo grupo
+        kpi: number,
+        equipes: number
+      }
+    }
+  ],
+  kpisBase: { [aId]: number },
+  requisitos: [{ _id, aId, categoria, desc, aplicavel: bool }],
+  epiCargo: { [moId]: { [epiId]: bool } }
+}
 ```
-fator = circ === "duplo" ? 2 : 1
-totalCabos = (cabFase × 3 + pararaios + opgw) × fator
+
+### Helper de mutação
+
+```js
+// Muta apenas a sessão ativa — imutável via map
+const upd = fn => setSessions(p => p.map(s => s.id === activeSessionId ? fn(s) : s));
+
+// Exemplo
+const uLt = (k, v) => upd(s => ({ ...s, lt: { ...s.lt, [k]: v } }));
+```
+
+## Cálculos (utils/calculations.js)
+
+### calcA(comp, esc) — função pura
+
+```js
+// Entrada: composição de um grupo para uma atividade + escopo
+// Saída: métricas de custo e duração
+calcA(comp, esc) → {
+  custoMo,       // sum(sal × qtd)
+  custoEq,       // sum(loc × qtd)
+  total,         // custoMo + custoEq
+  durDias,       // esc / (equipes × kpi)   [KPI = un/dia/equipe]
+  durTotalDias,  // Math.ceil(durDias)
+  dur,           // Math.ceil(durMeses × 100) / 100
+  moQtd,         // sum(qtd) de moRows
+  eqQtd          // eqRows.length
+}
+```
+
+### monthlyVolumes(esc, kpi, equipes) — Gantt
+
+```js
+// Retorna array de volumes inteiros por mês
+// volPerMonth = equipes × kpi × DIAS_MES (22)
+// Ex: monthlyVolumes(420, 9, 2) → [396, 24]  (2,13 meses)
+```
+
+### calcSeg(requisitos, getCompFn) — segurança
+
+```js
+// Para cada atividade:
+//   aplicaveis = requisitos com aplicavel !== false
+//   addedIds   = comp.reqIds normalizados para Number
+//   missing    = aplicaveis não adicionados pelo grupo
+//
+// Se missing.length > 0:
+//   → { score: 0, desq: true, missing: [{atividade, categoria, desc}] }
+// Senão:
+//   → { score: addedAplicaveis / denominator × 100, desq: false, missing: [] }
+```
+
+**Invariante crítico:** `reqIds` são sempre `number[]`. Qualquer entrada string é coercida com `+reqId` em `toggleReq` e `.map(Number)` em `calcSeg`.
+
+### buildRank() — ranking final
+
+```js
+// Pesos: Custo 30% + Duração 30% + Segurança 40%
+// sC = (minCusto / grupoCusto) × 100   (melhor grupo = 100)
+// sD = (minDur   / grupoDur)   × 100   (melhor grupo = 100)
+// sS = seg.score
+// total = desq ? 0 : round(sC×.3 + sD×.3 + sS×.4)
+// Grupos desq ficam com total=0 e não entram no cálculo de mc/md
+```
+
+## Derivações ESC (escopo por atividade)
+
+```js
+fator       = circ === "duplo" ? 2 : 1
+totalCabos  = (cabFase × 3 + pararaios + opgw) × fator
 extCondutor = ext × cabFase × 3 × fator
 totalTorres = sum(torres[tipo].qtd)
-tonTotal = sum(torres[tipo].ton)
-ESC = { ext, extCondutor, totalTorres, tonEstaiada, qtdEstaiada,
-        tonCrossrope, qtdCrossrope, tonAuto }
+
+ESC = {
+  ext, extCondutor, totalTorres,
+  tonEstaiada, qtdEstaiada,
+  tonCrossrope, qtdCrossrope,
+  tonAuto  // suspensao.ton + ancoragem.ton
+}
+// ATIVS[i].eKey mapeia cada atividade para a chave correta em ESC
 ```
 
-## Padrões Identificados
+## Controle de Acesso (Role-Based)
 
-### Páginas como Closures do App
+```text
+navF (role="F"):  ⚙ LT | 👥 GRUPOS | 📋 ATIVIDADES | 🛡️ REQUISITOS
+                  🔧 COMPOSIÇÃO | 📅 CRONOGRAMA | 🏆 RANKING
+navG (role="G"):  🔧 COMPOSIÇÃO | 📅 CRONOGRAMA
 
-As "páginas" (`PgConfig`, `PgGrupos`, `PgAtividades`, `PgEpiEpc`, `PgComposicao`, `PgCronograma`, `PgRanking`) são funções declaradas com `const` dentro de `App` — não são componentes React independentes. Elas acessam estado e mutadores do `App` por closure, sem receber props.
-
-**Consequência:** Cada render do `App` recria essas funções. Quando usadas como `<PgConfig/>`, React as trata como componentes anônimos e faz remount completo a cada render do parent.
-
-### UI Atoms Globais
-
-Componentes de UI primitivos (`TH`, `TD`, `NumInp`, `TextInp`, `Sel`, `Pill`, `Tag`, `Hdr2`, `ScoreRing`, `Card`, `BtnAdd`, `BtnDel`) são definidos fora do `App` e recebem props. São reutilizados em todas as páginas.
-
-### Mutadores de Estado Granulares
-
-Padrão de funções de mutação especializadas ao invés de um dispatcher genérico:
-
-```javascript
-// Atualiza campo da LT
-uLt(key, value) → setLt(p => ({...p, [key]: value}))
-
-// Atualiza campo de torre
-uTorre(tipo, key, value) → setTorres(p => ({...p, [tipo]: {...p[tipo], [key]: +value}}))
-
-// Atualiza composição de (grupo, atividade) com função transformadora
-sc2(gi, aId, fn) → setComps(p => { n[gi][aId] = fn(n[gi][aId]); return n; })
-
-// Add/Del linha dinâmica de MO
-moAdd(gi, aId, catId) → sc2(gi, aId, c => ({...c, moRows: [...c.moRows, {...}]}))
-moDel(gi, aId, _id)  → sc2(gi, aId, c => ({...c, moRows: c.moRows.filter(r => r._id !== _id)}))
+Telas sem header (livres):  login, session-manager
+Seletor de grupo: visível apenas para role="F" em Composicao e Cronograma
 ```
 
-### Cálculo de Composição (Função Pura)
+## Padrões de Componentes
 
-`calcA(comp, esc)` é uma função pura que recebe composição e escopo e retorna métricas calculadas:
+### UI Atoms (src/components/ui/)
 
-```javascript
-calcA(comp, esc) → { custoMo, custoEq, custoVb, total, dur, moQtd, eqQtd }
+Componentes de UI primitivos recebem props explícitas, sem acesso ao contexto:
+
+```text
+Card, BtnDel          → containers e ações destrutivas
+TH, TD, TotRow        → células de tabela
+NumInp, TextInp, Sel  → inputs tipados
+Hdr2, Tag, Pill       → tipografia e badges
+ScoreRing             → anel circular de score (conic-gradient)
 ```
 
-Usada tanto na tela de Composição (tempo real) quanto no Cronograma e Ranking, garantindo consistência.
+### Páginas (src/pages/)
 
-### Geração do Gantt (Cursores Independentes)
-
-```javascript
-let cM = 0, cL = 0;  // cursores por frente
-tl = ATIVS.map(a => {
-  const {dur} = calcA(gc(gIdx, a.id), ESC[a.eKey] || 0);
-  const st = a.grp === "M" ? cM : cL;
-  if (dur > 0) { if (isM) cM += dur; else cL += dur; }
-  return { ...a, dur, start: st, end: st + (dur || 0) };
-});
-```
-
-## Data Flow
-
-```
-Facilitador configura LT
-  → lt + torres → ESC (derivado inline)
-    → calcA(comp, ESC[eKey]) em toda composição
-
-Grupo monta composição
-  → moAdd/eqAdd → comps[gi][aId].moRows / eqRows
-    → calcA() → custoMo, custoEq, dur
-
-Cronograma
-  → calcA() para cada atividade do grupo
-    → cursores cM, cL → timeline com start/end
-
-Ranking
-  → calcA() para todas atividades de todos grupos
-    → custoTotal, durMax, calcSeg()
-      → sC, sD, sS → total (pesos 30/30/40)
-```
+Componentes React independentes que consomem `useApp()`. Recebem todo o estado e mutadores via Context, sem props.
