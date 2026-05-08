@@ -2,7 +2,7 @@ import { C } from "../../constants/colors";
 import { S } from "../../styles";
 import { useApp } from "../../context/AppContext";
 
-const navF = [["config","⚙ LT"],["grupos","👥 GRUPOS"],["atividades","📋 ATIVIDADES"],["requisitos","🛡️ REQUISITOS"],["composicao","🔧 COMPOSIÇÃO"],["cronograma","📅 CRONOGRAMA"],["ranking","🏆 RANKING"]];
+const navF = [["config","⚙ LT"],["grupos","👥 GRUPOS"],["atividades","📋 ATIVIDADES"],["equipe-base","👷 EQ. BASE"],["requisitos","🛡️ REQUISITOS"],["composicao","🔧 COMPOSIÇÃO"],["cronograma","📅 CRONOGRAMA"],["ranking","🏆 RANKING"]];
 const navG = [["composicao","🔧 COMPOSIÇÃO"],["cronograma","📅 CRONOGRAMA"]];
 
 export default function Header() {

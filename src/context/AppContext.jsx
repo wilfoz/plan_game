@@ -1,13 +1,23 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { ATIVS, MO_CAT, EQ_CAT } from "../constants/catalogs";
 import { uid } from "../utils/formatters";
-import { calcA as calcABase, calcSeg as calcSegBase, DIAS_MES } from "../utils/calculations";
+import {
+  calcA as calcABase,
+  calcSeg as calcSegBase,
+  calcNaoAplicPenalty as calcNaoAplicPenaltyBase,
+  calcEficienciaGeral,
+  DIAS_MES,
+} from "../utils/calculations";
 
 const mkComp = () => ({
   moRows: [], eqRows: [], reqIds: [],
   kpi: 0, equipes: 1
 });
 const mkGrupoComps = () => Object.fromEntries(ATIVS.map(a => [a.id, mkComp()]));
+
+// Equipe base vazia por atividade (sem kpi/equipes — usa kpisBase do facilitador)
+const mkEquipesBase = () =>
+  Object.fromEntries(ATIVS.map(a => [a.id, { moRows: [], eqRows: [] }]));
 
 const mkSession = (nome) => ({
   id: uid(),
@@ -20,6 +30,7 @@ const mkSession = (nome) => ({
   comentariosAtiv: Object.fromEntries(ATIVS.map(a => [a.id, ""])),
   requisitos: [],
   epiCargo: {},
+  equipesBase: mkEquipesBase(),
 });
 
 const AppContext = createContext(null);
@@ -108,7 +119,7 @@ export function AppProvider({ children }) {
     epiCargo: { ...s.epiCargo, [moId]: { ...(s.epiCargo[moId] || {}), [epiId]: !(s.epiCargo[moId] || {})[epiId] } }
   }));
 
-  // Composições
+  // Composições dos grupos
   const gc = (gi, aId) => comps[gi]?.[aId] || mkComp();
   const updateComp = (gi, aId, fn) => upd(s => {
     const nc = [...s.comps];
@@ -132,7 +143,7 @@ export function AppProvider({ children }) {
     if (!cat) return;
     updateComp(gi, aId, c => ({
       ...c,
-      moRows: [...c.moRows, { _id: uid(), catId, cargo: cat.cargo, sal: cat.sal, qtd: 1 }]
+      moRows: [...c.moRows, { _id: uid(), catId, cargo: cat.cargo, sal: cat.sal, qtd: 1, horasDia: 8.5 }]
     }));
   };
   const moDel = (gi, aId, _id) => updateComp(gi, aId, c => ({ ...c, moRows: c.moRows.filter(r => r._id !== _id) }));
@@ -145,7 +156,7 @@ export function AppProvider({ children }) {
     if (!cat) return;
     updateComp(gi, aId, c => ({
       ...c,
-      eqRows: [...c.eqRows, { _id: uid(), catId, nome: cat.nome, loc: cat.loc, qtd: 1 }]
+      eqRows: [...c.eqRows, { _id: uid(), catId, nome: cat.nome, loc: cat.loc, qtd: 1, horasDia: 8.0 }]
     }));
   };
   const eqDel = (gi, aId, _id) => updateComp(gi, aId, c => ({ ...c, eqRows: c.eqRows.filter(r => r._id !== _id) }));
@@ -156,20 +167,86 @@ export function AppProvider({ children }) {
   const uKpi = (gi, aId, v) => updateComp(gi, aId, c => ({ ...c, kpi: +v || 0 }));
   const uEq = (gi, aId, v) => updateComp(gi, aId, c => ({ ...c, equipes: Math.max(1, +v || 1) }));
 
-  // Valores derivados da LT (independentes de torres)
+  // Equipes Base (facilitador)
+  const _emptyEqBase = mkEquipesBase();
+  const equipesBase = sess?.equipesBase ?? _emptyEqBase;
+
+  const updEquipesBase = (aId, fn) => upd(s => {
+    const base = s.equipesBase ?? mkEquipesBase();
+    return { ...s, equipesBase: { ...base, [aId]: fn(base[aId] ?? { moRows: [], eqRows: [] }) } };
+  });
+
+  const eqBaseAddMo = (aId, catId) => {
+    const cat = MO_CAT.find(r => r.id === catId);
+    if (!cat) return;
+    updEquipesBase(aId, b => ({
+      ...b,
+      moRows: [...b.moRows, { _id: uid(), catId, cargo: cat.cargo, sal: cat.sal, qtd: 1, horasDia: 8.5 }]
+    }));
+  };
+  const eqBaseDelMo = (aId, _id) =>
+    updEquipesBase(aId, b => ({ ...b, moRows: b.moRows.filter(r => r._id !== _id) }));
+  const eqBaseUpdMo = (aId, _id, k, v) =>
+    updEquipesBase(aId, b => ({
+      ...b, moRows: b.moRows.map(r => r._id === _id ? { ...r, [k]: +v || 0 } : r)
+    }));
+
+  const eqBaseAddEq = (aId, catId) => {
+    const cat = EQ_CAT.find(r => r.id === catId);
+    if (!cat) return;
+    updEquipesBase(aId, b => ({
+      ...b,
+      eqRows: [...b.eqRows, { _id: uid(), catId, nome: cat.nome, loc: cat.loc, qtd: 1, horasDia: 8.0 }]
+    }));
+  };
+  const eqBaseDelEq = (aId, _id) =>
+    updEquipesBase(aId, b => ({ ...b, eqRows: b.eqRows.filter(r => r._id !== _id) }));
+  const eqBaseUpdEq = (aId, _id, k, v) =>
+    updEquipesBase(aId, b => ({
+      ...b, eqRows: b.eqRows.map(r => r._id === _id ? { ...r, [k]: +v || 0 } : r)
+    }));
+
+  // Valores derivados da LT
   const fator = lt.circ === "duplo" ? 2 : 1;
   const totalCabos = ((lt.cabFase || 0) * 3 + (lt.pararaios || 0) + (lt.opgw || 0)) * fator;
   const extCondutor = (lt.ext || 0) * (lt.cabFase || 0) * 3 * fator;
+  const extParaRaios = (lt.ext || 0) * (lt.pararaios || 0) * fator;
 
   const calcA = (comp, esc) => calcABase(comp, esc);
   const calcSeg = (gi) => calcSegBase(requisitos, (aId) => gc(gi, aId));
+  const calcEfGrupo = (gi) =>
+    calcEficienciaGeral((aId) => gc(gi, aId), equipesBase, kpisBase);
+
+  // Fator de penalidade de prazo por atividade:
+  // "risco" → +20% (menos recurso sem compensação de KPI: prazo subestimado)
+  // "pior"  → +40% (menos recurso E KPI abaixo: prazo certamente maior)
+  const PENALTY = { risco: 1.2, pior: 1.4 };
 
   const buildRank = () => {
     const res = grupos.map((g, i) => {
-      const ct = ATIVS.reduce((s, a) => s + calcA(gc(i, a.id), volumesPrev[a.id] || 0).total, 0);
-      const dm = Math.max(0, ...ATIVS.map(a => calcA(gc(i, a.id), volumesPrev[a.id] || 0).dur));
+      // Eficiência calculada primeiro — necessária para os fatores de penalidade de prazo
+      const ef = calcEfGrupo(i);
+
+      const ctBase = ATIVS.reduce((s, a) => {
+        const c = calcA(gc(i, a.id), volumesPrev[a.id] || 0);
+        const impacto = ef.porAtiv[a.id]?.impactoPrazo;
+        const pen = PENALTY[impacto] ?? 1.0;
+        return s + c.total * (c.durMeses > 0 ? c.durMeses * pen : 0);
+      }, 0);
+
+      // Penalidade de segurança: +2% por requisito "Não Aplicável" adicionado indevidamente
+      const penSeg = calcNaoAplicPenaltyBase(requisitos, (aId) => gc(i, aId));
+      const ct = ctBase * penSeg.fator;
+
+      const dm = Math.max(0, ...ATIVS.map(a => {
+        const c = calcA(gc(i, a.id), volumesPrev[a.id] || 0);
+        const impacto = ef.porAtiv[a.id]?.impactoPrazo;
+        const pen = PENALTY[impacto] ?? 1.0;
+        return c.dur * pen;
+      }));
+
       const seg = calcSeg(i);
-      return { ...g, gi: i, ct, dm, seg: seg.score, desq: seg.desq, missing: seg.missing };
+      return { ...g, gi: i, ct, dm, seg: seg.score, desq: seg.desq, reprovado: seg.reprovado, missing: seg.missing, ef, penSeg };
     });
     const valid = res.filter(r => !r.desq);
     const mc = Math.min(...valid.map(r => r.ct).filter(v => v > 0), Infinity);
@@ -199,8 +276,11 @@ export function AppProvider({ children }) {
       moAdd, moDel, moUpd,
       eqAdd, eqDel, eqUpd,
       uKpi, uEq,
-      fator, totalCabos, extCondutor,
-      calcA, calcSeg, buildRank
+      equipesBase,
+      eqBaseAddMo, eqBaseDelMo, eqBaseUpdMo,
+      eqBaseAddEq, eqBaseDelEq, eqBaseUpdEq,
+      fator, totalCabos, extCondutor, extParaRaios,
+      calcA, calcSeg, calcEfGrupo, buildRank
     }}>
       {children}
     </AppContext.Provider>

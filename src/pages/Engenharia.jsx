@@ -7,7 +7,7 @@ import { Hdr2, Pill } from "../components/ui/Typography";
 import { NumInp, TextInp } from "../components/ui/Inputs";
 
 export default function Engenharia() {
-  const { lt, uLt, fator, totalCabos, extCondutor } = useApp();
+  const { lt, uLt, fator, totalCabos, extCondutor, extParaRaios } = useApp();
   return (
     <div style={S.pg}>
       <Card>
@@ -44,11 +44,12 @@ export default function Engenharia() {
             ))}
           </div>
         </div>
-        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
+        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
           {[
             ["CONDUTORES", `${lt.cabFase * 3 * fator}`, "cabos"],
             ["TOTAL CABOS", `${totalCabos}`, "cabos"],
-            ["KM CONDUTOR", fmtI(extCondutor), "km"]
+            ["KM CONDUTOR", fmtI(extCondutor), "km"],
+            ["KM PARA-RAIOS", fmtI(extParaRaios), "km"]
           ].map(([l, v, u]) => (
             <div key={l} style={S.stat}>
               <div style={{ fontSize: 18, fontWeight: 700, color: C.goldL }}>{v}</div>

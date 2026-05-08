@@ -4,5 +4,5 @@ export const fmt = n => (n || 0).toLocaleString("pt-BR", { minimumFractionDigits
 export const fmtI = n => Math.round(n || 0).toLocaleString("pt-BR");
 export const sc = v => v >= 80 ? C.greenL : v >= 60 ? C.yellow : C.redL;
 
-let _uid = 0;
+let _uid = Date.now();
 export const uid = () => ++_uid;

@@ -8,6 +8,31 @@ import { BtnDel } from "../components/ui/Card";
 import { Hdr2, Tag, Pill } from "../components/ui/Typography";
 import { TH, TD, TotRow } from "../components/ui/Table";
 import { NumInp, Sel } from "../components/ui/Inputs";
+import { calcEficiencia } from "../utils/calculations";
+
+const fmt2 = n => n != null ? n.toFixed(2) : "—";
+
+function varColor(pct) {
+  if (pct == null) return C.txt3;
+  if (pct <= 0) return C.greenL;
+  if (pct <= 30) return C.yellow;
+  return C.redL;
+}
+
+function VarBadge({ pct }) {
+  if (pct == null) return null;
+  const col = varColor(pct);
+  const sinal = pct > 0 ? "+" : "";
+  return (
+    <span style={{
+      fontSize: 9, fontWeight: 700, color: col,
+      background: col + "18", border: `1px solid ${col}44`,
+      borderRadius: 3, padding: "1px 5px",
+    }}>
+      {sinal}{pct}%
+    </span>
+  );
+}
 
 export default function Composicao() {
   const {
@@ -17,7 +42,8 @@ export default function Composicao() {
     moAdd, moDel, moUpd,
     eqAdd, eqDel, eqUpd,
     uKpi, uEq,
-    epiCargo, requisitos, toggleReq
+    epiCargo, requisitos, toggleReq,
+    equipesBase, kpisBase,
   } = useApp();
 
   const aObj = ATIVS.find(a => a.id === aTab) || ATIVS[0];
@@ -37,6 +63,13 @@ export default function Composicao() {
   const availReqOpts = reqsAtiv
     .filter(r => !addedReqIds.includes(+r._id))
     .map(r => ({ id: r._id, label: `[${r.categoria}] ${r.desc || "(sem descrição)"}` }));
+
+  // Eficiência desta atividade vs equipe base
+  const baseComp = equipesBase?.[aObj.id] ?? null;
+  const kpiBase = kpisBase?.[aObj.id] ?? 0;
+  const ef = calcEficiencia(comp, baseComp, kpiBase);
+
+  const kpi = comp.kpi || 0;
 
   return (
     <div style={S.pg}>
@@ -140,41 +173,60 @@ export default function Composicao() {
             <Hdr2 col={C.blueL} ch={`👷 MÃO DE OBRA — ${aObj.desc.slice(0, 28)}`} />
             <table style={S.tbl}>
               <thead><tr>
-                <TH ch="CARGO" w={200} />
-                <TH ch="QTD" right w={60} />
+                <TH ch="CARGO" w={170} />
+                <TH ch="QTD" right w={50} />
+                <TH ch="HRS/DIA" right w={70} />
+                <TH ch="HRS TOT." right w={70} />
+                <TH ch={`COEF (Hh/${aObj.und.toLowerCase()})`} right w={110} accent />
                 <TH ch="SALÁRIO/MÊS" right />
                 <TH ch="TOTAL/MÊS" right accent />
                 <TH ch="" w={30} />
               </tr></thead>
               <tbody>
                 {comp.moRows.length === 0 && (
-                  <tr><td colSpan={5} style={{ padding: "12px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
+                  <tr><td colSpan={8} style={{ padding: "12px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
                     Nenhum cargo adicionado. Use o seletor abaixo para adicionar.
                   </td></tr>
                 )}
-                {comp.moRows.map((r) => (
-                  <tr key={r._id} style={S.trOn(C.blueL)}>
-                    <td style={{ padding: "4px 9px", fontSize: 11, fontWeight: 600, color: C.txt }}>{r.cargo}</td>
-                    <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                      <NumInp v={r.qtd} onChange={e => moUpd(gIdx, aObj.id, r._id, "qtd", e.target.value)} w={50} />
-                    </td>
-                    <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                      <NumInp v={r.sal} onChange={e => moUpd(gIdx, aObj.id, r._id, "sal", e.target.value)} w={100} />
-                    </td>
-                    <td style={{ padding: "4px 9px", textAlign: "right", fontWeight: 700, color: C.goldL, fontSize: 11 }}>
-                      {fmt(r.sal * r.qtd)}
-                    </td>
-                    <td style={{ padding: "3px 6px", textAlign: "center" }}>
-                      <BtnDel onClick={() => moDel(gIdx, aObj.id, r._id)} />
-                    </td>
-                  </tr>
-                ))}
+                {comp.moRows.map((r) => {
+                  const ht = r.qtd * (r.horasDia ?? 8.5);
+                  const cf = kpi > 0 ? ht / kpi : null;
+                  return (
+                    <tr key={r._id} style={S.trOn(C.blueL)}>
+                      <td style={{ padding: "4px 9px", fontSize: 11, fontWeight: 600, color: C.txt }}>{r.cargo}</td>
+                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
+                        <NumInp v={r.qtd} onChange={e => moUpd(gIdx, aObj.id, r._id, "qtd", e.target.value)} w={50} />
+                      </td>
+                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
+                        <NumInp v={r.horasDia ?? 8.5} onChange={e => moUpd(gIdx, aObj.id, r._id, "horasDia", e.target.value)} w={55} />
+                      </td>
+                      <td style={{ padding: "4px 9px", textAlign: "right", fontSize: 10, color: C.txt2 }}>
+                        {ht.toFixed(1)}
+                      </td>
+                      <td style={{ padding: "4px 9px", textAlign: "right", fontWeight: 700, color: C.goldL, fontSize: 11 }}>
+                        {cf != null ? fmt2(cf) : <span style={{ color: C.txt3 }}>—</span>}
+                      </td>
+                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
+                        <NumInp v={r.sal} onChange={e => moUpd(gIdx, aObj.id, r._id, "sal", e.target.value)} w={100} />
+                      </td>
+                      <td style={{ padding: "4px 9px", textAlign: "right", fontWeight: 700, color: C.goldL, fontSize: 11 }}>
+                        {fmt(r.sal * r.qtd)}
+                      </td>
+                      <td style={{ padding: "3px 6px", textAlign: "center" }}>
+                        <BtnDel onClick={() => moDel(gIdx, aObj.id, r._id)} />
+                      </td>
+                    </tr>
+                  );
+                })}
                 {comp.moRows.length > 0 && (
                   <tr style={S.totRow}>
-                    <td style={{ padding: "5px 9px", fontSize: 11, fontWeight: 700, color: C.goldL }}>
+                    <td colSpan={4} style={{ padding: "5px 9px", fontSize: 11, fontWeight: 700, color: C.goldL }}>
                       TOTAL MO — {calc.moQtd} profissionais
                     </td>
-                    <td colSpan={2} />
+                    <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 11, fontWeight: 700, color: C.goldL }}>
+                      {calc.coefMo != null ? `${fmt2(calc.coefMo)} Hh` : "—"}
+                    </td>
+                    <td />
                     <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 12, fontWeight: 700, color: C.goldL }}>
                       {fmt(calc.custoMo)}
                     </td>
@@ -205,39 +257,59 @@ export default function Composicao() {
             <Hdr2 col={C.yellow} ch={`🏗️ EQUIPAMENTOS — ${aObj.desc.slice(0, 28)}`} />
             <table style={S.tbl}>
               <thead><tr>
-                <TH ch="EQUIPAMENTO / FERRAMENTA" w={240} />
+                <TH ch="EQUIPAMENTO / FERRAMENTA" w={190} />
                 <TH ch="QTD" right w={50} />
+                <TH ch="HRS/DIA" right w={70} />
+                <TH ch="HRS TOT." right w={70} />
+                <TH ch={`COEF (Ch/${aObj.und.toLowerCase()})`} right w={110} accent />
                 <TH ch="LOCAÇÃO/MÊS" right />
                 <TH ch="TOTAL/MÊS" right accent />
                 <TH ch="" w={30} />
               </tr></thead>
               <tbody>
                 {comp.eqRows.length === 0 && (
-                  <tr><td colSpan={5} style={{ padding: "12px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
+                  <tr><td colSpan={8} style={{ padding: "12px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
                     Nenhum equipamento adicionado.
                   </td></tr>
                 )}
-                {comp.eqRows.map((r) => (
-                  <tr key={r._id} style={S.trOn(C.yellow)}>
-                    <td style={{ padding: "4px 9px", fontSize: 11, fontWeight: 600, color: C.txt }}>{r.nome}</td>
-                    <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                      <NumInp v={r.qtd} onChange={e => eqUpd(gIdx, aObj.id, r._id, "qtd", e.target.value)} w={50} />
-                    </td>
-                    <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                      <NumInp v={r.loc} onChange={e => eqUpd(gIdx, aObj.id, r._id, "loc", e.target.value)} w={100} />
-                    </td>
-                    <td style={{ padding: "4px 9px", textAlign: "right", fontWeight: 700, color: C.goldL, fontSize: 11 }}>
-                      {fmt(r.loc * r.qtd)}
-                    </td>
-                    <td style={{ padding: "3px 6px", textAlign: "center" }}>
-                      <BtnDel onClick={() => eqDel(gIdx, aObj.id, r._id)} />
-                    </td>
-                  </tr>
-                ))}
+                {comp.eqRows.map((r) => {
+                  const hrs = r.horasDia ?? 8.0;
+                  const ht = r.qtd * hrs;
+                  const cf = kpi > 0 ? ht / kpi : null;
+                  return (
+                    <tr key={r._id} style={S.trOn(C.yellow)}>
+                      <td style={{ padding: "4px 9px", fontSize: 11, fontWeight: 600, color: C.txt }}>{r.nome}</td>
+                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
+                        <NumInp v={r.qtd} onChange={e => eqUpd(gIdx, aObj.id, r._id, "qtd", e.target.value)} w={50} />
+                      </td>
+                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
+                        <NumInp v={hrs} onChange={e => eqUpd(gIdx, aObj.id, r._id, "horasDia", e.target.value)} w={55} />
+                      </td>
+                      <td style={{ padding: "4px 9px", textAlign: "right", fontSize: 10, color: C.txt2 }}>
+                        {ht.toFixed(1)}
+                      </td>
+                      <td style={{ padding: "4px 9px", textAlign: "right", fontWeight: 700, color: C.goldL, fontSize: 11 }}>
+                        {cf != null ? fmt2(cf) : <span style={{ color: C.txt3 }}>—</span>}
+                      </td>
+                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
+                        <NumInp v={r.loc} onChange={e => eqUpd(gIdx, aObj.id, r._id, "loc", e.target.value)} w={100} />
+                      </td>
+                      <td style={{ padding: "4px 9px", textAlign: "right", fontWeight: 700, color: C.goldL, fontSize: 11 }}>
+                        {fmt(r.loc * r.qtd)}
+                      </td>
+                      <td style={{ padding: "3px 6px", textAlign: "center" }}>
+                        <BtnDel onClick={() => eqDel(gIdx, aObj.id, r._id)} />
+                      </td>
+                    </tr>
+                  );
+                })}
                 {comp.eqRows.length > 0 && (
                   <tr style={S.totRow}>
-                    <td colSpan={2} style={{ padding: "5px 9px", fontSize: 11, fontWeight: 700, color: C.goldL }}>
+                    <td colSpan={4} style={{ padding: "5px 9px", fontSize: 11, fontWeight: 700, color: C.goldL }}>
                       TOTAL EQUIPAMENTOS — {comp.eqRows.length} itens
+                    </td>
+                    <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 11, fontWeight: 700, color: C.goldL }}>
+                      {calc.coefEq != null ? `${fmt2(calc.coefEq)} Ch` : "—"}
                     </td>
                     <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 10, color: C.txt2 }}>/mês</td>
                     <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 12, fontWeight: 700, color: C.goldL }}>
@@ -267,37 +339,29 @@ export default function Composicao() {
               <thead><tr>
                 <TH ch="CATEGORIA" w={140} />
                 <TH ch="DESCRIÇÃO" />
-                <TH ch="STATUS" right w={120} />
                 <TH ch="" w={30} />
               </tr></thead>
               <tbody>
                 {addedReqs.length === 0 && (
-                  <tr><td colSpan={4} style={{ padding: "12px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
+                  <tr><td colSpan={3} style={{ padding: "12px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
                     {reqsAtiv.length === 0
                       ? "Nenhum requisito cadastrado pelo facilitador para esta atividade."
                       : "Nenhum requisito adicionado. Use o seletor abaixo."}
                   </td></tr>
                 )}
-                {addedReqs.map((req) => {
-                  const isAplic = req.aplicavel !== false;
-                  const aplCol = isAplic ? C.greenL : C.yellow;
-                  return (
-                    <tr key={req._id} style={S.trOn(C.greenL)}>
-                      <td style={{ padding: "4px 9px" }}>
-                        <Tag text={req.categoria} col={REQ_CAT_COLORS[req.categoria]} />
-                      </td>
-                      <td style={{ padding: "4px 9px", fontSize: 10, color: C.txt }}>
-                        {req.desc || "(sem descrição)"}
-                      </td>
-                      <td style={{ padding: "4px 9px", textAlign: "right" }}>
-                        <Tag text={isAplic ? "✅ Aplicável" : "⚠️ N.Aplicável"} col={aplCol} />
-                      </td>
-                      <td style={{ padding: "3px 6px", textAlign: "center" }}>
-                        <BtnDel onClick={() => toggleReq(gIdx, aObj.id, req._id)} />
-                      </td>
-                    </tr>
-                  );
-                })}
+                {addedReqs.map((req) => (
+                  <tr key={req._id} style={S.trOn(C.greenL)}>
+                    <td style={{ padding: "4px 9px" }}>
+                      <Tag text={req.categoria} col={REQ_CAT_COLORS[req.categoria]} />
+                    </td>
+                    <td style={{ padding: "4px 9px", fontSize: 10, color: C.txt }}>
+                      {req.desc || "(sem descrição)"}
+                    </td>
+                    <td style={{ padding: "3px 6px", textAlign: "center" }}>
+                      <BtnDel onClick={() => toggleReq(gIdx, aObj.id, req._id)} />
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
             {reqsAtiv.length > 0 && (
@@ -359,6 +423,74 @@ export default function Composicao() {
                 </tbody>
               </table>
 
+              {/* Comparador de coeficientes vs referência */}
+              {ef.temBase && ef.temGrupo && (
+                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, marginBottom: 10 }}>
+                  <div style={{ fontSize: 9, color: C.txt3, letterSpacing: 3, marginBottom: 8 }}>
+                    📐 COEFICIENTES VS REFERÊNCIA
+                  </div>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
+                    <thead>
+                      <tr>
+                        <td style={{ padding: "2px 4px", color: C.txt3, fontSize: 9 }}></td>
+                        <td style={{ padding: "2px 4px", textAlign: "right", color: C.txt3, fontSize: 9 }}>GRUPO</td>
+                        <td style={{ padding: "2px 4px", textAlign: "right", color: C.txt3, fontSize: 9 }}>BASE</td>
+                        <td style={{ padding: "2px 4px", textAlign: "right", color: C.txt3, fontSize: 9 }}>VAR.</td>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ef.coefMoGrupo != null && (
+                        <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                          <td style={{ padding: "4px 4px", color: C.blueL, fontWeight: 700 }}>Hh MO</td>
+                          <td style={{ padding: "4px 4px", textAlign: "right", color: C.txt }}>{fmt2(ef.coefMoGrupo)}</td>
+                          <td style={{ padding: "4px 4px", textAlign: "right", color: C.txt2 }}>
+                            {ef.coefMoBase != null ? fmt2(ef.coefMoBase) : "—"}
+                          </td>
+                          <td style={{ padding: "4px 4px", textAlign: "right" }}>
+                            <VarBadge pct={ef.varMoPct} />
+                          </td>
+                        </tr>
+                      )}
+                      {ef.coefEqGrupo != null && ef.coefEqGrupo > 0 && (
+                        <tr>
+                          <td style={{ padding: "4px 4px", color: C.yellow, fontWeight: 700 }}>Ch EQ</td>
+                          <td style={{ padding: "4px 4px", textAlign: "right", color: C.txt }}>{fmt2(ef.coefEqGrupo)}</td>
+                          <td style={{ padding: "4px 4px", textAlign: "right", color: C.txt2 }}>
+                            {ef.coefEqBase != null ? fmt2(ef.coefEqBase) : "—"}
+                          </td>
+                          <td style={{ padding: "4px 4px", textAlign: "right" }}>
+                            <VarBadge pct={ef.varEqPct} />
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                  {/* Mensagens de impacto — custo E prazo */}
+                  {ef.varMoPct != null && (() => {
+                    const msgs = [];
+                    // Custo
+                    if (ef.varMoPct > 30)
+                      msgs.push({ col: C.redL, txt: `💰 MO ${ef.varMoPct}% acima — impacto relevante no CUSTO.` });
+                    else if (ef.varMoPct > 0)
+                      msgs.push({ col: C.yellow, txt: `💰 MO ${ef.varMoPct}% acima — impacto moderado no CUSTO.` });
+                    else if (ef.varMoPct < 0)
+                      msgs.push({ col: C.greenL, txt: `💰 MO ${Math.abs(ef.varMoPct)}% abaixo — custo menor que a referência.` });
+                    // Prazo
+                    if (ef.impactoPrazo === "pior")
+                      msgs.push({ col: C.redL, txt: `⏱️ PRAZO em risco: menos recurso E KPI menor que o previsto — a duração real pode ser maior.` });
+                    else if (ef.impactoPrazo === "risco")
+                      msgs.push({ col: C.yellow, txt: `⏱️ Valide o PRAZO: menos recurso sem ganho de KPI — o prazo declarado pode estar subestimado.` });
+                    else if (ef.impactoPrazo === "melhor" && ef.varMoPct <= 0)
+                      msgs.push({ col: C.greenL, txt: `⏱️ KPI compensa o menor recurso — prazo igual ou menor que o previsto.` });
+                    return msgs.map((m, i) => (
+                      <div key={i} style={{ marginTop: 4, fontSize: 9, color: m.col, lineHeight: 1.5 }}>
+                        {m.txt}
+                      </div>
+                    ));
+                  })()}
+                </div>
+              )}
+
               {/* EPIs requeridos */}
               {comp.moRows.length > 0 && (
                 <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, marginBottom: 10 }}>
@@ -393,14 +525,13 @@ export default function Composicao() {
                   <div style={{ fontSize: 9, color: C.txt3, letterSpacing: 3, marginBottom: 6 }}>🛡️ REQUISITOS DE SEGURANÇA</div>
                   {reqsAtiv.map(req => {
                     const on = addedReqIds.includes(+req._id);
-                    const isAplic = req.aplicavel !== false;
                     return (
                       <div key={req._id} style={{
                         fontSize: 9, color: on ? C.txt : C.txt3, padding: "2px 0 2px 10px",
                         borderLeft: `2px solid ${on ? REQ_CAT_COLORS[req.categoria] + "88" : C.border}`,
                         display: "flex", gap: 4, alignItems: "center"
                       }}>
-                        <span>{on ? (isAplic ? "✅" : "⚠️") : "⬜"}</span>
+                        <span>{on ? "✅" : "⬜"}</span>
                         <span style={{ flex: 1 }}>{req.desc || req.categoria}</span>
                       </div>
                     );

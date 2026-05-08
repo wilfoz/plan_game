@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Engenharia from "./pages/Engenharia";
 import Equipes from "./pages/Equipes";
 import Atividades from "./pages/Atividades";
+import EquipeBase from "./pages/EquipeBase";
 import Requisitos from "./pages/Requisitos";
 import Composicao from "./pages/Composicao";
 import Cronograma from "./pages/Cronograma";
@@ -21,6 +22,7 @@ function AppInner() {
       {screen === "config" && <Engenharia />}
       {screen === "grupos" && <Equipes />}
       {screen === "atividades" && <Atividades />}
+      {screen === "equipe-base" && <EquipeBase />}
       {screen === "requisitos" && <Requisitos />}
       {screen === "composicao" && <Composicao />}
       {screen === "cronograma" && <Cronograma />}
