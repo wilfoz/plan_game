@@ -162,6 +162,78 @@ export const calcNaoAplicPenalty = (requisitos, getCompFn) => {
   return { count, fator: 1 + count * 0.02, pct: count * 2, detalhes };
 };
 
+// ─── Coerência de recursos ─────────────────────────────────────────────────
+//
+// Regras: cada cargo operador deve ter o(s) equipamento(s) correspondente(s).
+// opPorEq = quantos operadores por unidade de equipamento.
+const COERENCIA_REGRAS = [
+  { cargo: "OPERADOR DE GUINDASTE",        eqNomes: ["GUINDASTE"],                                                           opPorEq: 1 },
+  { cargo: "OPERADOR DE GUINCHO",          eqNomes: ["GUINCHO P/ MONTAGEM"],                                                 opPorEq: 1 },
+  // CONJUNTO LANÇAMENTO inclui puller + freio; cada conjunto exige 2 operadores
+  { cargo: "OPERADOR DE PULLER/FREIO",     eqNomes: ["CONJUNTO LANÇAMENTO - PULLER E FREIO"],                               opPorEq: 2 },
+  { cargo: "MOTORISTA OPERADOR MUNCK",     eqNomes: ["CAMINHÃO MUNCK"],                                                      opPorEq: 1 },
+  { cargo: "MOTORISTA",                    eqNomes: ["CAMINHÃO PRANCHA", "CAMINHONETE 4X4", "CAMINHÃO CABINADO 10 PESSOAS"], opPorEq: 1 },
+  { cargo: "OPERADOR DE TRATOR",           eqNomes: ["TRATOR", "TRATOR DE ESTEIRA"],                                         opPorEq: 1 },
+  { cargo: "OPERADOR DE MAQUINAS PESASAS", eqNomes: ["ESCAVADEIRA HIDRÁULICA", "RETROESCAVADEIRA 4X4"],                     opPorEq: 1 },
+  { cargo: "NIVELADOR",                    eqNomes: ["ESTAÇÃO TOTAL", "GPS RTK"],                                            opPorEq: 1 },
+];
+
+// Capacidade total de passageiros por unidade de veículo de transporte.
+// CAMINHÃO CABINADO 10 PESSOAS: 10 no banco traseiro + motorista + carona = 12.
+// CAMINHONETE 4X4: motorista + 4 = 5.
+// CAMINHÃO PRANCHA: motorista + 1 = 2.
+export const CAPACIDADE_TRANSPORTE = {
+  "CAMINHÃO CABINADO 10 PESSOAS": 12,
+  "CAMINHONETE 4X4": 5,
+  "CAMINHÃO PRANCHA": 2,
+};
+
+// Cargos que já possuem veículo próprio e não precisam de vaga nos veículos coletivos.
+const CARGOS_TRANSPORTE_PROPRIO = ["MOTORISTA OPERADOR MUNCK"];
+
+// Retorna { issues[] } com problemas de coerência operador↔equipamento e transporte.
+export function calcCoerencia(moRows, eqRows) {
+  const issues = [];
+  const qtdOp = (cargo) => moRows.filter(r => r.cargo === cargo).reduce((s, r) => s + (r.qtd || 1), 0);
+  const qtdEq = (nomes) => eqRows.filter(r => nomes.includes(r.nome)).reduce((s, r) => s + (r.qtd || 1), 0);
+
+  for (const reg of COERENCIA_REGRAS) {
+    const nOp = qtdOp(reg.cargo);
+    const nEq = qtdEq(reg.eqNomes);
+    if (nOp === 0 && nEq === 0) continue;
+
+    const eqEsperado = nOp > 0 ? Math.ceil(nOp / reg.opPorEq) : 0;
+    const opEsperado = nEq * reg.opPorEq;
+
+    if (nOp > 0 && nEq === 0) {
+      issues.push({ tipo: "sem_equipamento", cargo: reg.cargo, nOp, eqNomes: reg.eqNomes, eqEsperado });
+    } else if (nOp === 0 && nEq > 0) {
+      issues.push({ tipo: "sem_operador", cargo: reg.cargo, nEq, eqNomes: reg.eqNomes, opEsperado });
+    } else {
+      if (nEq < eqEsperado)
+        issues.push({ tipo: "eq_insuficiente", cargo: reg.cargo, nOp, nEq, eqNomes: reg.eqNomes, eqEsperado });
+      else if (nEq > eqEsperado)
+        issues.push({ tipo: "eq_ocioso", cargo: reg.cargo, nOp, nEq, eqNomes: reg.eqNomes, eqEsperado });
+      if (reg.opPorEq === 2 && nOp % 2 !== 0)
+        issues.push({ tipo: "impar_puller_freio", nOp });
+    }
+  }
+
+  // Capacidade de transporte coletivo
+  const totalMo = moRows.reduce((s, r) => s + (r.qtd || 1), 0);
+  const comProprio = moRows
+    .filter(r => CARGOS_TRANSPORTE_PROPRIO.includes(r.cargo))
+    .reduce((s, r) => s + (r.qtd || 1), 0);
+  const precisam = totalMo - comProprio;
+  const vagas = eqRows.reduce((s, r) => s + ((CAPACIDADE_TRANSPORTE[r.nome] || 0) * (r.qtd || 1)), 0);
+  const deficit = Math.max(0, precisam - vagas);
+  if (totalMo > 0 && deficit > 0)
+    issues.push({ tipo: "transporte_insuficiente", totalMo, comProprio, precisam, vagas, deficit });
+
+  return { issues };
+}
+
+// ─── Score de segurança ────────────────────────────────────────────────────
 // Retorna { score: 0-100, desq: bool, missing: [{atividade, categoria, desc}] }
 // Score = aplicaveis adicionados / total aplicaveis * 100; desq se score < 70
 export const calcSeg = (requisitos, getCompFn) => {

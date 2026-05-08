@@ -40,7 +40,7 @@ function MdText({ text, style }) {
 const HAS_KEY = !!(import.meta.env.VITE_ANTHROPIC_API_KEY);
 
 export default function Ranking() {
-  const { lt, buildRank } = useApp();
+  const { lt, buildRank, gc } = useApp();
   const rank = buildRank();
   const medals = ["🥇", "🥈", "🥉"];
 
@@ -61,6 +61,7 @@ export default function Ranking() {
         scores: { sC: g.sC, sD: g.sD, sS: g.sS, total: g.total, desq: g.desq },
         penSeg: g.penSeg,
         ativs,
+        compsRaw: ATIVS.map(a => ({ atv: a, ...gc(g.gi, a.id) })),
         onTool: ({ id, input }) =>
           setAiState(prev => {
             const cur = prev[g.id] ?? { charts: [] };

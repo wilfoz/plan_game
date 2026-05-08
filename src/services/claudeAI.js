@@ -1,3 +1,5 @@
+import { calcCoerencia } from "../utils/calculations";
+
 // Chamada via proxy Vite (/api/claude → https://api.anthropic.com/v1/messages)
 // Evita bloqueio CORS do browser ao chamar a API Anthropic diretamente.
 const API_URL = "/api/claude";
@@ -48,7 +50,44 @@ Use OBRIGATORIAMENTE esta ferramenta para criar os seguintes gráficos antes de 
   }
 ];
 
-function buildPrompt({ grupo, lt, ef, scores, ativs, penSeg }) {
+function formatCoerencia(coerenciaAtivs) {
+  const linhas = [];
+  let totalIssues = 0;
+
+  for (const { atv, issues } of coerenciaAtivs) {
+    if (issues.length === 0) continue;
+    totalIssues += issues.length;
+    linhas.push(`• ${atv.desc} (${atv.und}):`);
+    for (const iss of issues) {
+      switch (iss.tipo) {
+        case "sem_equipamento":
+          linhas.push(`  ⚠️ ${iss.nOp}× ${iss.cargo} sem ${iss.eqNomes.join(" ou ")} — esperado ${iss.eqEsperado} unid.`);
+          break;
+        case "sem_operador":
+          linhas.push(`  ⚠️ ${iss.nEq}× ${iss.eqNomes[0]} sem ${iss.cargo} — esperado ${iss.opEsperado} operador(es)`);
+          break;
+        case "eq_insuficiente":
+          linhas.push(`  ⚠️ ${iss.nOp}× ${iss.cargo}: apenas ${iss.nEq} ${iss.eqNomes[0]} (esperado ${iss.eqEsperado})`);
+          break;
+        case "eq_ocioso":
+          linhas.push(`  ℹ️ ${iss.nEq}× ${iss.eqNomes[0]} para ${iss.nOp}× ${iss.cargo} — ${iss.nEq - iss.eqEsperado} equipamento(s) ocioso(s)`);
+          break;
+        case "impar_puller_freio":
+          linhas.push(`  ⚠️ Número ímpar de OPERADOR DE PULLER/FREIO (${iss.nOp}) — cada CONJUNTO LANÇAMENTO requer 2 operadores`);
+          break;
+        case "transporte_insuficiente":
+          linhas.push(`  🚨 Transporte insuficiente: ${iss.precisam} colaboradores precisam de vaga, ${iss.vagas} disponíveis — déficit de ${iss.deficit} vaga(s) [MOTORISTA OPERADOR MUNCK excluído: ${iss.comProprio}]`);
+          break;
+      }
+    }
+  }
+
+  if (totalIssues === 0)
+    return "✅ Nenhum problema de coerência detectado em nenhuma atividade.";
+  return linhas.join("\n");
+}
+
+function buildPrompt({ grupo, lt, ef, scores, ativs, penSeg, coerenciaAtivs }) {
   const pct = v => (v != null ? `${v > 0 ? "+" : ""}${v}%` : "—");
 
   const ativsDetalhes = ativs
@@ -100,13 +139,17 @@ VALORES PRÉ-CALCULADOS PARA O RADAR (use exatamente estes):
 - Efic.MO = ${efMO} | Efic.EQ = ${efEQ}
 - Referência (Base) = todos os valores 100
 
+COERÊNCIA DE RECURSOS (verificação automática operador ↔ equipamento e transporte):
+${formatCoerencia(coerenciaAtivs)}
+
 ---
 INSTRUÇÕES:
 1. Use renderizar_grafico para criar os gráficos (obrigatório antes do texto)
-2. Depois forneça análise em 3 seções (máximo 300 palavras, português brasileiro, tom técnico):
+2. Depois forneça análise em 4 seções (máximo 400 palavras, português brasileiro, tom técnico):
    **1. Diagnóstico de Eficiência** — padrões nos coeficientes, atividades com maior desvio
    **2. Impacto em Custo e Prazo** — relação coeficiente × KPI, atividades críticas, efeito cascata em LT sequencial
-   **3. Recomendações** — 2 a 3 ações práticas específicas para este contexto de construção de LT`;
+   **3. Coerência de Recursos** — para cada problema listado acima: classifique como OCIOSO (custo sem uso), RISCO OPERACIONAL (pode travar a frente) ou INVIÁVEL (execução impossível); explique o impacto prático na LT. Se não houver problemas, confirme brevemente.
+   **4. Recomendações** — 3 ações práticas específicas (inclua correções de coerência se houver problemas)`;
 }
 
 async function fetchRound1(prompt) {
@@ -174,13 +217,21 @@ async function streamRound2(messages, onChunk) {
 // Fluxo multi-turn com tool use:
 //   Round 1 (não-streaming): Claude chama renderizar_grafico → onTool(toolInput) por gráfico
 //   Round 2 (streaming): Claude gera texto final → onChunk(textAcumulado)
-export async function analyzeEficienciaStream({ grupo, lt, ef, scores, ativs, penSeg, onTool, onChunk }) {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-  if (!apiKey || apiKey.startsWith("<")) {
-    throw new Error("Configure VITE_ANTHROPIC_API_KEY no arquivo .env.local");
+export async function analyzeEficienciaStream({ grupo, lt, ef, scores, ativs, compsRaw, penSeg, onTool, onChunk }) {
+  if (import.meta.env.DEV) {
+    const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+    if (!apiKey || apiKey.startsWith("<")) {
+      throw new Error("Configure VITE_ANTHROPIC_API_KEY no arquivo .env.local");
+    }
   }
 
-  const prompt = buildPrompt({ grupo, lt, ef, scores, ativs, penSeg });
+  // Verificação de coerência por atividade (determinística, antes de chamar a IA)
+  const coerenciaAtivs = (compsRaw ?? []).map(({ atv, moRows, eqRows }) => ({
+    atv,
+    issues: calcCoerencia(moRows ?? [], eqRows ?? []).issues,
+  }));
+
+  const prompt = buildPrompt({ grupo, lt, ef, scores, ativs, penSeg, coerenciaAtivs });
 
   // ── Round 1: tool calls ──
   const round1 = await fetchRound1(prompt);
