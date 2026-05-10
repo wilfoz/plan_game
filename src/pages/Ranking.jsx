@@ -140,7 +140,7 @@ export default function Ranking() {
         <table style={S.tbl}>
           <thead><tr>
             <TH ch="#" w={30} /><TH ch="GRUPO" /><TH ch="RESPONSÁVEL" />
-            <TH ch="💰 CUSTO TOTAL" right /><TH ch="⏱️ DUR. MÁX." right />
+            <TH ch="💰 CUSTO TOTAL" right /><TH ch="⏱️ DUR. TOTAL" right />
             <TH ch="S.CUSTO" right /><TH ch="S.DUR." right /><TH ch="🦺 SEG." right />
             <TH ch="SCORE" right accent /><TH ch="STATUS" />
           </tr></thead>

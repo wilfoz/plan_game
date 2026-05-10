@@ -12,6 +12,7 @@ import Requisitos from "./pages/Requisitos";
 import Composicao from "./pages/Composicao";
 import Cronograma from "./pages/Cronograma";
 import Ranking from "./pages/Ranking";
+import CopiarComposicao from "./pages/CopiarComposicao";
 
 function LoadingBar({ visible }) {
   if (!visible) return null;
@@ -28,6 +29,7 @@ function AppInner() {
   const { screen, isLoading } = useApp();
   if (screen === "session-manager") return <><LoadingBar visible={isLoading} /><SessionManager /></>;
   if (screen === "login") return <Login />;
+  if (screen === "copiar-composicao") return <CopiarComposicao />;
   return (
     <div style={S.app}>
       <LoadingBar visible={isLoading} />

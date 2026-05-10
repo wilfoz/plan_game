@@ -44,7 +44,7 @@ const inputStyle = (hasErro, disabled) => ({
 });
 
 export default function Login() {
-  const { setRole, setGIdx, setActiveSessionId, setScreen } = useApp();
+  const { setRole, setGIdx, setActiveSessionId, setScreen, setCopyOptions } = useApp();
 
   const [usuario, setUsuario]       = useState("");
   const [senha, setSenha]           = useState("");
@@ -60,10 +60,74 @@ export default function Login() {
     return () => clearTimeout(t);
   }, [bloqueioSeg]);
 
-  const entrarNaSessao = (s) => {
+  const entrarNaSessao = async (s, allSessoes = []) => {
     setActiveSessionId(s.session_id);
     setGIdx(s.grupo_idx);
     setRole("G");
+
+    const others = allSessoes.filter(x => x.session_id !== s.session_id);
+    if (others.length > 0) {
+      try {
+        // 1. Verifica se o grupo já tem recursos na sessão atual
+        const { data: currentGrupoArr } = await supabase
+          .from("grupos")
+          .select("id")
+          .eq("session_id", s.session_id)
+          .ilike("nome", usuario.trim())
+          .limit(1);
+
+        const currentGrupoId = currentGrupoArr?.[0]?.id;
+
+        if (currentGrupoId) {
+          const { data: currentComps } = await supabase
+            .from("grupo_comps")
+            .select("mo_rows, eq_rows")
+            .eq("grupo_id", currentGrupoId);
+
+          const jaTemRecursos = (currentComps ?? []).some(
+            r => (r.mo_rows?.length > 0) || (r.eq_rows?.length > 0)
+          );
+
+          // Se já tem recursos → entra direto sem oferecer cópia
+          if (jaTemRecursos) {
+            setScreen("composicao");
+            return;
+          }
+        }
+
+        // 2. Sessão atual vazia → verifica se há recursos em outras sessões para copiar
+        const { data: srcGrupos } = await supabase
+          .from("grupos")
+          .select("id, session_id")
+          .ilike("nome", usuario.trim())
+          .in("session_id", others.map(o => o.session_id));
+
+        if (srcGrupos?.length) {
+          const { data: srcComps } = await supabase
+            .from("grupo_comps")
+            .select("grupo_id, mo_rows, eq_rows")
+            .in("grupo_id", srcGrupos.map(g => g.id));
+
+          const withComps = srcGrupos.filter(g =>
+            srcComps?.some(c =>
+              c.grupo_id === g.id &&
+              ((c.mo_rows?.length > 0) || (c.eq_rows?.length > 0))
+            )
+          );
+
+          if (withComps.length > 0) {
+            setCopyOptions(withComps.map(g => ({
+              grupo_id: g.id,
+              session_id: g.session_id,
+              session_nome: others.find(o => o.session_id === g.session_id)?.session_nome ?? "Sessão anterior",
+            })));
+            setScreen("copiar-composicao");
+            return;
+          }
+        }
+      } catch { /* prossegue normalmente em caso de erro */ }
+    }
+
     setScreen("composicao");
   };
 
@@ -123,7 +187,7 @@ export default function Login() {
 
       if (data && data.length === 1) {
         clearRecord("grupo");
-        entrarNaSessao(data[0]);
+        entrarNaSessao(data[0], data);
       } else if (data && data.length > 1) {
         clearRecord("grupo");
         setSessoes(data);
@@ -193,7 +257,7 @@ export default function Login() {
               {sessoes.map(s => (
                 <button
                   key={s.session_id}
-                  onClick={() => entrarNaSessao(s)}
+                  onClick={() => entrarNaSessao(s, sessoes)}
                   style={{
                     padding: "12px 16px", borderRadius: 6, cursor: "pointer",
                     background: C.surf2, border: `1px solid ${C.border2}`,

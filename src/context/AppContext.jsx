@@ -35,6 +35,8 @@ export function AppProvider({ children }) {
   const [aTab, setATab] = useState("a1");
   const [epiCargoAtivo, setEpiCargoAtivo] = useState("mo1");
   const [activeSessionId, setActiveSessionId] = useState(null);
+  const [duracaoSomada, setDuracaoSomada] = useState(true);
+  const [copyOptions, setCopyOptions] = useState(null);
 
   // ── Supabase hooks ────────────────────────────────────────────────────────
   const sessionsHook = useSessions();
@@ -371,11 +373,27 @@ export function AppProvider({ children }) {
       }, 0);
       const penSeg = calcNaoAplicPenaltyBase(requisitos, (aId) => gc(i, aId));
       const ct = ctBase * penSeg.fator;
-      const dm = Math.max(0, ...ATIVS.map(a => {
-        const c  = calcA(gc(i, a.id), volumesPrev[a.id] || 0);
-        const pen = PENALTY[ef.porAtiv[a.id]?.impactoPrazo] ?? 1.0;
-        return c.dur * pen;
-      }));
+      let dm;
+      if (duracaoSomada) {
+        dm = ATIVS.reduce((s, a) => {
+          const c = calcA(gc(i, a.id), volumesPrev[a.id] || 0);
+          const pen = PENALTY[ef.porAtiv[a.id]?.impactoPrazo] ?? 1.0;
+          return s + c.dur * pen;
+        }, 0);
+      } else {
+        const pts = ATIVS.map(a => {
+          const comp = gc(i, a.id);
+          const c = calcA(comp, volumesPrev[a.id] || 0);
+          const pen = PENALTY[ef.porAtiv[a.id]?.impactoPrazo] ?? 1.0;
+          if (c.dur <= 0) return null;
+          const mes = comp.mesInicia > 0 ? comp.mesInicia : (mesIniciaBase[a.id] || 0);
+          if (mes <= 0) return null;
+          return { s: mes, e: mes + Math.ceil(c.dur * pen) - 1 };
+        }).filter(Boolean);
+        dm = pts.length
+          ? Math.max(...pts.map(x => x.e)) - Math.min(...pts.map(x => x.s)) + 1
+          : 0;
+      }
       const seg = calcSeg(i);
       return { ...g, gi: i, ct, dm, seg: seg.score, desq: seg.desq, reprovado: seg.reprovado, missing: seg.missing, ef, penSeg };
     });
@@ -397,6 +415,8 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       screen, setScreen, role, setRole, gIdx, setGIdx, aTab, setATab,
       epiCargoAtivo, setEpiCargoAtivo,
+      duracaoSomada, setDuracaoSomada,
+      copyOptions, setCopyOptions,
       sessions, activeSessionId, setActiveSessionId, addSession, delSession, uSessionNome, sess,
       lt, uLt,
       grupos, addGrupo, uGrupo, delGrupo,

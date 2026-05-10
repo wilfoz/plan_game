@@ -20,7 +20,7 @@ function monthLabel(idx) {
 }
 
 export default function Cronograma() {
-  const { grupos, gIdx, setGIdx, gc, calcA, volumesPrev, kpisBase, mesIniciaBase, lt, role } = useApp();
+  const { grupos, gIdx, setGIdx, gc, calcA, volumesPrev, kpisBase, mesIniciaBase, lt, role, duracaoSomada } = useApp();
   const g = grupos[gIdx] || { nome: "Grupo" };
 
   const tl = ATIVS.map(a => {
@@ -41,9 +41,29 @@ export default function Cronograma() {
 
   const custoM = tl.filter(a => a.grp === "M").reduce((s, a) => s + a.ct, 0);
   const custoL = tl.filter(a => a.grp === "L").reduce((s, a) => s + a.ct, 0);
-  const maxEndM = Math.max(0, ...tl.filter(a => a.grp === "M" && a.dur > 0).map(a => a.end));
-  const maxEndL = Math.max(0, ...tl.filter(a => a.grp === "L" && a.dur > 0).map(a => a.end));
-  const durTotal = Math.max(maxEndM, maxEndL);
+
+  const mAtivs = tl.filter(a => a.grp === "M" && a.dur > 0);
+  const lAtivs = tl.filter(a => a.grp === "L" && a.dur > 0);
+  const maxEndM = Math.max(0, ...mAtivs.map(a => a.end));
+  const maxEndL = Math.max(0, ...lAtivs.map(a => a.end));
+  const durTotal = Math.max(maxEndM, maxEndL); // sempre period-based para o Gantt
+
+  // Valores exibidos nos cards conforme modo do toggle
+  let dispM, dispL, dispTotal;
+  if (duracaoSomada) {
+    dispM     = tl.filter(a => a.grp === "M").reduce((s, a) => s + a.dur, 0);
+    dispL     = tl.filter(a => a.grp === "L").reduce((s, a) => s + a.dur, 0);
+    dispTotal = dispM + dispL;
+  } else {
+    const minStartM = mAtivs.length ? Math.min(...mAtivs.map(a => a.start)) : 0;
+    const minStartL = lAtivs.length ? Math.min(...lAtivs.map(a => a.start)) : 0;
+    const allAtivs  = tl.filter(a => a.dur > 0);
+    const minStartAll = allAtivs.length ? Math.min(...allAtivs.map(a => a.start)) : 0;
+    const maxEndAll   = allAtivs.length ? Math.max(...allAtivs.map(a => a.end))   : 0;
+    dispM     = mAtivs.length ? maxEndM - minStartM : 0;
+    dispL     = lAtivs.length ? maxEndL - minStartL : 0;
+    dispTotal = allAtivs.length ? maxEndAll - minStartAll : 0;
+  }
 
   const totalMonths = Math.max(10, Math.ceil(durTotal));
   const MESES = Array.from({ length: totalMonths }, (_, i) => monthLabel(i));
@@ -70,9 +90,9 @@ export default function Cronograma() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 12 }}>
         {[
-          ["🏗️ MONTAGEM", `${maxEndM.toFixed(1)} meses`, fmt(custoM), C.blueL],
-          ["🔌 LANÇAMENTO", `${maxEndL.toFixed(1)} meses`, fmt(custoL), C.greenL],
-          ["⏱️ DURAÇÃO TOTAL", `${durTotal.toFixed(1)} meses`, "", C.gold],
+          ["🏗️ MONTAGEM", dispM > 0 ? `${dispM.toFixed(1)} meses` : "—", fmt(custoM), C.blueL],
+          ["🔌 LANÇAMENTO", dispL > 0 ? `${dispL.toFixed(1)} meses` : "—", fmt(custoL), C.greenL],
+          ["⏱️ DURAÇÃO TOTAL", dispTotal > 0 ? `${dispTotal.toFixed(1)} meses` : "—", "", C.gold],
           ["💰 CUSTO TOTAL", "", fmt(custoM + custoL), C.goldL]
         ].map(([l, dur, custo, col]) => (
           <div key={l} style={{ ...S.stat, borderColor: col + "33" }}>
