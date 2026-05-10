@@ -1,4 +1,5 @@
 import { calcCoerencia } from "../utils/calculations";
+import { ATIVS } from "../constants/catalogs";
 
 // Chamada via proxy Vite (/api/claude → https://api.anthropic.com/v1/messages)
 // Evita bloqueio CORS do browser ao chamar a API Anthropic diretamente.
@@ -49,6 +50,24 @@ Use OBRIGATORIAMENTE esta ferramenta para criar os seguintes gráficos antes de 
     }
   }
 ];
+
+function formatObrigatorioAusente(ef) {
+  const porAtiv = ef?.porAtiv ?? {};
+  const linhas = [];
+  for (const [aId, efAtv] of Object.entries(porAtiv)) {
+    const ausentes = efAtv.obrigatorioAusente ?? [];
+    if (ausentes.length === 0) continue;
+    const atv = ATIVS.find(a => a.id === aId);
+    linhas.push(`• ${atv?.desc ?? aId}:`);
+    for (const a of ausentes) {
+      const tipo = a.tipo === "mo" ? "CARGO" : "EQUIPAMENTO";
+      linhas.push(`  ❌ ${tipo} OBRIGATÓRIO AUSENTE: ${a.label}`);
+    }
+  }
+  return linhas.length > 0
+    ? linhas.join("\n")
+    : "✅ Nenhum recurso obrigatório ausente nas atividades analisadas.";
+}
 
 function formatCoerencia(coerenciaAtivs) {
   const linhas = [];
@@ -140,6 +159,9 @@ VALORES PRÉ-CALCULADOS PARA O RADAR (use exatamente estes):
 - Efic.MO = ${efMO} | Efic.EQ = ${efEQ}
 - Referência (Base) = todos os valores 100
 
+RECURSOS OBRIGATÓRIOS AUSENTES (cargos/equipamentos obrigatórios não incluídos na composição do grupo):
+${formatObrigatorioAusente(ef)}
+
 COERÊNCIA DE RECURSOS (verificação automática operador ↔ equipamento e transporte):
 ${formatCoerencia(coerenciaAtivs)}
 
@@ -149,8 +171,8 @@ INSTRUÇÕES:
 2. Depois forneça análise em 4 seções (máximo 400 palavras, português brasileiro, tom técnico):
    **1. Diagnóstico de Eficiência** — padrões nos coeficientes, atividades com maior desvio
    **2. Impacto em Custo e Prazo** — relação coeficiente × KPI, atividades críticas, efeito cascata em LT sequencial
-   **3. Coerência de Recursos** — para cada problema listado acima: classifique como OCIOSO (custo sem uso), RISCO OPERACIONAL (pode travar a frente) ou INVIÁVEL (execução impossível); explique o impacto prático na LT. Se não houver problemas, confirme brevemente.
-   **4. Recomendações** — 3 ações práticas específicas (inclua correções de coerência se houver problemas)`;
+   **3. Recursos Obrigatórios e Coerência** — liste cada cargo/equipamento obrigatório ausente e explique o risco operacional específico (NR, segurança, viabilidade da frente). Para problemas de coerência operador↔equipamento: classifique como OCIOSO, RISCO OPERACIONAL ou INVIÁVEL. Se não houver problemas, confirme brevemente.
+   **4. Recomendações** — 3 ações práticas específicas priorizando primeiramente a inclusão de recursos obrigatórios ausentes, depois ajustes de coerência e eficiência`;
 }
 
 async function fetchRound1(prompt) {
@@ -219,12 +241,6 @@ async function streamRound2(messages, onChunk) {
 //   Round 1 (não-streaming): Claude chama renderizar_grafico → onTool(toolInput) por gráfico
 //   Round 2 (streaming): Claude gera texto final → onChunk(textAcumulado)
 export async function analyzeEficienciaStream({ grupo, lt, ef, scores, ativs, compsRaw, penSeg, onTool, onChunk }) {
-  if (import.meta.env.DEV) {
-    const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-    if (!apiKey || apiKey.startsWith("<")) {
-      throw new Error("Configure VITE_ANTHROPIC_API_KEY no arquivo .env.local");
-    }
-  }
 
   // Verificação de coerência por atividade (determinística, antes de chamar a IA)
   const coerenciaAtivs = (compsRaw ?? []).map(({ atv, moRows, eqRows }) => ({

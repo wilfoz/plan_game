@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { C } from "../constants/colors";
 import { S } from "../styles";
 import { fmt, sc } from "../utils/formatters";
@@ -10,6 +10,7 @@ import { TH, TD } from "../components/ui/Table";
 import { ScoreRing } from "../components/ui/Typography";
 import { analyzeEficienciaStream } from "../services/claudeAI";
 import { ChartBlock } from "../components/ui/ChartBlock";
+import { useAiAnalises } from "../hooks/useAiAnalises";
 
 const fmt2 = n => (n != null ? n.toFixed(2) : "—");
 
@@ -37,15 +38,33 @@ function MdText({ text, style }) {
   );
 }
 
-const HAS_KEY = !!(import.meta.env.VITE_ANTHROPIC_API_KEY);
+// A chave Anthropic fica no servidor (ANTHROPIC_API_KEY sem prefixo VITE_).
+// O botão de IA é sempre exibido; erros de chave ausente aparecem na chamada.
+const HAS_KEY = true;
 
 export default function Ranking() {
-  const { lt, buildRank, gc, realtimeConnected, role } = useApp();
+  const { lt, buildRank, gc, realtimeConnected, role, activeSessionId } = useApp();
   const rank = buildRank();
   const medals = ["🥇", "🥈", "🥉"];
 
-  // { [groupId]: { status: 'loading'|'tools'|'streaming'|'done'|'error', text, charts, error } }
+  // { [grupoId]: { status: 'loading'|'tools'|'streaming'|'done'|'error', text, charts, error } }
   const [aiState, setAiState] = useState({});
+  const aiHook = useAiAnalises(activeSessionId);
+
+  // Inicializa aiState com análises salvas no Supabase (não sobrescreve análises em andamento)
+  useEffect(() => {
+    const saved = aiHook.query.data;
+    if (!saved) return;
+    setAiState(prev => {
+      const next = { ...prev };
+      for (const [grupoId, entry] of Object.entries(saved)) {
+        if (!prev[grupoId] || prev[grupoId].status === "done") {
+          next[grupoId] = { status: "done", text: entry.text, charts: entry.charts, error: "", savedAt: entry.updatedAt };
+        }
+      }
+      return next;
+    });
+  }, [aiHook.query.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAnalyze = async (g) => {
     setAiState(prev => ({ ...prev, [g.id]: { status: "loading", text: "", charts: [], error: "" } }));
@@ -76,7 +95,12 @@ export default function Ranking() {
             [g.id]: { ...prev[g.id], status: "streaming", text }
           })),
       });
-      setAiState(prev => ({ ...prev, [g.id]: { ...prev[g.id], status: "done" } }));
+      setAiState(prev => {
+        const final = { ...prev[g.id], status: "done" };
+        // Salva no Supabase após conclusão
+        aiHook.save.mutate({ grupoId: g.id, text: final.text, charts: final.charts ?? [] });
+        return { ...prev, [g.id]: final };
+      });
     } catch (err) {
       setAiState(prev => ({ ...prev, [g.id]: { status: "error", text: "", charts: [], error: err.message } }));
     }
@@ -278,14 +302,7 @@ export default function Ranking() {
 
                   {/* ── BLOCO DE ANÁLISE IA ── */}
                   <div style={{ marginTop: 12 }}>
-                    {!HAS_KEY ? (
-                      <div style={{
-                        padding: "7px 10px", borderRadius: 4, fontSize: 10,
-                        color: C.txt3, background: C.surf3, border: `1px solid ${C.border}`
-                      }}>
-                        💡 Defina <code style={{ background: C.border, padding: "1px 4px", borderRadius: 3 }}>VITE_ANTHROPIC_API_KEY</code> no <code style={{ background: C.border, padding: "1px 4px", borderRadius: 3 }}>.env.local</code> para habilitar análise por IA.
-                      </div>
-                    ) : (!ai || ai.status === "done" || ai.status === "error") && ai?.status !== "loading" && ai?.status !== "tools" && ai?.status !== "streaming" ? (
+                    {(!ai || ai.status === "done" || ai.status === "error") && ai?.status !== "loading" && ai?.status !== "tools" && ai?.status !== "streaming" ? (
                       <button
                         style={{
                           ...S.btnS,
@@ -337,7 +354,10 @@ export default function Ranking() {
                               <span style={{ fontSize: 9, color: "#34D399", fontStyle: "italic" }}>● analisando</span>
                             )}
                             {ai.status === "done" && (
-                              <span style={{ fontSize: 9, color: "#6B7280" }}>claude-haiku-4-5</span>
+                              <span style={{ fontSize: 9, color: "#6B7280" }}>
+                                claude-haiku-4-5
+                                {ai.savedAt && ` · ${new Date(ai.savedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`}
+                              </span>
                             )}
                           </div>
                           {ai.status === "done" && (
