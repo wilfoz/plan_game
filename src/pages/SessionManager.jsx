@@ -123,7 +123,7 @@ export default function SessionManager() {
                       <div style={{ fontSize: 13, fontWeight: 700, color: C.txt }}>{s.nome}</div>
                       <div style={{ fontSize: 11, color: C.txt3, marginTop: 2 }}>
                         {s.grupos.length} grupo{s.grupos.length !== 1 ? "s" : ""}
-                        {s.lt.nome ? ` · ${s.lt.nome}` : " · LT não configurada"}
+                        {s.lt?.nome ? ` · ${s.lt.nome}` : " · LT não configurada"}
                       </div>
                     </div>
                   )}

@@ -40,7 +40,7 @@ function MdText({ text, style }) {
 const HAS_KEY = !!(import.meta.env.VITE_ANTHROPIC_API_KEY);
 
 export default function Ranking() {
-  const { lt, buildRank, gc } = useApp();
+  const { lt, buildRank, gc, realtimeConnected, role } = useApp();
   const rank = buildRank();
   const medals = ["🥇", "🥈", "🥉"];
 
@@ -88,12 +88,26 @@ export default function Ranking() {
   return (
     <div style={S.pg}>
       <div style={{ textAlign: "center", marginBottom: 16 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: 5, margin: 0 }}>🏆 RANKING FINAL</h2>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: 5, margin: 0 }}>🏆 RANKING FINAL</h2>
+          {role === "F" && (
+            <span style={{
+              fontSize: 9, fontWeight: 700, letterSpacing: 2, padding: "3px 8px",
+              borderRadius: 4,
+              background: realtimeConnected ? C.greenL + "20" : C.txt3 + "20",
+              border: `1px solid ${realtimeConnected ? C.greenL : C.txt3}55`,
+              color: realtimeConnected ? C.greenL : C.txt3,
+            }}>
+              {realtimeConnected ? "● AO VIVO" : "○ CONECTANDO..."}
+            </span>
+          )}
+        </div>
         <p style={{ color: C.txt2, fontSize: 10, letterSpacing: 3, margin: "5px 0 0" }}>{lt.nome}</p>
         <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 8 }}>
-          {[["💰", "CUSTO", "30%", C.yellow], ["⏱️", "DURAÇÃO", "30%", C.blueL], ["🦺", "SEGURANÇA", "40%", C.greenL]].map(([ic, l, p, col]) => (
+          {[["💰", "CUSTO", "50%", C.yellow], ["⏱️", "DURAÇÃO", "50%", C.blueL]].map(([ic, l, p, col]) => (
             <span key={l} style={{ fontSize: 11, color: col }}>{ic} {l} <strong>{p}</strong></span>
           ))}
+          <span style={{ fontSize: 11, color: C.greenL }}>🦺 SEGURANÇA <strong>classificatória</strong></span>
         </div>
       </div>
 
@@ -110,10 +124,10 @@ export default function Ranking() {
             {rank.map((g, i) => (
               <tr key={g.id} style={{
                 borderBottom: `1px solid ${C.border}`,
-                background: g.desq ? C.redL + "08" : g.reprovado ? C.yellow + "08" : i === 0 ? C.gold + "08" : "transparent"
+                background: g.desq ? C.redL + "08" : i === 0 ? C.gold + "08" : "transparent"
               }}>
                 <td style={{ padding: "10px 9px", fontSize: 18, textAlign: "center" }}>
-                  {g.desq ? "❌" : g.reprovado ? "⚠️" : medals[i] ?? ""}
+                  {g.desq ? "❌" : medals[i] ?? ""}
                 </td>
                 <td style={{ padding: "10px 9px", fontSize: 12, fontWeight: 700 }}>{g.nome}</td>
                 <TD ch={g.resp || "—"} muted />
@@ -121,15 +135,14 @@ export default function Ranking() {
                 <td style={{ padding: "9px", textAlign: "right", fontSize: 11, color: C.blueL }}>{+g.dm.toFixed(2)}m</td>
                 <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sC} label="CUSTO" /></td>
                 <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sD} label="DUR." /></td>
-                <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sS} label="SEG." col={g.desq ? C.redL : g.reprovado ? C.yellow : undefined} /></td>
-                <td style={{ padding: "10px 9px", textAlign: "right", fontSize: 22, fontWeight: 700, color: g.desq ? C.redL : g.reprovado ? C.yellow : sc(g.total || 0) }}>
+                <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sS} label="SEG." col={g.desq ? C.redL : C.greenL} /></td>
+                <td style={{ padding: "10px 9px", textAlign: "right", fontSize: 22, fontWeight: 700, color: g.desq ? C.redL : sc(g.total || 0) }}>
                   {g.desq ? "—" : g.total}
                 </td>
                 <td style={{ padding: "9px" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                    {!g.desq && !g.reprovado && i === 0 && <Tag text="⚡ ALTA PERFORMANCE" col={C.gold} />}
-                    {!g.desq && !g.reprovado && i > 0 && <Tag text="✅ APROVADO" col={C.greenL} />}
-                    {g.reprovado && <Tag text="⚠️ REPROVADO" col={C.yellow} />}
+                    {!g.desq && i === 0 && <Tag text="⚡ ALTA PERFORMANCE" col={C.gold} />}
+                    {!g.desq && i > 0 && <Tag text="✅ APROVADO" col={C.greenL} />}
                     {g.desq && <Tag text="❌ DESCLASSIFICADO" col={C.redL} />}
                     {(g.penSeg?.count ?? 0) > 0 && (
                       <Tag text={`+${g.penSeg.pct}% CUSTO (${g.penSeg.count} req. n/aplic.)`} col={C.yellow} />
@@ -401,14 +414,14 @@ export default function Ranking() {
       )}
 
       {/* DEBRIEFING DE SEGURANÇA */}
-      {rank.some(g => g.desq || g.reprovado) && (
-        <Card b={C.yellow + "44"}>
-          <Hdr2 col={C.yellow} ch="💬 DEBRIEFING — REQUISITOS NÃO ATENDIDOS" />
+      {rank.some(g => g.desq) && (
+        <Card b={C.redL + "44"}>
+          <Hdr2 col={C.redL} ch="💬 DEBRIEFING — REQUISITOS NÃO ATENDIDOS" />
           <div style={{ padding: 14 }}>
-            {rank.filter(g => g.desq || g.reprovado).map(g => (
+            {rank.filter(g => g.desq).map(g => (
               <div key={g.id} style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: C.txt, marginBottom: 6 }}>
-                  {g.desq ? "❌" : "⚠️"} {g.nome} — {g.missing.length} requisito(s) aplicável(is) não considerado(s):
+                  ❌ {g.nome} — {g.missing.length} requisito(s) aplicável(is) não considerado(s):
                 </div>
                 <table style={{ ...S.tbl, marginBottom: 4 }}>
                   <thead><tr>
@@ -420,7 +433,7 @@ export default function Ranking() {
                     {g.missing.map((m, mi) => (
                       <tr key={mi} style={{ borderBottom: `1px solid ${C.border}`, background: (g.desq ? C.redL : C.yellow) + "08" }}>
                         <td style={{ padding: "5px 9px", fontSize: 10, color: C.txt2 }}>{m.atividade}</td>
-                        <td style={{ padding: "5px 9px" }}><Tag text={m.categoria} col={g.desq ? C.redL : C.yellow} /></td>
+                        <td style={{ padding: "5px 9px" }}><Tag text={m.categoria} col={C.redL} /></td>
                         <td style={{ padding: "5px 9px", fontSize: 10, color: C.txt }}>{m.desc || "(sem descrição)"}</td>
                       </tr>
                     ))}

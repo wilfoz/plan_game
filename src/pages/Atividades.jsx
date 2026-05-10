@@ -5,10 +5,10 @@ import { useApp } from "../context/AppContext";
 import { Card } from "../components/ui/Card";
 import { Hdr2, Tag } from "../components/ui/Typography";
 import { TH, TD } from "../components/ui/Table";
-import { NumInp, TextInp } from "../components/ui/Inputs";
+import { LocalNumInp, LocalTextInp } from "../components/ui/Inputs";
 
 export default function Atividades() {
-  const { kpisBase, setKpisBase, volumesPrev, setVolumesPrev, comentariosAtiv, setComentariosAtiv } = useApp();
+  const { kpisBase, setKpisBase, volumesPrev, setVolumesPrev, comentariosAtiv, setComentariosAtiv, mesIniciaBase, setMesIniciaBase } = useApp();
   return (
     <div style={S.pg}>
       {[["M", C.blueL, "🏗️ MONTAGEM"], ["L", C.greenL, "🔌 LANÇAMENTO"]].map(([grp, col, label]) => (
@@ -16,10 +16,11 @@ export default function Atividades() {
           <Hdr2 col={col} ch={label} />
           <table style={S.tbl}>
             <thead><tr>
-              <TH ch="ATIVIDADE" w={320} /><TH ch="UND" right w={60} />
+              <TH ch="ATIVIDADE" w={290} /><TH ch="UND" right w={60} />
               <TH ch="VOLUME PREVISTO" right w={130} accent />
               <TH ch="KPI BASE (un/dia/equipe)" right w={150} />
-              <TH ch="COMENTÁRIO" w={220} />
+              <TH ch="MÊS INICIA" right w={100} />
+              <TH ch="COMENTÁRIO" w={200} />
             </tr></thead>
             <tbody>
               {ATIVS.filter(a => a.grp === grp).map((a, i) => (
@@ -29,23 +30,30 @@ export default function Atividades() {
                     <Tag text={a.und} col={col} />
                   </td>
                   <td style={{ padding: "4px 8px", textAlign: "right" }}>
-                    <NumInp
+                    <LocalNumInp
                       v={volumesPrev[a.id] || ""}
-                      onChange={e => setVolumesPrev(p => ({ ...p, [a.id]: +e.target.value || 0 }))}
+                      onSave={v => setVolumesPrev(p => ({ ...p, [a.id]: +v || 0 }))}
                       w={100}
                     />
                   </td>
                   <td style={{ padding: "4px 8px", textAlign: "right" }}>
-                    <NumInp
+                    <LocalNumInp
                       v={kpisBase[a.id] || ""}
-                      onChange={e => setKpisBase(p => ({ ...p, [a.id]: +e.target.value || 0 }))}
+                      onSave={v => setKpisBase(p => ({ ...p, [a.id]: +v || 0 }))}
                       w={90}
                     />
                   </td>
+                  <td style={{ padding: "4px 8px", textAlign: "right" }}>
+                    <LocalNumInp
+                      v={mesIniciaBase[a.id] || ""}
+                      onSave={v => setMesIniciaBase(p => ({ ...p, [a.id]: +v || 0 }))}
+                      w={70}
+                    />
+                  </td>
                   <td style={{ padding: "4px 8px" }}>
-                    <TextInp
+                    <LocalTextInp
                       v={comentariosAtiv[a.id] || ""}
-                      onChange={e => setComentariosAtiv(p => ({ ...p, [a.id]: e.target.value }))}
+                      onSave={v => setComentariosAtiv(p => ({ ...p, [a.id]: v }))}
                       placeholder="Observação..."
                       w="100%"
                     />

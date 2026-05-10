@@ -35,6 +35,12 @@ body {
   margin: 0;
 }
 
+@keyframes ldbar {
+  0%   { opacity: 1; transform: scaleX(0.3); transform-origin: left; }
+  50%  { opacity: 1; transform: scaleX(0.7); transform-origin: left; }
+  100% { opacity: 0.6; transform: scaleX(1);   transform-origin: left; }
+}
+
 #root {
   width: 1126px;
   max-width: 100%;

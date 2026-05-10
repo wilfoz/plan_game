@@ -1,22 +1,30 @@
 # Architecture
 
-**Pattern:** Multi-file React SPA — estado global via Context API, navegação por estado `screen`, sem backend.
+**Pattern:** Multi-file React SPA — estado global via Context API + React Query, navegação por estado `screen`, backend Supabase (PostgreSQL).
 
 ## High-Level Structure
 
 ```text
-┌───────────────────────────────────────────────────────┐
-│                    Browser (SPA)                       │
-│                                                        │
-│  main.jsx → App.jsx                                    │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │  AppProvider (Context)                           │  │
-│  │  ├── sessions[]        ← top-level state         │  │
+┌────────────────────────────────────────────────────────┐
+│                    Browser (SPA)                        │
+│                                                         │
+│  main.jsx → QueryProvider → App.jsx                     │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │  AppProvider (Context)                            │  │
+│  │  ├── screen / role / gIdx / aTab                 │  │
 │  │  ├── activeSessionId                             │  │
-│  │  ├── role / gIdx / screen / aTab                │  │
-│  │  └── upd(fn)           ← mutador de sessão ativa │  │
-│  │                                                  │  │
-│  │  AppInner (roteador de screen)                   │  │
+│  │  ├── React Query hooks (Supabase)                │  │
+│  │  │   ├── useSessions        → sessions[]         │  │
+│  │  │   ├── useLtConfig        → lt                 │  │
+│  │  │   ├── useAtividadesConfig→ kpisBase/volumes   │  │
+│  │  │   ├── useEquipeBase      → equipesBase        │  │
+│  │  │   ├── useGrupos          → grupos[]           │  │
+│  │  │   ├── useGrupoComps      → comps[]            │  │
+│  │  │   ├── useRequisitos      → requisitos[]       │  │
+│  │  │   └── useEpiCargo        → epiCargo           │  │
+│  │  └── Funções derivadas: calcA, calcSeg, buildRank│  │
+│  │                                                   │  │
+│  │  AppInner (roteador de screen)                    │  │
 │  │  ├── "login"           → Login                   │  │
 │  │  ├── "session-manager" → SessionManager          │  │
 │  │  └── * (com Header)                              │  │
@@ -27,10 +35,10 @@
 │  │       ├── composicao   → Composicao              │  │
 │  │       ├── cronograma   → Cronograma              │  │
 │  │       └── ranking      → Ranking                 │  │
-│  └──────────────────────────────────────────────────┘  │
-│                                                        │
-│  Sem backend. Sem API. Sem banco de dados.             │
-└───────────────────────────────────────────────────────┘
+│  └───────────────────────────────────────────────────┘  │
+│                                                         │
+│  Backend: Supabase (PostgreSQL + Realtime + bcrypt RPC) │
+└────────────────────────────────────────────────────────┘
 ```
 
 ## Fluxo de Navegação
@@ -46,129 +54,162 @@ App abre → screen: "login"
   │     │
   │     └── ☰ SESSÕES (volta ao session-manager sem logout)
   │
-  └── [grupo] + senha → busca em sessions[] → screen: "composicao"  (role: "G")
+  └── [grupo] + senha → RPC `verify_grupo_senha` → screen: "composicao"  (role: "G")
         └── navG: composicao → cronograma
 ```
 
 ## Estado Global (AppContext)
 
-### Estado de sessão (fora de sessions\[\])
+### Dados da Sessão Ativa (React Query — Supabase)
+
+| Hook | Tabela Supabase | Dado derivado |
+|------|-----------------|---------------|
+| `useSessions` | `sessions` | `sessions[]` |
+| `useLtConfig` | `lt_config` | `lt` |
+| `useAtividadesConfig` | `atividades_config` | `kpisBase`, `volumesPrev`, `comentariosAtiv` |
+| `useEquipeBase` | `equipe_base_mo`, `equipe_base_eq` | `equipesBase` |
+| `useGrupos` | `grupos` | `grupos[]` |
+| `useGrupoComps` | `grupo_comps` | `comps[]` |
+| `useRequisitos` | `requisitos` | `requisitos[]` |
+| `useEpiCargo` | `epi_cargo` | `epiCargo` |
+
+### Estado Local de UI (React useState)
 
 | Estado | Tipo | Descrição |
-| --- | --- | --- |
+|--------|------|-----------|
 | `screen` | `string` | Tela ativa — navega o app |
 | `role` | `null \| "F" \| "G"` | Perfil autenticado |
 | `gIdx` | `number` | Índice do grupo ativo |
 | `aTab` | `string` | ID da atividade ativa na composição |
 | `epiCargoAtivo` | `string` | Cargo ativo no painel EPI |
-| `sessions` | `Session[]` | Todas as sessões criadas |
 | `activeSessionId` | `string \| null` | Sessão em uso |
+| `lt` | `object` | Estado local sincronizado de `useLtConfig` |
+| `ativLocal` | `object` | Estado local sincronizado de `useAtividadesConfig` |
+| `comps` | `array` | Estado local sincronizado de `useGrupoComps` |
 
-### Estrutura de uma Session
+### Estrutura de uma Composição
 
 ```js
+// comps[gi][aId]
 {
-  id: uid(),
-  nome: string,
-  lt: { nome, tensao, ext, circ, cabFase, pararaios, opgw },
-  torres: { crossrope, suspensao, ancoragem, estaiada }, // cada: { qtd, ton }
-  grupos: [{ id, nome, resp, senha }],
-  comps: [                   // índice = grupo
-    {                        // chave = aId
-      [aId]: {
-        moRows: [{ _id, catId, cargo, sal, qtd }],
-        eqRows: [{ _id, catId, nome, loc, qtd }],
-        reqIds: number[],    // IDs dos requisitos adicionados pelo grupo
-        kpi: number,
-        equipes: number
-      }
-    }
-  ],
-  kpisBase: { [aId]: number },
-  requisitos: [{ _id, aId, categoria, desc, aplicavel: bool }],
-  epiCargo: { [moId]: { [epiId]: bool } }
+  moRows: [{ _id, catId, cargo, sal, qtd, horasDia }],
+  eqRows: [{ _id, catId, nome, loc, qtd, horasDia }],
+  reqIds: string[],   // IDs dos requisitos adicionados pelo grupo
+  kpi: number,
+  equipes: number
 }
 ```
 
-### Helper de mutação
+### Padrão de Persistência (Debounce)
 
 ```js
-// Muta apenas a sessão ativa — imutável via map
-const upd = fn => setSessions(p => p.map(s => s.id === activeSessionId ? fn(s) : s));
-
-// Exemplo
-const uLt = (k, v) => upd(s => ({ ...s, lt: { ...s.lt, [k]: v } }));
+// Mutações diretas (sem debounce): add, del, toggle
+// Mutações com debounce (evita writes excessivos enquanto usuário edita):
+ltHook.upsertDebounced(lt)              // 800ms
+ativHook.upsertDebounced(aId, dados)    // 800ms
+compsHook.upsertDebounced(grupoId, aId, comp)  // 800ms
+ebHook.updMo.mutate / ebHook.updEq.mutate      // imediato (onBlur)
 ```
+
+## Padrão de Input (Anti-substituição de caracteres)
+
+**Problema:** inputs controlados por dado do servidor + `onChange → save` causam:
+1. Mutação Supabase a cada tecla
+2. `invalidateQueries` → refetch
+3. Dado do servidor sobrescreve o que o usuário digitou → caracteres substituídos + lag
+
+**Solução — `LocalNumInp` e `LocalTextInp`:**
+
+```js
+// Estado local para digitação fluida; save apenas no onBlur.
+// Sincroniza do servidor somente quando a mudança vem de fora
+// (não do próprio usuário) via useRef + useEffect.
+export const LocalNumInp = ({ v, onSave, w }) => {
+  const [local, setLocal] = useState(toStr(v));
+  const savedRef = useRef(toStr(v));
+  useEffect(() => {
+    const s = toStr(v);
+    if (s !== savedRef.current) { setLocal(s); savedRef.current = s; }
+  }, [v]);
+  const handleBlur = () => {
+    if (local !== savedRef.current) { onSave(local); savedRef.current = local; }
+  };
+  return <input type="number" value={local} onChange={e => setLocal(e.target.value)} onBlur={handleBlur} />;
+};
+```
+
+**Regra:** Todo campo editável que persiste no Supabase deve usar `LocalNumInp`, `LocalTextInp` ou `GrupoField` — nunca `NumInp`/`TextInp` diretamente com `onChange → save`.
 
 ## Cálculos (utils/calculations.js)
 
 ### calcA(comp, esc) — função pura
 
 ```js
-// Entrada: composição de um grupo para uma atividade + escopo
-// Saída: métricas de custo e duração
 calcA(comp, esc) → {
   custoMo,       // sum(sal × qtd)
   custoEq,       // sum(loc × qtd)
   total,         // custoMo + custoEq
-  durDias,       // esc / (equipes × kpi)   [KPI = un/dia/equipe]
+  durDias,       // esc / (equipes × kpi)
   durTotalDias,  // Math.ceil(durDias)
-  dur,           // Math.ceil(durMeses × 100) / 100
+  dur,           // durMeses arredondado
+  durMeses,      // durDias / DIAS_MES (22)
   moQtd,         // sum(qtd) de moRows
-  eqQtd          // eqRows.length
+  coefMo,        // Hh por unidade (somaHh/kpi)
+  coefEq         // Ch por unidade (somaCh/kpi)
 }
 ```
 
-### monthlyVolumes(esc, kpi, equipes) — Gantt
+### calcSeg(requisitos, getCompFn) — segurança e desclassificação
 
 ```js
-// Retorna array de volumes inteiros por mês
-// volPerMonth = equipes × kpi × DIAS_MES (22)
-// Ex: monthlyVolumes(420, 9, 2) → [396, 24]  (2,13 meses)
-```
-
-### calcSeg(requisitos, getCompFn) — segurança
-
-```js
-// Para cada atividade:
+// REGRA CRÍTICA: só avalia requisitos de atividades que têm recursos.
+// Se moRows.length === 0 && eqRows.length === 0 → pula a atividade.
+//
+// Para atividades com recursos:
 //   aplicaveis = requisitos com aplicavel !== false
-//   addedIds   = comp.reqIds normalizados para Number
+//   addedIds   = comp.reqIds normalizados para String
 //   missing    = aplicaveis não adicionados pelo grupo
 //
 // Se missing.length > 0:
 //   → { score: 0, desq: true, missing: [{atividade, categoria, desc}] }
 // Senão:
-//   → { score: addedAplicaveis / denominator × 100, desq: false, missing: [] }
+//   → { score: 100, desq: false, missing: [] }
 ```
 
-**Invariante crítico:** `reqIds` são sempre `number[]`. Qualquer entrada string é coercida com `+reqId` em `toggleReq` e `.map(Number)` em `calcSeg`.
+**Invariante:** `reqIds` são sempre `string[]`. Coerção via `.map(String)` em `calcSeg` e `toggleReq`.
+
+### calcNaoAplicPenalty(requisitos, getCompFn) — penalidade
+
+```js
+// Requisitos marcados como "Não Aplicável" pelo facilitador que o grupo
+// adicionou indevidamente → cada um penaliza +2% no custo total.
+// Retorna { count, fator (ex: 1.06 para 3 req), pct, detalhes[] }
+```
+
+### calcEficiencia(comp, baseComp, kpiBase, aId) — eficiência vs referência
+
+```js
+// Compara coeficientes do grupo (Hh/unid, Ch/unid) com a equipe base.
+// Detecta sub-alocação por cargo e obrigatórios ausentes (BASE_COMPOSITIONS).
+// Retorna { varMoPct, varEqPct, varKpiPct, impactoPrazo, subAlocacao[], obrigatorioAusente[] }
+```
+
+### calcCoerencia(moRows, eqRows) — coerência operador↔equipamento
+
+```js
+// Verifica: operador sem equipamento, equipamento sem operador,
+// quantidade insuficiente/excessiva, capacidade de transporte.
+// Retorna { issues[] }
+```
 
 ### buildRank() — ranking final
 
 ```js
-// Pesos: Custo 30% + Duração 30% + Segurança 40%
-// sC = (minCusto / grupoCusto) × 100   (melhor grupo = 100)
-// sD = (minDur   / grupoDur)   × 100   (melhor grupo = 100)
-// sS = seg.score
-// total = desq ? 0 : round(sC×.3 + sD×.3 + sS×.4)
-// Grupos desq ficam com total=0 e não entram no cálculo de mc/md
-```
-
-## Derivações ESC (escopo por atividade)
-
-```js
-fator       = circ === "duplo" ? 2 : 1
-totalCabos  = (cabFase × 3 + pararaios + opgw) × fator
-extCondutor = ext × cabFase × 3 × fator
-totalTorres = sum(torres[tipo].qtd)
-
-ESC = {
-  ext, extCondutor, totalTorres,
-  tonEstaiada, qtdEstaiada,
-  tonCrossrope, qtdCrossrope,
-  tonAuto  // suspensao.ton + ancoragem.ton
-}
-// ATIVS[i].eKey mapeia cada atividade para a chave correta em ESC
+// Score: sC × 0.5 + sD × 0.5  (50% Custo + 50% Duração)
+// Penalidade: custo multiplicado por fator de naoAplic (ex: ×1.06)
+// Penalidade prazo: PENALTY[impactoPrazo] = { risco: 1.2, pior: 1.4 }
+// Desclassificação: calcSeg detecta req aplicável ausente em atividade com recursos
+// Desclassificados: total = 0, excluídos do cálculo de minCusto/minDur
 ```
 
 ## Controle de Acesso (Role-Based)
@@ -176,26 +217,29 @@ ESC = {
 ```text
 navF (role="F"):  ⚙ LT | 👥 GRUPOS | 📋 ATIVIDADES | 🛡️ REQUISITOS
                   🔧 COMPOSIÇÃO | 📅 CRONOGRAMA | 🏆 RANKING
+
 navG (role="G"):  🔧 COMPOSIÇÃO | 📅 CRONOGRAMA
 
 Telas sem header (livres):  login, session-manager
 Seletor de grupo: visível apenas para role="F" em Composicao e Cronograma
+Alertas de sub-alocação/coerência: visíveis apenas para role!="G"
 ```
 
 ## Padrões de Componentes
 
 ### UI Atoms (src/components/ui/)
 
-Componentes de UI primitivos recebem props explícitas, sem acesso ao contexto:
-
 ```text
-Card, BtnDel          → containers e ações destrutivas
-TH, TD, TotRow        → células de tabela
-NumInp, TextInp, Sel  → inputs tipados
-Hdr2, Tag, Pill       → tipografia e badges
-ScoreRing             → anel circular de score (conic-gradient)
+Card, BtnDel             → containers e ações destrutivas
+TH, TD                   → células de tabela
+NumInp, TextInp, Sel     → inputs controlados (uso legacy)
+LocalNumInp, LocalTextInp→ inputs com estado local + onBlur (padrão atual)
+GrupoField               → LocalTextInp especializado para campos de grupo
+Hdr2, Tag, Pill          → tipografia e badges
+ScoreRing                → anel circular de score (conic-gradient)
+ChartBlock               → gráfico gerado pela análise IA
 ```
 
 ### Páginas (src/pages/)
 
-Componentes React independentes que consomem `useApp()`. Recebem todo o estado e mutadores via Context, sem props.
+Componentes React independentes que consomem `useApp()`. Sem props — todo estado via Context.

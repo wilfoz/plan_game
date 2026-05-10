@@ -12,7 +12,9 @@
       "Bash(docker info *)",
       "Bash(docker compose *)",
       "Bash(docker build *)",
-      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")"
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
+      "Bash(Get-Content \"C:\\\\Users\\\\Wilerson\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Wilerson-Desktop-DEV-plan-game\\\\f51f0143-f307-4dba-b78a-ba7e152d9d4e\\\\tasks\\\\bu10ko2in.output\" -Wait -Tail 30)",
+      "Bash(Select-Object -First 50)"
     ]
   }
 }

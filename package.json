@@ -7,14 +7,17 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db:push": "supabase db push",
+    "db:reset": "supabase db reset"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.105.3",
+    "@supabase/supabase-js": "^2.105.4",
     "@tanstack/react-query": "^5.100.9",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "recharts": "^3.8.1"
+    "recharts": "^3.8.1",
+    "sonner": "^2.0.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -25,6 +28,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",
+    "supabase": "^2.98.2",
     "vite": "^8.0.10"
   }
 }

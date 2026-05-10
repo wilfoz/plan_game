@@ -7,8 +7,8 @@ import { useApp } from "../context/AppContext";
 import { Card } from "../components/ui/Card";
 import { BtnDel } from "../components/ui/Card";
 import { Hdr2, Tag } from "../components/ui/Typography";
-import { TH, TD } from "../components/ui/Table";
-import { NumInp, Sel } from "../components/ui/Inputs";
+import { TH } from "../components/ui/Table";
+import { LocalNumInp, Sel } from "../components/ui/Inputs";
 
 const fmt2 = n => n != null ? n.toFixed(2) : "—";
 
@@ -39,7 +39,7 @@ function AtivBlock({ a, base, kpi, vol }) {
     ? moRows.reduce((s, r) => s + r.qtd * (r.horasDia ?? 8.5), 0) / kpi
     : null;
   const somaCh = kpi > 0
-    ? eqRows.reduce((s, r) => s + r.qtd * (r.horasDia ?? 8.0), 0) / kpi
+    ? eqRows.reduce((s, r) => s + r.qtd * (r.horasDia ?? 8.5), 0) / kpi
     : null;
 
   const hasBase = moRows.length > 0 || eqRows.length > 0;
@@ -108,10 +108,10 @@ function AtivBlock({ a, base, kpi, vol }) {
                     <tr key={r._id} style={S.trOn(C.blueL)}>
                       <td style={{ padding: "4px 9px", fontSize: 11, fontWeight: 600, color: C.txt }}>{r.cargo}</td>
                       <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                        <NumInp v={r.qtd} onChange={e => eqBaseUpdMo(a.id, r._id, "qtd", e.target.value)} w={50} />
+                        <LocalNumInp v={r.qtd} onSave={v => eqBaseUpdMo(a.id, r._id, "qtd", v)} w={50} />
                       </td>
                       <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                        <NumInp v={r.horasDia ?? 8.5} onChange={e => eqBaseUpdMo(a.id, r._id, "horasDia", e.target.value)} w={60} />
+                        <LocalNumInp v={r.horasDia ?? 8.5} onSave={v => eqBaseUpdMo(a.id, r._id, "horasDia", v)} w={60} />
                       </td>
                       <td style={{ padding: "4px 9px", textAlign: "right", fontSize: 11, color: C.txt2 }}>
                         {fmt2(ht)}
@@ -178,21 +178,21 @@ function AtivBlock({ a, base, kpi, vol }) {
                   </td></tr>
                 )}
                 {eqRows.map(r => {
-                  const ht = r.qtd * (r.horasDia ?? 8.0);
+                  const ht = r.qtd * (r.horasDia ?? 8.5);
                   return (
                     <tr key={r._id} style={S.trOn(C.yellow)}>
                       <td style={{ padding: "4px 9px", fontSize: 11, fontWeight: 600, color: C.txt }}>{r.nome}</td>
                       <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                        <NumInp v={r.qtd} onChange={e => eqBaseUpdEq(a.id, r._id, "qtd", e.target.value)} w={50} />
+                        <LocalNumInp v={r.qtd} onSave={v => eqBaseUpdEq(a.id, r._id, "qtd", v)} w={50} />
                       </td>
                       <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                        <NumInp v={r.horasDia ?? 8.0} onChange={e => eqBaseUpdEq(a.id, r._id, "horasDia", e.target.value)} w={60} />
+                        <LocalNumInp v={r.horasDia ?? 8.5} onSave={v => eqBaseUpdEq(a.id, r._id, "horasDia", v)} w={60} />
                       </td>
                       <td style={{ padding: "4px 9px", textAlign: "right", fontSize: 11, color: C.txt2 }}>
                         {fmt2(ht)}
                       </td>
                       <td style={{ padding: "4px 9px", textAlign: "right" }}>
-                        <CoefCell row={{ ...r, horasDia: r.horasDia ?? 8.0 }} kpi={kpi} />
+                        <CoefCell row={{ ...r, horasDia: r.horasDia ?? 8.5 }} kpi={kpi} />
                       </td>
                       <td style={{ padding: "4px 9px", textAlign: "right", fontSize: 11, color: C.txt2 }}>
                         {fmt(r.loc * r.qtd)}

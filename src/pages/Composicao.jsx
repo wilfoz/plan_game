@@ -1,38 +1,18 @@
 import { C } from "../constants/colors";
 import { S } from "../styles";
 import { fmt, fmtI } from "../utils/formatters";
-import { ATIVS, MO_CAT, EQ_CAT, EPI_CAT, REQ_CAT_COLORS } from "../constants/catalogs";
+import { ATIVS, MO_CAT, EQ_CAT, REQ_CAT_COLORS } from "../constants/catalogs";
 import { useApp } from "../context/AppContext";
 import { Card } from "../components/ui/Card";
 import { BtnDel } from "../components/ui/Card";
 import { Hdr2, Tag, Pill } from "../components/ui/Typography";
-import { TH, TD, TotRow } from "../components/ui/Table";
-import { NumInp, Sel } from "../components/ui/Inputs";
+import { TH } from "../components/ui/Table";
+import { LocalNumInp, Sel } from "../components/ui/Inputs";
 import { calcEficiencia } from "../utils/calculations";
 
 const fmt2 = n => n != null ? n.toFixed(2) : "—";
 
-function varColor(pct) {
-  if (pct == null) return C.txt3;
-  if (pct <= 0) return C.greenL;
-  if (pct <= 30) return C.yellow;
-  return C.redL;
-}
 
-function VarBadge({ pct }) {
-  if (pct == null) return null;
-  const col = varColor(pct);
-  const sinal = pct > 0 ? "+" : "";
-  return (
-    <span style={{
-      fontSize: 9, fontWeight: 700, color: col,
-      background: col + "18", border: `1px solid ${col}44`,
-      borderRadius: 3, padding: "1px 5px",
-    }}>
-      {sinal}{pct}%
-    </span>
-  );
-}
 
 export default function Composicao() {
   const {
@@ -41,9 +21,10 @@ export default function Composicao() {
     gc, calcA, volumesPrev, comentariosAtiv,
     moAdd, moDel, moUpd,
     eqAdd, eqDel, eqUpd,
-    uKpi, uEq,
-    epiCargo, requisitos, toggleReq,
-    equipesBase, kpisBase,
+    uKpi, uEq, uMesInicia,
+    requisitos, toggleReq,
+    equipesBase, kpisBase, mesIniciaBase,
+    lt,
   } = useApp();
 
   const aObj = ATIVS.find(a => a.id === aTab) || ATIVS[0];
@@ -58,16 +39,17 @@ export default function Composicao() {
   const moOpts = MO_CAT.filter(r => !moUsados.has(r.id)).map(r => ({ id: r.id, label: r.cargo }));
   const eqOpts = EQ_CAT.map(r => ({ id: r.id, label: r.nome }));
 
-  const addedReqIds = (comp.reqIds || []).map(Number);
-  const addedReqs = reqsAtiv.filter(r => addedReqIds.includes(+r._id));
+  const addedReqIds = (comp.reqIds || []).map(String);
+  const addedReqs = reqsAtiv.filter(r => addedReqIds.includes(String(r._id)));
   const availReqOpts = reqsAtiv
-    .filter(r => !addedReqIds.includes(+r._id))
+    .filter(r => !addedReqIds.includes(String(r._id)))
     .map(r => ({ id: r._id, label: `[${r.categoria}] ${r.desc || "(sem descrição)"}` }));
 
   // Eficiência desta atividade vs equipe base
   const baseComp = equipesBase?.[aObj.id] ?? null;
   const kpiBase = kpisBase?.[aObj.id] ?? 0;
-  const ef = calcEficiencia(comp, baseComp, kpiBase);
+  const ef = calcEficiencia(comp, baseComp, kpiBase, aObj.id);
+  const subAlocacaoMap = Object.fromEntries((ef.subAlocacao || []).map(s => [s.cargo, s]));
 
   const kpi = comp.kpi || 0;
 
@@ -153,11 +135,19 @@ export default function Composicao() {
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <div>
                 <div style={{ fontSize: 8, color: C.txt3, letterSpacing: 2, marginBottom: 3 }}>KPI (un/dia/eq)</div>
-                <NumInp v={comp.kpi || ""} onChange={e => uKpi(gIdx, aObj.id, e.target.value)} w={80} />
+                <LocalNumInp v={comp.kpi || ""} onSave={v => uKpi(gIdx, aObj.id, v)} w={80} />
               </div>
               <div>
                 <div style={{ fontSize: 8, color: C.txt3, letterSpacing: 2, marginBottom: 3 }}>EQUIPES</div>
-                <NumInp v={comp.equipes} onChange={e => uEq(gIdx, aObj.id, e.target.value)} w={60} />
+                <LocalNumInp v={comp.equipes} onSave={v => uEq(gIdx, aObj.id, v)} w={60} />
+              </div>
+              <div>
+                <div style={{ fontSize: 8, color: C.txt3, letterSpacing: 2, marginBottom: 3 }}>
+                  MÊS INI.{mesIniciaBase[aObj.id] > 0 && comp.mesInicia === 0 && (
+                    <span style={{ color: C.txt3, fontWeight: 400 }}> (base: {mesIniciaBase[aObj.id]})</span>
+                  )}
+                </div>
+                <LocalNumInp v={comp.mesInicia || ""} onSave={v => uMesInicia(gIdx, aObj.id, v)} w={65} />
               </div>
               <div style={{ textAlign: "center", minWidth: 60 }}>
                 <div style={{ fontSize: 8, color: C.txt3, letterSpacing: 1, marginBottom: 2 }}>DURAÇÃO</div>
@@ -193,12 +183,17 @@ export default function Composicao() {
                   const cf = kpi > 0 ? ht / kpi : null;
                   return (
                     <tr key={r._id} style={S.trOn(C.blueL)}>
-                      <td style={{ padding: "4px 9px", fontSize: 11, fontWeight: 600, color: C.txt }}>{r.cargo}</td>
-                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                        <NumInp v={r.qtd} onChange={e => moUpd(gIdx, aObj.id, r._id, "qtd", e.target.value)} w={50} />
+                      <td style={{ padding: "4px 9px", fontSize: 11, fontWeight: 600, color: C.txt }}>
+                        {r.cargo}
+                        {role !== "G" && subAlocacaoMap[r.cargo] && (
+                          <span style={{ fontSize: 8, fontWeight: 700, color: C.yellow, background: C.yellow + "18", border: `1px solid ${C.yellow}44`, borderRadius: 2, padding: "0 4px", marginLeft: 6 }}>⚠️ SUB</span>
+                        )}
                       </td>
                       <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                        <NumInp v={r.horasDia ?? 8.5} onChange={e => moUpd(gIdx, aObj.id, r._id, "horasDia", e.target.value)} w={55} />
+                        <LocalNumInp v={r.qtd} onSave={v => moUpd(gIdx, aObj.id, r._id, "qtd", v)} w={50} />
+                      </td>
+                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
+                        <LocalNumInp v={r.horasDia ?? 8.5} onSave={v => moUpd(gIdx, aObj.id, r._id, "horasDia", v)} w={55} />
                       </td>
                       <td style={{ padding: "4px 9px", textAlign: "right", fontSize: 10, color: C.txt2 }}>
                         {ht.toFixed(1)}
@@ -207,7 +202,7 @@ export default function Composicao() {
                         {cf != null ? fmt2(cf) : <span style={{ color: C.txt3 }}>—</span>}
                       </td>
                       <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                        <NumInp v={r.sal} onChange={e => moUpd(gIdx, aObj.id, r._id, "sal", e.target.value)} w={100} />
+                        <LocalNumInp v={r.sal} onSave={v => moUpd(gIdx, aObj.id, r._id, "sal", v)} w={100} />
                       </td>
                       <td style={{ padding: "4px 9px", textAlign: "right", fontWeight: 700, color: C.goldL, fontSize: 11 }}>
                         {fmt(r.sal * r.qtd)}
@@ -235,6 +230,15 @@ export default function Composicao() {
                 )}
               </tbody>
             </table>
+            {role !== "G" && (ef.obrigatorioAusente || []).filter(o => o.tipo === "mo").length > 0 && (
+              <div style={{ padding: "6px 12px", background: C.redL + "0D", borderTop: `1px solid ${C.redL}33` }}>
+                {(ef.obrigatorioAusente || []).filter(o => o.tipo === "mo").map(o => (
+                  <div key={o.label} style={{ fontSize: 10, color: C.redL, padding: "2px 0" }}>
+                    ❌ {o.label} — cargo obrigatório não adicionado
+                  </div>
+                ))}
+              </div>
+            )}
             <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8, alignItems: "center" }}>
               <div style={{ flex: 1 }}>
                 <Sel
@@ -273,17 +277,17 @@ export default function Composicao() {
                   </td></tr>
                 )}
                 {comp.eqRows.map((r) => {
-                  const hrs = r.horasDia ?? 8.0;
+                  const hrs = r.horasDia ?? 8.5;
                   const ht = r.qtd * hrs;
                   const cf = kpi > 0 ? ht / kpi : null;
                   return (
                     <tr key={r._id} style={S.trOn(C.yellow)}>
                       <td style={{ padding: "4px 9px", fontSize: 11, fontWeight: 600, color: C.txt }}>{r.nome}</td>
                       <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                        <NumInp v={r.qtd} onChange={e => eqUpd(gIdx, aObj.id, r._id, "qtd", e.target.value)} w={50} />
+                        <LocalNumInp v={r.qtd} onSave={v => eqUpd(gIdx, aObj.id, r._id, "qtd", v)} w={50} />
                       </td>
                       <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                        <NumInp v={hrs} onChange={e => eqUpd(gIdx, aObj.id, r._id, "horasDia", e.target.value)} w={55} />
+                        <LocalNumInp v={hrs} onSave={v => eqUpd(gIdx, aObj.id, r._id, "horasDia", v)} w={55} />
                       </td>
                       <td style={{ padding: "4px 9px", textAlign: "right", fontSize: 10, color: C.txt2 }}>
                         {ht.toFixed(1)}
@@ -292,7 +296,7 @@ export default function Composicao() {
                         {cf != null ? fmt2(cf) : <span style={{ color: C.txt3 }}>—</span>}
                       </td>
                       <td style={{ padding: "3px 7px", textAlign: "right" }}>
-                        <NumInp v={r.loc} onChange={e => eqUpd(gIdx, aObj.id, r._id, "loc", e.target.value)} w={100} />
+                        <LocalNumInp v={r.loc} onSave={v => eqUpd(gIdx, aObj.id, r._id, "loc", v)} w={100} />
                       </td>
                       <td style={{ padding: "4px 9px", textAlign: "right", fontWeight: 700, color: C.goldL, fontSize: 11 }}>
                         {fmt(r.loc * r.qtd)}
@@ -369,7 +373,7 @@ export default function Composicao() {
                 <div style={{ flex: 1 }}>
                   <Sel
                     v=""
-                    onChange={e => { if (e.target.value) toggleReq(gIdx, aObj.id, +e.target.value); }}
+                    onChange={e => { if (e.target.value) toggleReq(gIdx, aObj.id, e.target.value); }}
                     opts={availReqOpts}
                     placeholder={availReqOpts.length === 0 ? "✅ Todos os requisitos adicionados" : "+ Selecione um requisito para adicionar..."}
                   />
@@ -423,122 +427,46 @@ export default function Composicao() {
                 </tbody>
               </table>
 
-              {/* Comparador de coeficientes vs referência */}
-              {ef.temBase && ef.temGrupo && (
+              {/* Alertas de sub-alocação */}
+              {role !== "G" && ef.temSubAlocacao && (
                 <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, marginBottom: 10 }}>
-                  <div style={{ fontSize: 9, color: C.txt3, letterSpacing: 3, marginBottom: 8 }}>
-                    📐 COEFICIENTES VS REFERÊNCIA
-                  </div>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
-                    <thead>
-                      <tr>
-                        <td style={{ padding: "2px 4px", color: C.txt3, fontSize: 9 }}></td>
-                        <td style={{ padding: "2px 4px", textAlign: "right", color: C.txt3, fontSize: 9 }}>GRUPO</td>
-                        <td style={{ padding: "2px 4px", textAlign: "right", color: C.txt3, fontSize: 9 }}>BASE</td>
-                        <td style={{ padding: "2px 4px", textAlign: "right", color: C.txt3, fontSize: 9 }}>VAR.</td>
-                      </tr>
-                    </thead>
+                  <div style={{ fontSize: 9, color: C.redL, letterSpacing: 3, marginBottom: 6 }}>⚠️ ALERTAS DE COMPOSIÇÃO</div>
+                  {(ef.obrigatorioAusente || []).map(o => (
+                    <div key={o.label} style={{ fontSize: 9, color: C.redL, padding: "2px 0 2px 8px", borderLeft: `2px solid ${C.redL}`, marginBottom: 3, lineHeight: 1.4 }}>
+                      ❌ {o.label} — obrigatório ausente
+                    </div>
+                  ))}
+                  {(ef.subAlocacao || []).map(s => (
+                    <div key={s.cargo} style={{ fontSize: 9, color: C.yellow, padding: "2px 0 2px 8px", borderLeft: `2px solid ${C.yellow}`, marginBottom: 3, lineHeight: 1.4 }}>
+                      ⚠️ {s.cargo}<br />
+                      <span style={{ color: C.txt3 }}>coef {fmt2(s.coefGrupo)} · mín. {fmt2(s.minCoef)} ({s.minVarPct}%)</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Informações básicas da LT */}
+              {lt.nome && (
+                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, marginBottom: 10 }}>
+                  <div style={{ fontSize: 9, color: C.txt3, letterSpacing: 3, marginBottom: 8 }}>⚡ LINHA DE TRANSMISSÃO</div>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <tbody>
-                      {ef.coefMoGrupo != null && (
-                        <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                          <td style={{ padding: "4px 4px", color: C.blueL, fontWeight: 700 }}>Hh MO</td>
-                          <td style={{ padding: "4px 4px", textAlign: "right", color: C.txt }}>{fmt2(ef.coefMoGrupo)}</td>
-                          <td style={{ padding: "4px 4px", textAlign: "right", color: C.txt2 }}>
-                            {ef.coefMoBase != null ? fmt2(ef.coefMoBase) : "—"}
-                          </td>
-                          <td style={{ padding: "4px 4px", textAlign: "right" }}>
-                            <VarBadge pct={ef.varMoPct} />
-                          </td>
+                      {[
+                        ["Nome", lt.nome, C.goldL],
+                        ["Tensão", lt.tensao, C.yellow],
+                        ["Extensão", lt.ext ? `${lt.ext} km` : "—", C.txt],
+                        ["Circuito", lt.circ === "duplo" ? "Duplo" : "Simples", C.txt],
+                        ["Cabos por fase", lt.cabFase ?? "—", C.blueL],
+                        ["Para-raios", lt.pararaios ?? "—", C.txt2],
+                        ["OPGW", lt.opgw ?? "—", C.txt2],
+                      ].map(([label, val, col]) => (
+                        <tr key={label} style={{ borderBottom: `1px solid ${C.border}` }}>
+                          <td style={{ padding: "4px 4px", fontSize: 10, color: C.txt2 }}>{label}</td>
+                          <td style={{ padding: "4px 4px", textAlign: "right", fontSize: 10, fontWeight: 700, color: col }}>{val}</td>
                         </tr>
-                      )}
-                      {ef.coefEqGrupo != null && ef.coefEqGrupo > 0 && (
-                        <tr>
-                          <td style={{ padding: "4px 4px", color: C.yellow, fontWeight: 700 }}>Ch EQ</td>
-                          <td style={{ padding: "4px 4px", textAlign: "right", color: C.txt }}>{fmt2(ef.coefEqGrupo)}</td>
-                          <td style={{ padding: "4px 4px", textAlign: "right", color: C.txt2 }}>
-                            {ef.coefEqBase != null ? fmt2(ef.coefEqBase) : "—"}
-                          </td>
-                          <td style={{ padding: "4px 4px", textAlign: "right" }}>
-                            <VarBadge pct={ef.varEqPct} />
-                          </td>
-                        </tr>
-                      )}
+                      ))}
                     </tbody>
                   </table>
-                  {/* Mensagens de impacto — custo E prazo */}
-                  {ef.varMoPct != null && (() => {
-                    const msgs = [];
-                    // Custo
-                    if (ef.varMoPct > 30)
-                      msgs.push({ col: C.redL, txt: `💰 MO ${ef.varMoPct}% acima — impacto relevante no CUSTO.` });
-                    else if (ef.varMoPct > 0)
-                      msgs.push({ col: C.yellow, txt: `💰 MO ${ef.varMoPct}% acima — impacto moderado no CUSTO.` });
-                    else if (ef.varMoPct < 0)
-                      msgs.push({ col: C.greenL, txt: `💰 MO ${Math.abs(ef.varMoPct)}% abaixo — custo menor que a referência.` });
-                    // Prazo
-                    if (ef.impactoPrazo === "pior")
-                      msgs.push({ col: C.redL, txt: `⏱️ PRAZO em risco: menos recurso E KPI menor que o previsto — a duração real pode ser maior.` });
-                    else if (ef.impactoPrazo === "risco")
-                      msgs.push({ col: C.yellow, txt: `⏱️ Valide o PRAZO: menos recurso sem ganho de KPI — o prazo declarado pode estar subestimado.` });
-                    else if (ef.impactoPrazo === "melhor" && ef.varMoPct <= 0)
-                      msgs.push({ col: C.greenL, txt: `⏱️ KPI compensa o menor recurso — prazo igual ou menor que o previsto.` });
-                    return msgs.map((m, i) => (
-                      <div key={i} style={{ marginTop: 4, fontSize: 9, color: m.col, lineHeight: 1.5 }}>
-                        {m.txt}
-                      </div>
-                    ));
-                  })()}
-                </div>
-              )}
-
-              {/* EPIs requeridos */}
-              {comp.moRows.length > 0 && (
-                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, marginBottom: 10 }}>
-                  <div style={{ fontSize: 9, color: C.txt3, letterSpacing: 3, marginBottom: 6 }}>EPIS REQUERIDOS</div>
-                  {comp.moRows.map(mo => {
-                    const epis = Object.keys(epiCargo[mo.catId] || {}).filter(k => (epiCargo[mo.catId] || {})[k]);
-                    if (!epis.length) return (
-                      <div key={mo._id} style={{ fontSize: 10, color: C.txt3, padding: "2px 0" }}>
-                        {mo.cargo} — <span style={{ color: C.yellow }}>sem EPIs configurados</span>
-                      </div>
-                    );
-                    return (
-                      <div key={mo._id} style={{ marginBottom: 6 }}>
-                        <div style={{ fontSize: 10, color: C.blueL, fontWeight: 700 }}>{mo.cargo} ×{mo.qtd}</div>
-                        {epis.map(epiId => {
-                          const epi = EPI_CAT.find(e => e.id === epiId);
-                          return epi ? (
-                            <div key={epiId} style={{ fontSize: 9, color: C.txt2, padding: "1px 0 1px 10px", borderLeft: `2px solid ${C.greenL}44` }}>
-                              🦺 {epi.desc}
-                            </div>
-                          ) : null;
-                        })}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Requisitos de Segurança no resumo */}
-              {reqsAtiv.length > 0 && (
-                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, marginBottom: 10 }}>
-                  <div style={{ fontSize: 9, color: C.txt3, letterSpacing: 3, marginBottom: 6 }}>🛡️ REQUISITOS DE SEGURANÇA</div>
-                  {reqsAtiv.map(req => {
-                    const on = addedReqIds.includes(+req._id);
-                    return (
-                      <div key={req._id} style={{
-                        fontSize: 9, color: on ? C.txt : C.txt3, padding: "2px 0 2px 10px",
-                        borderLeft: `2px solid ${on ? REQ_CAT_COLORS[req.categoria] + "88" : C.border}`,
-                        display: "flex", gap: 4, alignItems: "center"
-                      }}>
-                        <span>{on ? "✅" : "⬜"}</span>
-                        <span style={{ flex: 1 }}>{req.desc || req.categoria}</span>
-                      </div>
-                    );
-                  })}
-                  <div style={{ marginTop: 4, fontSize: 9, color: C.greenL, fontWeight: 700 }}>
-                    {addedReqs.length}/{reqsAtiv.length} adicionados
-                  </div>
                 </div>
               )}
 

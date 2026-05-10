@@ -2,20 +2,43 @@ import { useState } from "react";
 import { C } from "../constants/colors";
 import { S } from "../styles";
 import { useApp } from "../context/AppContext";
+import { supabase } from "../lib/supabase";
 
-const SENHA_FACILITADOR = "elecnorbrasil";
+if (!import.meta.env.VITE_FACILITADOR_SENHA) console.warn("VITE_FACILITADOR_SENHA não definida");
+const SENHA_FACILITADOR = import.meta.env.VITE_FACILITADOR_SENHA ?? "";
+
+const inputStyle = (erro, disabled) => ({
+  width: "100%", background: C.surf2,
+  border: `1px solid ${erro ? C.redL + "88" : C.border2}`,
+  borderRadius: 5, padding: "10px 12px", fontSize: 13, color: C.txt,
+  outline: "none", boxSizing: "border-box", fontFamily: "inherit",
+  opacity: disabled ? 0.6 : 1,
+});
 
 export default function Login() {
-  const { sessions, setRole, setGIdx, setActiveSessionId, setScreen } = useApp();
-  const [usuario, setUsuario] = useState("");
-  const [senha, setSenha] = useState("");
-  const [erro, setErro] = useState("");
+  const { setRole, setGIdx, setActiveSessionId, setScreen } = useApp();
 
-  const handleLogin = () => {
+  const [usuario, setUsuario]   = useState("");
+  const [senha, setSenha]       = useState("");
+  const [erro, setErro]         = useState("");
+  const [carregando, setCarregando] = useState(false);
+
+  // Seletor de sessão
+  const [sessoes, setSessoes]   = useState(null); // null = tela de login; array = tela de seleção
+
+  const entrarNaSessao = (s) => {
+    setActiveSessionId(s.session_id);
+    setGIdx(s.grupo_idx);
+    setRole("G");
+    setScreen("composicao");
+  };
+
+  const handleLogin = async () => {
     setErro("");
     const usr = usuario.trim();
     if (!usr || !senha) { setErro("Preencha usuário e senha."); return; }
 
+    // ── Facilitador ─────────────────────────────────────────────────────────
     if (usr.toUpperCase() === "FACILITADOR") {
       if (senha === SENHA_FACILITADOR) {
         setRole("F");
@@ -27,25 +50,36 @@ export default function Login() {
       return;
     }
 
-    // Busca o grupo em todas as sessões
-    for (const s of sessions) {
-      const idx = s.grupos.findIndex(
-        g => g.nome.toUpperCase() === usr.toUpperCase() && g.senha === senha
-      );
-      if (idx !== -1) {
-        setActiveSessionId(s.id);
-        setGIdx(idx);
-        setRole("G");
-        setScreen("composicao");
-        return;
-      }
-    }
+    // ── Grupo ────────────────────────────────────────────────────────────────
+    setCarregando(true);
+    try {
+      const { data, error } = await supabase.rpc("login_grupo", {
+        p_nome: usr,
+        p_senha: senha,
+      });
 
-    const nomeExiste = sessions.some(s =>
-      s.grupos.some(g => g.nome.toUpperCase() === usr.toUpperCase())
-    );
-    setErro(nomeExiste ? "Senha incorreta." : "Grupo não encontrado em nenhuma sessão.");
-    setSenha("");
+      if (error) throw error;
+
+      if (data && data.length === 1) {
+        // Apenas uma sessão — entra direto
+        entrarNaSessao(data[0]);
+      } else if (data && data.length > 1) {
+        // Múltiplas sessões — exibe seletor
+        setSessoes(data);
+      } else {
+        const { data: exists } = await supabase
+          .from("grupos")
+          .select("id")
+          .ilike("nome", usr)
+          .limit(1);
+        setErro(exists?.length ? "Senha incorreta." : "Grupo não encontrado em nenhuma sessão.");
+        setSenha("");
+      }
+    } catch {
+      setErro("Erro de conexão. Tente novamente.");
+    } finally {
+      setCarregando(false);
+    }
   };
 
   return (
@@ -53,7 +87,7 @@ export default function Login() {
       ...S.app, display: "flex", alignItems: "center",
       justifyContent: "center", minHeight: "100vh"
     }}>
-      <div style={{ width: "100%", maxWidth: 400, padding: "0 20px" }}>
+      <div style={{ width: "100%", maxWidth: 420, padding: "0 20px" }}>
 
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 36 }}>
@@ -69,7 +103,54 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Card */}
+        {/* ── Seletor de sessão ── */}
+        {sessoes ? (
+          <div style={{
+            background: C.surface, border: `1px solid ${C.border}`,
+            borderRadius: 10, padding: "28px 28px 24px"
+          }}>
+            <div style={{ fontSize: 10, color: C.txt3, letterSpacing: 3, marginBottom: 4, textAlign: "center" }}>
+              SELECIONE A SESSÃO
+            </div>
+            <div style={{ fontSize: 11, color: C.txt2, textAlign: "center", marginBottom: 20 }}>
+              {usuario.toUpperCase()} está cadastrado em {sessoes.length} sessões.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {sessoes.map(s => (
+                <button
+                  key={s.session_id}
+                  onClick={() => entrarNaSessao(s)}
+                  style={{
+                    padding: "12px 16px", borderRadius: 6, cursor: "pointer",
+                    background: C.surf2, border: `1px solid ${C.border2}`,
+                    color: C.txt, fontSize: 13, fontWeight: 600,
+                    fontFamily: "inherit", textAlign: "left",
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                    transition: "border-color 0.15s",
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = C.gold}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = C.border2}
+                >
+                  <span>{s.session_nome}</span>
+                  <span style={{ fontSize: 10, color: C.gold, letterSpacing: 1 }}>ENTRAR →</span>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => { setSessoes(null); setSenha(""); setErro(""); }}
+              style={{
+                marginTop: 16, width: "100%", padding: "8px",
+                background: "transparent", border: `1px solid ${C.border}`,
+                borderRadius: 5, color: C.txt3, fontSize: 11,
+                cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              ← Voltar
+            </button>
+          </div>
+        ) : (
+
+        /* ── Formulário de login ── */
         <div style={{
           background: C.surface, border: `1px solid ${C.border}`,
           borderRadius: 10, padding: "28px 28px 24px"
@@ -88,12 +169,8 @@ export default function Login() {
               onKeyDown={e => e.key === "Enter" && handleLogin()}
               placeholder="FACILITADOR ou nome do grupo..."
               autoFocus
-              style={{
-                width: "100%", background: C.surf2,
-                border: `1px solid ${erro ? C.redL + "88" : C.border2}`,
-                borderRadius: 5, padding: "10px 12px", fontSize: 13, color: C.txt,
-                outline: "none", boxSizing: "border-box", fontFamily: "inherit"
-              }}
+              disabled={carregando}
+              style={inputStyle(erro, carregando)}
             />
           </div>
 
@@ -107,12 +184,8 @@ export default function Login() {
               onChange={e => { setSenha(e.target.value); setErro(""); }}
               onKeyDown={e => e.key === "Enter" && handleLogin()}
               placeholder="••••••••"
-              style={{
-                width: "100%", background: C.surf2,
-                border: `1px solid ${erro ? C.redL + "88" : C.border2}`,
-                borderRadius: 5, padding: "10px 12px", fontSize: 13, color: C.txt,
-                outline: "none", boxSizing: "border-box", fontFamily: "inherit"
-              }}
+              disabled={carregando}
+              style={inputStyle(erro, carregando)}
             />
           </div>
 
@@ -128,16 +201,24 @@ export default function Login() {
 
           <button
             onClick={handleLogin}
+            disabled={carregando}
             style={{
-              width: "100%", padding: "11px", borderRadius: 5, cursor: "pointer",
-              background: `linear-gradient(135deg,${C.gold},${C.goldDim})`,
-              border: "none", color: "#000", fontSize: 12, fontWeight: 700,
-              letterSpacing: 2, fontFamily: "inherit"
+              width: "100%", padding: "11px", borderRadius: 5,
+              cursor: carregando ? "not-allowed" : "pointer",
+              background: carregando
+                ? C.surf2
+                : `linear-gradient(135deg,${C.gold},${C.goldDim})`,
+              border: "none",
+              color: carregando ? C.txt3 : "#000",
+              fontSize: 12, fontWeight: 700,
+              letterSpacing: 2, fontFamily: "inherit",
+              transition: "all 0.15s",
             }}
           >
-            ENTRAR →
+            {carregando ? "VERIFICANDO..." : "ENTRAR →"}
           </button>
         </div>
+        )}
       </div>
     </div>
   );

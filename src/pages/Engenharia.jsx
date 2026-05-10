@@ -4,7 +4,7 @@ import { fmtI } from "../utils/formatters";
 import { useApp } from "../context/AppContext";
 import { Card } from "../components/ui/Card";
 import { Hdr2, Pill } from "../components/ui/Typography";
-import { NumInp, TextInp } from "../components/ui/Inputs";
+import { LocalNumInp, LocalTextInp } from "../components/ui/Inputs";
 
 export default function Engenharia() {
   const { lt, uLt, fator, totalCabos, extCondutor, extParaRaios } = useApp();
@@ -16,15 +16,15 @@ export default function Engenharia() {
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
             <div>
               <div style={{ fontSize: 9, color: C.txt3, letterSpacing: 2, marginBottom: 4 }}>NOME</div>
-              <TextInp v={lt.nome} onChange={e => uLt("nome", e.target.value)} />
+              <LocalTextInp v={lt.nome} onSave={v => uLt("nome", v)} />
             </div>
             <div>
               <div style={{ fontSize: 9, color: C.txt3, letterSpacing: 2, marginBottom: 4 }}>TENSÃO</div>
-              <TextInp v={lt.tensao} onChange={e => uLt("tensao", e.target.value)} />
+              <LocalTextInp v={lt.tensao} onSave={v => uLt("tensao", v)} />
             </div>
             <div>
               <div style={{ fontSize: 9, color: C.txt3, letterSpacing: 2, marginBottom: 4 }}>EXTENSÃO (km)</div>
-              <NumInp v={lt.ext} onChange={e => uLt("ext", +e.target.value)} w="100%" />
+              <LocalNumInp v={lt.ext} onSave={v => uLt("ext", +v)} w="100%" />
             </div>
             <div>
               <div style={{ fontSize: 9, color: C.txt3, letterSpacing: 2, marginBottom: 4 }}>CIRCUITO</div>
@@ -39,7 +39,7 @@ export default function Engenharia() {
             {[["CABOS/FASE","cabFase"],["PARA-RAIOS","pararaios"],["OPGW","opgw"]].map(([l, k]) => (
               <div key={k}>
                 <div style={{ fontSize: 9, color: C.txt3, letterSpacing: 2, marginBottom: 4 }}>{l}</div>
-                <NumInp v={lt[k]} onChange={e => uLt(k, +e.target.value)} w="100%" />
+                <LocalNumInp v={lt[k]} onSave={v => uLt(k, +v)} w="100%" />
               </div>
             ))}
           </div>

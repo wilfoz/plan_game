@@ -25,4 +25,7 @@ dist-ssr
 # Variaveis de ambiente
 .env.local
 .env.production.local
-template
+template/*
+
+# Testsprites
+testsprite_tests

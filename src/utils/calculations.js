@@ -1,4 +1,4 @@
-import { ATIVS } from "../constants/catalogs";
+import { ATIVS, BASE_COMPOSITIONS } from "../constants/catalogs";
 
 export const DIAS_MES = 22;
 
@@ -18,7 +18,7 @@ export const calcA = (comp, esc) => {
     ? comp.moRows.reduce((s, r) => s + (r.qtd * (r.horasDia ?? 8.5)), 0) / kpi
     : null;
   const coefEq = kpi > 0
-    ? comp.eqRows.reduce((s, r) => s + (r.qtd * (r.horasDia ?? 8.0)), 0) / kpi
+    ? comp.eqRows.reduce((s, r) => s + (r.qtd * (r.horasDia ?? 8.5)), 0) / kpi
     : null;
 
   return {
@@ -45,14 +45,14 @@ export const calcRowCoef = (row, kpi) =>
 //   coef > base + KPI > base  → mais recurso, mais rápido: custo ↑ prazo ↓
 //   coef > base + KPI ≈ base  → mais recurso sem ganho: custo ↑ prazo =
 //   coef > base + KPI < base  → mais recurso E mais lento: custo ↑ prazo ↑ ❌
-export const calcEficiencia = (comp, baseComp, kpiBase) => {
+export const calcEficiencia = (comp, baseComp, kpiBase, aId) => {
   const kpiGrupo = comp.kpi || 0;
 
   const somaHhGrupo = comp.moRows.reduce((s, r) => s + r.qtd * (r.horasDia ?? 8.5), 0);
-  const somaChGrupo = comp.eqRows.reduce((s, r) => s + r.qtd * (r.horasDia ?? 8.0), 0);
+  const somaChGrupo = comp.eqRows.reduce((s, r) => s + r.qtd * (r.horasDia ?? 8.5), 0);
 
   const somaHhBase = (baseComp?.moRows ?? []).reduce((s, r) => s + r.qtd * (r.horasDia ?? 8.5), 0);
-  const somaChBase = (baseComp?.eqRows ?? []).reduce((s, r) => s + r.qtd * (r.horasDia ?? 8.0), 0);
+  const somaChBase = (baseComp?.eqRows ?? []).reduce((s, r) => s + r.qtd * (r.horasDia ?? 8.5), 0);
 
   const coefMoGrupo = kpiGrupo > 0 ? somaHhGrupo / kpiGrupo : null;
   const coefEqGrupo = kpiGrupo > 0 ? somaChGrupo / kpiGrupo : null;
@@ -66,30 +66,70 @@ export const calcEficiencia = (comp, baseComp, kpiBase) => {
     ? Math.round(((coefEqGrupo - coefEqBase) / coefEqBase) * 100)
     : null;
 
-  // Variação de KPI: positivo = grupo mais produtivo que a referência
   const varKpiPct = kpiGrupo > 0 && kpiBase > 0
     ? Math.round(((kpiGrupo - kpiBase) / kpiBase) * 100)
     : null;
 
-  // Diagnóstico de impacto no prazo baseado na relação coef × KPI
-  // "proporcional": se o KPI cresceu na mesma proporção que o coef caiu → sem impacto no prazo
-  // Tolerância de 5pp para considerar "equivalente"
   const impactoPrazo = (() => {
     if (varMoPct == null || varKpiPct == null) return null;
     if (varMoPct < -5) {
-      // Coef menor (menos recurso)
-      if (varKpiPct >= Math.abs(varMoPct) - 5) return "melhor";    // KPI compensou: prazo ↓
-      if (varKpiPct >= -5) return "risco";                          // KPI igual: prazo pode subir
-      return "pior";                                                 // KPI também caiu: prazo ↑
+      if (varKpiPct >= Math.abs(varMoPct) - 5) return "melhor";
+      if (varKpiPct >= -5) return "risco";
+      return "pior";
     }
     if (varMoPct > 5) {
-      // Coef maior (mais recurso)
-      if (varKpiPct >= Math.abs(varMoPct) - 5) return "melhor";    // Mais recurso E mais rápido: prazo ↓
-      if (varKpiPct >= -5) return "neutro";                         // Mais recurso sem ganho: prazo =
-      return "pior";                                                 // Mais recurso E menos produtivo: prazo ↑
+      if (varKpiPct >= Math.abs(varMoPct) - 5) return "melhor";
+      if (varKpiPct >= -5) return "neutro";
+      return "pior";
     }
-    return "neutro"; // coef ≈ base
+    return "neutro";
   })();
+
+  // ── Sub-alocação e obrigatórios ausentes ─────────────────────────────────
+  // Verifica por cargo se o coeficiente do grupo está abaixo do piso mínimo
+  // definido nas tabelas de referência (CBIC/ANEEL). Coef menor nem sempre é
+  // melhor — abaixo do piso indica sub-alocação de recursos.
+  const subAlocacao = [];
+  const obrigatorioAusente = [];
+  const baseRef = aId ? BASE_COMPOSITIONS[aId] : null;
+
+  if (baseRef) {
+    baseRef.moRows.forEach(refRow => {
+      const grupoRows = comp.moRows.filter(r => r.cargo === refRow.cargo);
+      const grupoQtd  = grupoRows.reduce((s, r) => s + (r.qtd || 0), 0);
+
+      if (refRow.obrigatorio && grupoQtd < 1) {
+        obrigatorioAusente.push({ tipo: "mo", label: refRow.cargo });
+        return;
+      }
+
+      if (refRow.minVarPct !== null && refRow.minVarPct > -100 && kpiBase > 0 && kpiGrupo > 0) {
+        const baseRows = (baseComp?.moRows ?? []).filter(r => r.cargo === refRow.cargo);
+        const hhBase   = baseRows.reduce((s, r) => s + r.qtd * (r.horasDia ?? 8.5), 0);
+        const coefBase = hhBase / kpiBase;
+        if (coefBase > 0) {
+          const minCoef   = coefBase * (1 + refRow.minVarPct / 100);
+          const hhGrupo   = grupoRows.reduce((s, r) => s + r.qtd * (r.horasDia ?? 8.5), 0);
+          const coefGrupo = hhGrupo / kpiGrupo;
+          if (coefGrupo < minCoef) {
+            subAlocacao.push({
+              cargo:     refRow.cargo,
+              coefGrupo: Math.round(coefGrupo * 100) / 100,
+              minCoef:   Math.round(minCoef   * 100) / 100,
+              coefBase:  Math.round(coefBase  * 100) / 100,
+              minVarPct: refRow.minVarPct,
+            });
+          }
+        }
+      }
+    });
+
+    baseRef.eqRows.filter(r => r.obrigatorio).forEach(refRow => {
+      const grupoRow = comp.eqRows.find(r => r.nome === refRow.nome);
+      if (!grupoRow || grupoRow.qtd < 1)
+        obrigatorioAusente.push({ tipo: "eq", label: refRow.nome });
+    });
+  }
 
   return {
     coefMoGrupo, coefEqGrupo,
@@ -97,34 +137,38 @@ export const calcEficiencia = (comp, baseComp, kpiBase) => {
     varMoPct, varEqPct,
     kpiGrupo, kpiBase, varKpiPct,
     impactoPrazo,
-    temBase: (baseComp?.moRows?.length ?? 0) > 0 || (baseComp?.eqRows?.length ?? 0) > 0,
+    temBase:  (baseComp?.moRows?.length ?? 0) > 0 || (baseComp?.eqRows?.length ?? 0) > 0,
     temGrupo: somaHhGrupo > 0 || somaChGrupo > 0,
+    subAlocacao,
+    obrigatorioAusente,
+    temSubAlocacao: subAlocacao.length > 0 || obrigatorioAusente.length > 0,
   };
 };
 
 // Agrega eficiência de todas as atividades de um grupo
 export const calcEficienciaGeral = (getCompFn, equipesBase, kpisBase) => {
   let totalVarMo = 0, totalVarEq = 0, countMo = 0, countEq = 0;
-  let countPrazoRisco = 0, countPrazoPior = 0, countPrazoMelhor = 0;
+  let countPrazoRisco = 0, countPrazoPior = 0, countPrazoMelhor = 0, countSubAlocacao = 0;
   const porAtiv = {};
 
   ATIVS.forEach(a => {
     const comp = getCompFn(a.id);
     const baseComp = equipesBase?.[a.id] ?? null;
     const kpiBase = kpisBase?.[a.id] ?? 0;
-    const ef = calcEficiencia(comp, baseComp, kpiBase);
+    const ef = calcEficiencia(comp, baseComp, kpiBase, a.id);
     porAtiv[a.id] = ef;
     if (ef.varMoPct != null) { totalVarMo += ef.varMoPct; countMo++; }
     if (ef.varEqPct != null) { totalVarEq += ef.varEqPct; countEq++; }
     if (ef.impactoPrazo === "risco") countPrazoRisco++;
     if (ef.impactoPrazo === "pior")  countPrazoPior++;
     if (ef.impactoPrazo === "melhor") countPrazoMelhor++;
+    if (ef.temSubAlocacao) countSubAlocacao++;
   });
 
   const varMoMedia = countMo > 0 ? Math.round(totalVarMo / countMo) : null;
   const varEqMedia = countEq > 0 ? Math.round(totalVarEq / countEq) : null;
 
-  return { porAtiv, varMoMedia, varEqMedia, countPrazoRisco, countPrazoPior, countPrazoMelhor };
+  return { porAtiv, varMoMedia, varEqMedia, countPrazoRisco, countPrazoPior, countPrazoMelhor, countSubAlocacao };
 };
 
 // Volumes produzidos por mês para uma atividade
@@ -149,11 +193,11 @@ export const calcNaoAplicPenalty = (requisitos, getCompFn) => {
   const detalhes = [];
   ATIVS.forEach(a => {
     const comp = getCompFn(a.id);
-    const addedIds = (comp.reqIds || []).map(Number);
+    const addedIds = (comp.reqIds || []).map(String);
     requisitos
       .filter(r => r.aId === a.id && r.aplicavel === false)
       .forEach(r => {
-        if (addedIds.includes(+r._id)) {
+        if (addedIds.includes(String(r._id))) {
           count++;
           detalhes.push({ atividade: a.desc, categoria: r.categoria, desc: r.desc });
         }
@@ -174,7 +218,7 @@ const COERENCIA_REGRAS = [
   { cargo: "MOTORISTA OPERADOR MUNCK",     eqNomes: ["CAMINHÃO MUNCK"],                                                      opPorEq: 1 },
   { cargo: "MOTORISTA",                    eqNomes: ["CAMINHÃO PRANCHA", "CAMINHONETE 4X4", "CAMINHÃO CABINADO 10 PESSOAS"], opPorEq: 1 },
   { cargo: "OPERADOR DE TRATOR",           eqNomes: ["TRATOR", "TRATOR DE ESTEIRA"],                                         opPorEq: 1 },
-  { cargo: "OPERADOR DE MAQUINAS PESASAS", eqNomes: ["ESCAVADEIRA HIDRÁULICA", "RETROESCAVADEIRA 4X4"],                     opPorEq: 1 },
+  { cargo: "OPERADOR DE MAQUINAS", eqNomes: ["ESCAVADEIRA HIDRÁULICA", "RETROESCAVADEIRA 4X4"],                     opPorEq: 1 },
   { cargo: "NIVELADOR",                    eqNomes: ["ESTAÇÃO TOTAL", "GPS RTK"],                                            opPorEq: 1 },
 ];
 
@@ -234,8 +278,8 @@ export function calcCoerencia(moRows, eqRows) {
 }
 
 // ─── Score de segurança ────────────────────────────────────────────────────
-// Retorna { score: 0-100, desq: bool, missing: [{atividade, categoria, desc}] }
-// Score = aplicaveis adicionados / total aplicaveis * 100; desq se score < 70
+// Classificatório: desclassificado se qualquer requisito aplicável estiver ausente.
+// Retorna { score: 0|100, desq: bool, reprovado: false, missing: [] }
 export const calcSeg = (requisitos, getCompFn) => {
   const missing = [];
   let totalAplicaveis = 0;
@@ -243,20 +287,22 @@ export const calcSeg = (requisitos, getCompFn) => {
 
   ATIVS.forEach(a => {
     const comp = getCompFn(a.id);
+    const hasResources = (comp.moRows?.length > 0) || (comp.eqRows?.length > 0);
+    if (!hasResources) return;
+
     const reqsAtiv = requisitos.filter(r => r.aId === a.id);
     const aplicaveis = reqsAtiv.filter(r => r.aplicavel !== false);
 
     totalAplicaveis += aplicaveis.length;
-    const addedIds = (comp.reqIds || []).map(Number);
-    addedAplicaveis += aplicaveis.filter(r => addedIds.includes(+r._id)).length;
+    const addedIds = (comp.reqIds || []).map(String);
+    addedAplicaveis += aplicaveis.filter(r => addedIds.includes(String(r._id))).length;
 
-    aplicaveis.filter(r => !addedIds.includes(+r._id)).forEach(r => {
+    aplicaveis.filter(r => !addedIds.includes(String(r._id))).forEach(r => {
       missing.push({ atividade: a.desc, categoria: r.categoria, desc: r.desc });
     });
   });
 
-  const score = totalAplicaveis > 0 ? Math.round((addedAplicaveis / totalAplicaveis) * 100) : 100;
-  const desq = score < 70;
-  const reprovado = !desq && score < 100;
-  return { score, desq, reprovado, missing: (desq || reprovado) ? missing : [] };
+  const desq = totalAplicaveis > 0 && addedAplicaveis < totalAplicaveis;
+  const score = desq ? 0 : 100;
+  return { score, desq, reprovado: false, missing: desq ? missing : [] };
 };

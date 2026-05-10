@@ -6,7 +6,7 @@ import { Card } from "../components/ui/Card";
 import { BtnDel } from "../components/ui/Card";
 import { Hdr2, Tag } from "../components/ui/Typography";
 import { TH } from "../components/ui/Table";
-import { TextInp } from "../components/ui/Inputs";
+import { LocalTextInp } from "../components/ui/Inputs";
 
 const selStyle = (col) => ({
   width: "100%", background: col ? col + "18" : C.surf3,
@@ -91,9 +91,9 @@ export default function Requisitos() {
                                 </select>
                               </td>
                               <td style={{ padding: "4px 8px" }}>
-                                <TextInp
+                                <LocalTextInp
                                   v={req.desc}
-                                  onChange={e => updRequisito(req._id, "desc", e.target.value)}
+                                  onSave={v => updRequisito(req._id, "desc", v)}
                                   placeholder="Descreva o requisito..."
                                 />
                               </td>

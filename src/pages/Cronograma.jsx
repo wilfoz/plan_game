@@ -8,26 +8,45 @@ import { Card } from "../components/ui/Card";
 import { Hdr2, Tag, Pill } from "../components/ui/Typography";
 import { TH, TD } from "../components/ui/Table";
 
-const MESES = ["Mai/26","Jun/26","Jul/26","Ago/26","Set/26","Out/26","Nov/26","Dez/26","Jan/27","Fev/27"];
+const MONTH_NAMES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+const BASE_MONTH_OFFSET = 4; // May = index 4
+const BASE_YEAR = 2026;
+
+function monthLabel(idx) {
+  const offset = BASE_MONTH_OFFSET + idx;
+  const year = BASE_YEAR + Math.floor(offset / 12);
+  const month = offset % 12;
+  return `${MONTH_NAMES[month]}/${String(year).slice(2)}`;
+}
 
 export default function Cronograma() {
-  const { grupos, gIdx, setGIdx, gc, calcA, volumesPrev, lt, role } = useApp();
+  const { grupos, gIdx, setGIdx, gc, calcA, volumesPrev, kpisBase, mesIniciaBase, lt, role } = useApp();
   const g = grupos[gIdx] || { nome: "Grupo" };
 
-  let cM = 0, cL = 0;
   const tl = ATIVS.map(a => {
     const comp = gc(gIdx, a.id);
     const vol = volumesPrev[a.id] || 0;
-    const { total: ct, dur, durTotalDias } = calcA(comp, vol);
-    const vols = monthlyVolumes(vol, comp.kpi, comp.equipes);
-    const isM = a.grp === "M";
-    const st = isM ? cM : cL;
-    if (dur > 0) { if (isM) cM += dur; else cL += dur; }
-    return { ...a, dur, durTotalDias, start: st, end: st + (dur || 0), ct, vols, kpi: comp.kpi, equipes: comp.equipes, vol };
+    const hasResources = comp.moRows.length > 0 || comp.eqRows.length > 0 || comp.kpi > 0;
+    // KPI efetivo só se o grupo planejou a atividade
+    const kpiEff = hasResources ? (comp.kpi > 0 ? comp.kpi : kpisBase[a.id] || 0) : 0;
+    const compEff = { ...comp, kpi: kpiEff };
+    const { total: ct, dur, durTotalDias } = calcA(compEff, vol);
+    const vols = monthlyVolumes(vol, kpiEff, comp.equipes || 1);
+    // Mês de início efetivo (1-indexed → 0-indexed). 0 = não definido → começa no mês 0.
+    const mesGrupo = comp.mesInicia > 0 ? comp.mesInicia - 1 : null;
+    const mesBase  = mesIniciaBase[a.id] > 0 ? mesIniciaBase[a.id] - 1 : null;
+    const start = mesGrupo ?? mesBase ?? 0;
+    return { ...a, dur, durTotalDias, start, end: start + (dur || 0), ct, vols, kpiEff, equipes: comp.equipes, vol, mesInicia: comp.mesInicia, mesIniciaBase: mesIniciaBase[a.id] };
   });
 
   const custoM = tl.filter(a => a.grp === "M").reduce((s, a) => s + a.ct, 0);
   const custoL = tl.filter(a => a.grp === "L").reduce((s, a) => s + a.ct, 0);
+  const maxEndM = Math.max(0, ...tl.filter(a => a.grp === "M" && a.dur > 0).map(a => a.end));
+  const maxEndL = Math.max(0, ...tl.filter(a => a.grp === "L" && a.dur > 0).map(a => a.end));
+  const durTotal = Math.max(maxEndM, maxEndL);
+
+  const totalMonths = Math.max(10, Math.ceil(durTotal));
+  const MESES = Array.from({ length: totalMonths }, (_, i) => monthLabel(i));
 
   return (
     <div style={S.pg}>
@@ -51,9 +70,9 @@ export default function Cronograma() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 12 }}>
         {[
-          ["🏗️ MONTAGEM", `${cM.toFixed(1)} meses`, fmt(custoM), C.blueL],
-          ["🔌 LANÇAMENTO", `${cL.toFixed(1)} meses`, fmt(custoL), C.greenL],
-          ["⏱️ DURAÇÃO TOTAL", `${Math.max(cM, cL).toFixed(1)} meses`, "", C.gold],
+          ["🏗️ MONTAGEM", `${maxEndM.toFixed(1)} meses`, fmt(custoM), C.blueL],
+          ["🔌 LANÇAMENTO", `${maxEndL.toFixed(1)} meses`, fmt(custoL), C.greenL],
+          ["⏱️ DURAÇÃO TOTAL", `${durTotal.toFixed(1)} meses`, "", C.gold],
           ["💰 CUSTO TOTAL", "", fmt(custoM + custoL), C.goldL]
         ].map(([l, dur, custo, col]) => (
           <div key={l} style={{ ...S.stat, borderColor: col + "33" }}>
@@ -68,9 +87,11 @@ export default function Cronograma() {
         <Hdr2 ch="📋 DURAÇÃO POR ATIVIDADE" />
         <table style={S.tbl}>
           <thead><tr>
-            <TH ch="GRP" w={30} /><TH ch="ATIVIDADE" /><TH ch="UND" right w={55} />
-            <TH ch="VOL. PREV." right w={90} /><TH ch="KPI" right w={70} />
-            <TH ch="EQ." right w={50} /><TH ch="DURAÇÃO" right accent w={100} />
+            <TH ch="GRP" w={30} /><TH ch="ATIVIDADE" />
+            <TH ch="UND" right w={55} /><TH ch="VOL. PREV." right w={90} />
+            <TH ch="KPI" right w={70} /><TH ch="EQ." right w={50} />
+            <TH ch="MÊS INI." right w={80} />
+            <TH ch="DURAÇÃO" right accent w={100} />
             <TH ch="CUSTO" right w={110} />
           </tr></thead>
           <tbody>
@@ -78,22 +99,32 @@ export default function Cronograma() {
               <tr key={grp + "h"}>
                 <td colSpan={99} style={{ padding: "4px 9px", fontSize: 9, fontWeight: 700, letterSpacing: 3, background: col + "18", color: col }}>{gl}</td>
               </tr>,
-              ...tl.filter(a => a.grp === grp).map((a, i) => (
-                <tr key={a.id} style={S.trOff(i)}>
-                  <td style={{ padding: "5px 9px", textAlign: "center" }}><Tag text={a.und} col={col} /></td>
-                  <TD ch={a.desc} />
-                  <TD ch={a.und} right muted />
-                  <TD ch={fmtI(a.vol)} right muted />
-                  <TD ch={a.kpi || "—"} right muted />
-                  <TD ch={a.equipes} right muted />
-                  <td style={{
-                    padding: "5px 9px", textAlign: "right",
-                    fontWeight: a.dur > 0 ? 700 : 400,
-                    color: a.dur > 0 ? C.goldL : C.txt3
-                  }}>{a.dur > 0 ? `${a.durTotalDias}d (${a.dur}m)` : "—"}</td>
-                  <TD ch={fmt(a.ct)} right />
-                </tr>
-              ))
+              ...tl.filter(a => a.grp === grp).map((a, i) => {
+                const mesLabel = a.mesInicia > 0
+                  ? `${a.mesInicia} ✎`
+                  : a.mesIniciaBase > 0
+                    ? `${a.mesIniciaBase}`
+                    : "1";
+                return (
+                  <tr key={a.id} style={S.trOff(i)}>
+                    <td style={{ padding: "5px 9px", textAlign: "center" }}><Tag text={a.und} col={col} /></td>
+                    <TD ch={a.desc} />
+                    <TD ch={a.und} right muted />
+                    <TD ch={fmtI(a.vol)} right muted />
+                    <TD ch={a.kpiEff || "—"} right muted />
+                    <TD ch={a.equipes} right muted />
+                    <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 10, color: a.mesInicia > 0 ? C.goldL : C.txt2, fontWeight: a.mesInicia > 0 ? 700 : 400 }}>
+                      {mesLabel}
+                    </td>
+                    <td style={{
+                      padding: "5px 9px", textAlign: "right",
+                      fontWeight: a.dur > 0 ? 700 : 400,
+                      color: a.dur > 0 ? C.goldL : C.txt3
+                    }}>{a.dur > 0 ? `${a.durTotalDias}d (${a.dur}m)` : "—"}</td>
+                    <TD ch={fmt(a.ct)} right />
+                  </tr>
+                );
+              })
             ])}
           </tbody>
         </table>
@@ -104,8 +135,8 @@ export default function Cronograma() {
         <div style={{ padding: 12, overflowX: "auto" }}>
           <table style={{ ...S.tbl, tableLayout: "fixed", minWidth: 900 }}>
             <colgroup>
-              <col style={{ width: 30 }} /><col style={{ width: 200 }} />
-              {MESES.map(m => <col key={m} style={{ width: 62 }} />)}
+              <col style={{ width: 30 }} /><col style={{ width: 180 }} />
+              {MESES.map(m => <col key={m} style={{ width: 58 }} />)}
               <col style={{ width: 70 }} />
             </colgroup>
             <thead><tr>
@@ -125,11 +156,12 @@ export default function Cronograma() {
                     <tr key={a.id} style={{ borderBottom: `1px solid ${C.border}` }}>
                       <td style={{ padding: "3px 5px", textAlign: "center" }}><Tag text={a.und} col={c2} /></td>
                       <td style={{ padding: "3px 9px", fontSize: 10 }}>
-                        {a.desc.length > 26 ? a.desc.slice(0, 26) + "…" : a.desc}
+                        {a.desc.length > 24 ? a.desc.slice(0, 24) + "…" : a.desc}
                       </td>
                       {MESES.map((_, mi) => {
-                        const on = mi >= a.start && mi < a.end;
-                        const vol = on ? a.vols[mi - Math.floor(a.start)] : null;
+                        const on = a.dur > 0 && mi >= a.start && mi < a.end;
+                        const volIdx = on ? mi - Math.floor(a.start) : -1;
+                        const vol = volIdx >= 0 ? a.vols[volIdx] : null;
                         return (
                           <td key={mi} style={{ padding: "2px" }}>
                             <div style={{

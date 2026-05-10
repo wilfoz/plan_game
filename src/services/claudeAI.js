@@ -125,7 +125,8 @@ PENALIDADE DE SEGURANÇA DESTE GRUPO:
 
 SCORES DO GRUPO (após todas as penalidades):
 - Score de Custo (sC): ${scores.sC ?? "—"}% | Score de Duração (sD): ${scores.sD ?? "—"}%
-- Score de Segurança (sS): ${scores.sS ?? "—"}% | Score Total: ${scores.total ?? "—"}%${scores.desq ? " ❌ DESCLASSIFICADO" : ""}
+- Score Total: ${scores.total ?? "—"}% (50% Custo + 50% Prazo)
+- Segurança (classificatória): ${scores.desq ? "❌ DESCLASSIFICADO — requisito aplicável ausente" : "✅ APROVADO — todos os requisitos incluídos"}
 
 EFICIÊNCIA POR ATIVIDADE:
 ${ativsDetalhes || "Nenhuma atividade com dados de comparação disponíveis."}
@@ -135,7 +136,7 @@ MÉDIAS GERAIS:
 - Atividades prazo melhor: ${ef.countPrazoMelhor ?? 0} | risco: ${ef.countPrazoRisco ?? 0} | pior: ${ef.countPrazoPior ?? 0}
 
 VALORES PRÉ-CALCULADOS PARA O RADAR (use exatamente estes):
-- Custo = ${scores.sC ?? 0} | Prazo = ${scores.sD ?? 0} | Segurança = ${scores.sS ?? 0}
+- Custo = ${scores.sC ?? 0} | Prazo = ${scores.sD ?? 0} | Segurança = ${scores.desq ? 0 : 100}
 - Efic.MO = ${efMO} | Efic.EQ = ${efEQ}
 - Referência (Base) = todos os valores 100
 
