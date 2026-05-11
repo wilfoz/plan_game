@@ -20,18 +20,19 @@ function monthLabel(idx) {
 }
 
 export default function Cronograma() {
-  const { grupos, gIdx, setGIdx, gc, calcA, volumesPrev, kpisBase, mesIniciaBase, lt, role, duracaoSomada } = useApp();
+  const { grupos, gIdx, setGIdx, gc, calcA, volumesPrev, kpisBase, mesIniciaBase, lt, role, duracaoSomada, travaEquipes } = useApp();
   const g = grupos[gIdx] || { nome: "Grupo" };
 
   const tl = ATIVS.map(a => {
     const comp = gc(gIdx, a.id);
     const vol = volumesPrev[a.id] || 0;
     const hasResources = comp.moRows.length > 0 || comp.eqRows.length > 0 || comp.kpi > 0;
-    // KPI efetivo só se o grupo planejou a atividade
     const kpiEff = hasResources ? (comp.kpi > 0 ? comp.kpi : kpisBase[a.id] || 0) : 0;
-    const compEff = { ...comp, kpi: kpiEff };
-    const { total: ct, dur, durTotalDias } = calcA(compEff, vol);
-    const vols = monthlyVolumes(vol, kpiEff, comp.equipes || 1);
+    const eqEff = travaEquipes ? 1 : (comp.equipes || 1);
+    const compEff = { ...comp, kpi: kpiEff, equipes: eqEff };
+    const { total: ctMensal, dur, durMeses, durTotalDias } = calcA(compEff, vol);
+    const ct = ctMensal * (durMeses > 0 ? durMeses : 0);
+    const vols = monthlyVolumes(vol, kpiEff, eqEff);
     // Mês de início efetivo (1-indexed → 0-indexed). 0 = não definido → começa no mês 0.
     const mesGrupo = comp.mesInicia > 0 ? comp.mesInicia - 1 : null;
     const mesBase  = mesIniciaBase[a.id] > 0 ? mesIniciaBase[a.id] - 1 : null;

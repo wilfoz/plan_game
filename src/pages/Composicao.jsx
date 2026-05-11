@@ -24,15 +24,24 @@ export default function Composicao() {
     uKpi, uEq, uMesInicia,
     requisitos, toggleReq,
     equipesBase, kpisBase, mesIniciaBase,
+    travaEquipes,
     lt,
   } = useApp();
 
   const aObj = ATIVS.find(a => a.id === aTab) || ATIVS[0];
   const comp = gc(gIdx, aObj.id);
   const esc = volumesPrev[aObj.id] || 0;
-  const calc = calcA(comp, esc);
+  const compEff = travaEquipes ? { ...comp, equipes: 1 } : comp;
+  const calc = calcA(compEff, esc);
   const colGrp = aObj.grp === "M" ? C.blueL : C.greenL;
-  const totalGeral = ATIVS.reduce((s, a) => s + calcA(gc(gIdx, a.id), volumesPrev[a.id] || 0).total, 0);
+  const totalGeral = ATIVS.reduce((s, a) => {
+    const raw = gc(gIdx, a.id);
+    const hasRes = raw.moRows.length > 0 || raw.eqRows.length > 0 || raw.kpi > 0;
+    const kpiEff = hasRes ? (raw.kpi > 0 ? raw.kpi : kpisBase[a.id] || 0) : 0;
+    const eqEff = travaEquipes ? 1 : (raw.equipes || 1);
+    const c = calcA({ ...raw, kpi: kpiEff, equipes: eqEff }, volumesPrev[a.id] || 0);
+    return s + c.total * (c.durMeses > 0 ? c.durMeses : 0);
+  }, 0);
   const reqsAtiv = requisitos.filter(r => r.aId === aObj.id);
 
   const moUsados = new Set(comp.moRows.map(r => r.catId));
@@ -138,8 +147,20 @@ export default function Composicao() {
                 <LocalNumInp v={comp.kpi || ""} onSave={v => uKpi(gIdx, aObj.id, v)} w={80} />
               </div>
               <div>
-                <div style={{ fontSize: 8, color: C.txt3, letterSpacing: 2, marginBottom: 3 }}>EQUIPES</div>
-                <LocalNumInp v={comp.equipes} onSave={v => uEq(gIdx, aObj.id, v)} w={60} />
+                <div style={{ fontSize: 8, color: C.txt3, letterSpacing: 2, marginBottom: 3 }}>
+                  EQUIPES{travaEquipes && <span style={{ color: C.txt3, fontWeight: 400 }}> 🔒</span>}
+                </div>
+                {travaEquipes ? (
+                  <div style={{
+                    width: 60, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+                    background: C.surf2, border: `1px solid ${C.border}`, borderRadius: 4,
+                    fontSize: 13, fontWeight: 700, color: C.txt3,
+                  }}>
+                    1
+                  </div>
+                ) : (
+                  <LocalNumInp v={comp.equipes} onSave={v => uEq(gIdx, aObj.id, v)} w={60} />
+                )}
               </div>
               <div>
                 <div style={{ fontSize: 8, color: C.txt3, letterSpacing: 2, marginBottom: 3 }}>

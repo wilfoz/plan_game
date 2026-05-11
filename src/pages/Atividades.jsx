@@ -8,7 +8,11 @@ import { TH, TD } from "../components/ui/Table";
 import { LocalNumInp, LocalTextInp } from "../components/ui/Inputs";
 
 export default function Atividades() {
-  const { kpisBase, setKpisBase, volumesPrev, setVolumesPrev, comentariosAtiv, setComentariosAtiv, mesIniciaBase, setMesIniciaBase, calcA, duracaoSomada, setDuracaoSomada } = useApp();
+  const {
+    kpisBase, setKpisBase, volumesPrev, setVolumesPrev,
+    comentariosAtiv, setComentariosAtiv, mesIniciaBase, setMesIniciaBase,
+    calcA, duracaoSomada, escAutoMap,
+  } = useApp();
 
   const ativDurs = ATIVS.map(a => {
     const comp = { kpi: kpisBase[a.id] || 0, equipes: 1, moRows: [], eqRows: [] };
@@ -28,42 +32,15 @@ export default function Atividades() {
   return (
     <div style={S.pg}>
       <Card>
-        <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: C.txt2, letterSpacing: 1 }}>MODO DURAÇÃO</span>
-            <div
-              onClick={() => setDuracaoSomada(v => !v)}
-              title={duracaoSomada ? "Soma de todas as durações" : "Período: início da 1ª até fim da última atividade"}
-              style={{
-                width: 38, height: 20, borderRadius: 10, cursor: "pointer",
-                background: duracaoSomada ? C.gold : C.border2,
-                position: "relative", transition: "background 0.2s", flexShrink: 0,
-              }}
-            >
-              <div style={{
-                position: "absolute", top: 2, left: duracaoSomada ? 20 : 2,
-                width: 16, height: 16, borderRadius: "50%", background: "#FFF",
-                transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.25)"
-              }} />
-            </div>
-            <span style={{ fontSize: 10, fontWeight: 600, color: duracaoSomada ? C.goldL : C.txt2 }}>
-              {duracaoSomada ? "SOMA DAS ATIVIDADES" : "PERÍODO (INÍCIO → FIM)"}
-            </span>
-            {!duracaoSomada && mesMin != null && (
-              <span style={{ fontSize: 10, color: C.txt3 }}>
-                — mês {mesMin} ao mês {mesFimMax}
-              </span>
-            )}
-          </div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-            <span style={{ fontSize: 10, color: C.txt3, fontWeight: 600, letterSpacing: 1 }}>DURAÇÃO TOTAL</span>
-            <span style={{ fontSize: 22, fontWeight: 800, color: duracaoTotal > 0 ? C.gold : C.txt3, lineHeight: 1 }}>
-              {duracaoTotal > 0 ? duracaoTotal : "—"}
-            </span>
-            {duracaoTotal > 0 && (
-              <span style={{ fontSize: 10, fontWeight: 600, color: C.txt2 }}>MESES</span>
-            )}
-          </div>
+        <div style={{ padding: "12px 16px", display: "flex", alignItems: "baseline", gap: 8 }}>
+          <span style={{ fontSize: 10, color: C.txt3, fontWeight: 600, letterSpacing: 1 }}>DURAÇÃO BASE (equipe referência)</span>
+          <span style={{ fontSize: 22, fontWeight: 800, color: duracaoTotal > 0 ? C.gold : C.txt3, lineHeight: 1 }}>
+            {duracaoTotal > 0 ? duracaoTotal : "—"}
+          </span>
+          {duracaoTotal > 0 && <span style={{ fontSize: 10, fontWeight: 600, color: C.txt2 }}>MESES</span>}
+          {!duracaoSomada && mesMin != null && (
+            <span style={{ fontSize: 10, color: C.txt3, marginLeft: 8 }}>— mês {mesMin} ao mês {mesFimMax}</span>
+          )}
         </div>
       </Card>
 
@@ -86,11 +63,20 @@ export default function Atividades() {
                     <Tag text={a.und} col={col} />
                   </td>
                   <td style={{ padding: "4px 8px", textAlign: "right" }}>
-                    <LocalNumInp
-                      v={volumesPrev[a.id] || ""}
-                      onSave={v => setVolumesPrev(p => ({ ...p, [a.id]: +v || 0 }))}
-                      w={100}
-                    />
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 5 }}>
+                      {escAutoMap[a.id] > 0 && volumesPrev[a.id] === escAutoMap[a.id] && (
+                        <span title="Valor derivado automaticamente da configuração da LT" style={{
+                          fontSize: 8, fontWeight: 700, letterSpacing: 1,
+                          color: C.goldL, background: C.goldL + "18",
+                          border: `1px solid ${C.goldL}44`, borderRadius: 3, padding: "1px 5px",
+                        }}>↗ LT</span>
+                      )}
+                      <LocalNumInp
+                        v={volumesPrev[a.id] || ""}
+                        onSave={v => setVolumesPrev(p => ({ ...p, [a.id]: +v || 0 }))}
+                        w={100}
+                      />
+                    </div>
                   </td>
                   <td style={{ padding: "4px 8px", textAlign: "right" }}>
                     <LocalNumInp

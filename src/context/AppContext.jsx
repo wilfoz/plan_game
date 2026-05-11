@@ -21,22 +21,26 @@ import { useRealtimeComps } from "../hooks/useRealtimeComps";
 const mkComp = () => ({ moRows: [], eqRows: [], reqIds: [], kpi: 0, equipes: 1, mesInicia: 0 });
 const mkGrupoComps = () => Object.fromEntries(ATIVS.map(a => [a.id, mkComp()]));
 const mkEquipesBase = () => Object.fromEntries(ATIVS.map(a => [a.id, { moRows: [], eqRows: [] }]));
-const EMPTY_LT = { nome: "", tensao: "500kV", ext: 0, circ: "simples", cabFase: 4, pararaios: 2, opgw: 1 };
+const EMPTY_LT = { nome: "", tensao: "500kV", ext: 0, circ: "simples", cabFase: 4, pararaios: 2, opgw: 1, travaEquipes: false };
 
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
   const qc = useQueryClient();
 
-  // ── UI state ────────────────────────────────────────────────────────────
-  const [screen, setScreen] = useState("login");
-  const [role, setRole] = useState(null);
-  const [gIdx, setGIdx] = useState(0);
-  const [aTab, setATab] = useState("a1");
+  // ── UI state (restaurado do sessionStorage no mount) ────────────────────
+  const _ss = (() => {
+    try { return JSON.parse(sessionStorage.getItem("jlt_sess") ?? "null") ?? {}; }
+    catch { return {}; }
+  })();
+  const [screen, setScreen]               = useState(_ss.screen           ?? "login");
+  const [role, setRole]                   = useState(_ss.role              ?? null);
+  const [gIdx, setGIdx]                   = useState(_ss.gIdx              ?? 0);
+  const [aTab, setATab]                   = useState("a1");
   const [epiCargoAtivo, setEpiCargoAtivo] = useState("mo1");
-  const [activeSessionId, setActiveSessionId] = useState(null);
+  const [activeSessionId, setActiveSessionId] = useState(_ss.activeSessionId ?? null);
   const [duracaoSomada, setDuracaoSomada] = useState(true);
-  const [copyOptions, setCopyOptions] = useState(null);
+  const [copyOptions, setCopyOptions]     = useState(null);
 
   // ── Supabase hooks ────────────────────────────────────────────────────────
   const sessionsHook = useSessions();
@@ -46,6 +50,15 @@ export function AppProvider({ children }) {
   const gruposHook   = useGrupos(activeSessionId);
   const reqHook      = useRequisitos(activeSessionId);
   const epiHook      = useEpiCargo(activeSessionId);
+
+  // ── Persistência de sessão (sessionStorage — apaga ao fechar a aba) ────────
+  useEffect(() => {
+    if (role && activeSessionId) {
+      sessionStorage.setItem("jlt_sess", JSON.stringify({ role, gIdx, activeSessionId, screen }));
+    } else {
+      sessionStorage.removeItem("jlt_sess");
+    }
+  }, [role, activeSessionId, gIdx, screen]);
 
   // grupos precisa estar disponível antes de inicializar compsHook
   const grupos = gruposHook.query.data ?? [];
@@ -92,6 +105,17 @@ export function AppProvider({ children }) {
     ltHook.upsertDebounced(newLt);
   };
 
+  // travaEquipes vive em lt_config no Supabase para sincronizar com os grupos
+  const travaEquipes    = lt.travaEquipes ?? false;
+  const setTravaEquipes = (v) => uLt("travaEquipes", typeof v === "function" ? v(travaEquipes) : v);
+
+  // ── LT derived values ────────────────────────────────────────────────────
+  const fator        = lt.circ === "duplo" ? 2 : 1;
+  const totalCabos   = ((lt.cabFase || 0) * 3 + (lt.pararaios || 0) + (lt.opgw || 0)) * fator;
+  const extCondutor  = (lt.ext || 0) * (lt.cabFase || 0) * 3 * fator;
+  const extParaRaios = (lt.ext || 0) * (lt.pararaios || 0) * fator;
+  const escAutoMap   = { a5: extCondutor, a6: extCondutor };
+
   // ── Atividades config (local state + debounced Supabase) ─────────────────
   const [ativLocal, setAtivLocalState] = useState({});
   const ativLocalRef = useRef({});
@@ -104,7 +128,10 @@ export function AppProvider({ children }) {
   }, [ativHook.query.data]);
 
   const kpisBase        = Object.fromEntries(ATIVS.map(a => [a.id, ativLocal[a.id]?.kpiBase      ?? 0]));
-  const volumesPrev     = Object.fromEntries(ATIVS.map(a => [a.id, ativLocal[a.id]?.volumePrev   ?? 0]));
+  const volumesPrev     = Object.fromEntries(ATIVS.map(a => {
+    const manual = ativLocal[a.id]?.volumePrev ?? 0;
+    return [a.id, manual > 0 ? manual : (escAutoMap[a.id] ?? 0)];
+  }));
   const comentariosAtiv = Object.fromEntries(ATIVS.map(a => [a.id, ativLocal[a.id]?.comentario   ?? ""]));
   const mesIniciaBase   = Object.fromEntries(ATIVS.map(a => [a.id, ativLocal[a.id]?.mesIniciaBase ?? 0]));
 
@@ -350,12 +377,6 @@ export function AppProvider({ children }) {
   const uEq       = (gi, aId, v) => updateComp(gi, aId, c => ({ ...c, equipes: Math.max(1, +v || 1) }));
   const uMesInicia = (gi, aId, v) => updateComp(gi, aId, c => ({ ...c, mesInicia: +v || 0 }));
 
-  // ── LT derived values ────────────────────────────────────────────────────
-  const fator        = lt.circ === "duplo" ? 2 : 1;
-  const totalCabos   = ((lt.cabFase || 0) * 3 + (lt.pararaios || 0) + (lt.opgw || 0)) * fator;
-  const extCondutor  = (lt.ext || 0) * (lt.cabFase || 0) * 3 * fator;
-  const extParaRaios = (lt.ext || 0) * (lt.pararaios || 0) * fator;
-
   // ── Calculations (unchanged logic) ───────────────────────────────────────
   const calcA      = (comp, esc) => calcABase(comp, esc);
   const calcSeg    = (gi) => calcSegBase(requisitos, (aId) => gc(gi, aId));
@@ -364,10 +385,18 @@ export function AppProvider({ children }) {
   const PENALTY = { risco: 1.2, pior: 1.4 };
 
   const buildRank = () => {
+    const getCompEff = (i, aId) => {
+      const comp = gc(i, aId);
+      const hasRes = comp.moRows.length > 0 || comp.eqRows.length > 0 || comp.kpi > 0;
+      const kpiEff = hasRes ? (comp.kpi > 0 ? comp.kpi : kpisBase[aId] || 0) : 0;
+      const eqEff = travaEquipes ? 1 : (comp.equipes || 1);
+      return { ...comp, kpi: kpiEff, equipes: eqEff };
+    };
+
     const res = grupos.map((g, i) => {
       const ef = calcEfGrupo(i);
       const ctBase = ATIVS.reduce((s, a) => {
-        const c  = calcA(gc(i, a.id), volumesPrev[a.id] || 0);
+        const c  = calcA(getCompEff(i, a.id), volumesPrev[a.id] || 0);
         const pen = PENALTY[ef.porAtiv[a.id]?.impactoPrazo] ?? 1.0;
         return s + c.total * (c.durMeses > 0 ? c.durMeses * pen : 0);
       }, 0);
@@ -376,19 +405,16 @@ export function AppProvider({ children }) {
       let dm;
       if (duracaoSomada) {
         dm = ATIVS.reduce((s, a) => {
-          const c = calcA(gc(i, a.id), volumesPrev[a.id] || 0);
-          const pen = PENALTY[ef.porAtiv[a.id]?.impactoPrazo] ?? 1.0;
-          return s + c.dur * pen;
+          const c = calcA(getCompEff(i, a.id), volumesPrev[a.id] || 0);
+          return s + c.dur;
         }, 0);
       } else {
         const pts = ATIVS.map(a => {
-          const comp = gc(i, a.id);
-          const c = calcA(comp, volumesPrev[a.id] || 0);
-          const pen = PENALTY[ef.porAtiv[a.id]?.impactoPrazo] ?? 1.0;
+          const compEff = getCompEff(i, a.id);
+          const c = calcA(compEff, volumesPrev[a.id] || 0);
           if (c.dur <= 0) return null;
-          const mes = comp.mesInicia > 0 ? comp.mesInicia : (mesIniciaBase[a.id] || 0);
-          if (mes <= 0) return null;
-          return { s: mes, e: mes + Math.ceil(c.dur * pen) - 1 };
+          const mes = compEff.mesInicia > 0 ? compEff.mesInicia : (mesIniciaBase[a.id] > 0 ? mesIniciaBase[a.id] : 1);
+          return { s: mes, e: mes + Math.ceil(c.dur) - 1 };
         }).filter(Boolean);
         dm = pts.length
           ? Math.max(...pts.map(x => x.e)) - Math.min(...pts.map(x => x.s)) + 1
@@ -416,6 +442,7 @@ export function AppProvider({ children }) {
       screen, setScreen, role, setRole, gIdx, setGIdx, aTab, setATab,
       epiCargoAtivo, setEpiCargoAtivo,
       duracaoSomada, setDuracaoSomada,
+      travaEquipes, setTravaEquipes,
       copyOptions, setCopyOptions,
       sessions, activeSessionId, setActiveSessionId, addSession, delSession, uSessionNome, sess,
       lt, uLt,
@@ -433,7 +460,7 @@ export function AppProvider({ children }) {
       equipesBase,
       eqBaseAddMo, eqBaseDelMo, eqBaseUpdMo,
       eqBaseAddEq, eqBaseDelEq, eqBaseUpdEq,
-      fator, totalCabos, extCondutor, extParaRaios,
+      fator, totalCabos, extCondutor, extParaRaios, escAutoMap,
       calcA, calcSeg, calcEfGrupo, buildRank,
       isLoading, realtimeConnected,
     }}>
