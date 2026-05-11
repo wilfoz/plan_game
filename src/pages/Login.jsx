@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import logoSvg from "../assets/logo.svg";
 import { C } from "../constants/colors";
 import { S } from "../styles";
 import { useApp } from "../context/AppContext";
@@ -230,11 +231,12 @@ export default function Login() {
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 36 }}>
           <div style={{
-            width: 60, height: 60, margin: "0 auto 16px",
-            background: `linear-gradient(135deg,${C.gold},${C.goldDim})`,
+            width: 96, height: 96, margin: "0 auto 16px",
             borderRadius: 14, display: "flex", alignItems: "center",
-            justifyContent: "center", fontSize: 28
-          }}>⚡</div>
+            justifyContent: "center",
+          }}>
+            <img src={logoSvg} alt="Logo" style={{ width: 64, height: 64 }} />
+          </div>
           <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: 6 }}>JORNADAS LT</div>
           <div style={{ fontSize: 10, color: C.gold, letterSpacing: 4, marginTop: 6 }}>
             SIMULADOR DE ALTA PERFORMANCE
