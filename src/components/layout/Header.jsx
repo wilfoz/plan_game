@@ -28,7 +28,7 @@ export default function Header() {
           borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#FFF"
         }}>⚡</div>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 3 }}>JORNADAS LT</div>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 3 }}>DIMENSIONAMENTO ESTRATÉGICO E SEGURO</div>
           <div style={{ fontSize: 8, letterSpacing: 1 }}>
             {sess && <span style={{ color: C.goldL }}>{sess.nome}</span>}
             {role === "G" && grupos[gIdx] && (

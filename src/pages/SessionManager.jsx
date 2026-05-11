@@ -1,4 +1,5 @@
 import { useState } from "react";
+import logoSvg from "../assets/logo.svg";
 import { C } from "../constants/colors";
 import { S } from "../styles";
 import { useApp } from "../context/AppContext";
@@ -45,8 +46,10 @@ export default function SessionManager() {
 
         {/* Cabeçalho */}
         <div style={{ textAlign: "center", marginBottom: 36 }}>
-          <div style={{ fontSize: 40, marginBottom: 10 }}>⚡</div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: 6 }}>JORNADAS LT</h1>
+          <div style={{ width: 96, height: 96, margin: "0 auto 10px", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <img src={logoSvg} alt="Logo" style={{ width: 64, height: 64 }} />
+          </div>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: 6 }}>DIMENSIONAMENTO ESTRATÉGICO E SEGURO</h1>
           <p style={{ margin: "6px 0 0", fontSize: 11, color: C.gold, letterSpacing: 4 }}>
             PAINEL DO FACILITADOR
           </p>

@@ -237,9 +237,9 @@ export default function Login() {
           }}>
             <img src={logoSvg} alt="Logo" style={{ width: 64, height: 64 }} />
           </div>
-          <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: 6 }}>JORNADAS LT</div>
+          <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: 6 }}>DIMENSIONAMENTO ESTRATÉGICO E SEGURO</div>
           <div style={{ fontSize: 10, color: C.gold, letterSpacing: 4, marginTop: 6 }}>
-            SIMULADOR DE ALTA PERFORMANCE
+            5ª JORNADA DE SEGURANÇA · GRANDES REDES
           </div>
         </div>
 
