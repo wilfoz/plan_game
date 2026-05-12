@@ -40,29 +40,6 @@ export const EQ_CAT = [
   { id: "eq20", nome: "PÁ CARREGADEIRA", loc: 25000 },
 ];
 
-export const EPI_CAT = [
-  { id: "epi1", desc: "Calças operacionais", custo: 50 },
-  { id: "epi2", desc: "Camisas operacionais", custo: 50 },
-  { id: "epi3", desc: "Touca árabe", custo: 50 },
-  { id: "epi4", desc: "Botina biq de PVC", custo: 50 },
-  { id: "epi5", desc: "Luva de vaqueta", custo: 50 },
-  { id: "epi6", desc: "Óculos escuro antirrisco", custo: 50 },
-  { id: "epi7", desc: "Perneira bindim c/ velcro 3T", custo: 50 },
-  { id: "epi8", desc: "Capacete MSA aba frontal c/ carneira", custo: 50 },
-  { id: "epi9", desc: "Protetor solar FPS60", custo: 50 },
-  { id: "epi10", desc: "Colete refletivo laranja", custo: 50 },
-  { id: "epi11", desc: "Protetor auricular tipo plug", custo: 50 },
-  { id: "epi12", desc: "Cinto de Segurança", custo: 50 },
-  { id: "epi13", desc: "Talabarte em Y", custo: 50 },
-  { id: "epi14", desc: "Trava Quedas", custo: 50 },
-  { id: "epi15", desc: "Talabarte Abdominal", custo: 50 },
-  { id: "epi16", desc: "Bolsa p/ Cinto", custo: 50 },
-  { id: "epi17", desc: "Botina para operador de motosserra", custo: 50 },
-  { id: "epi18", desc: "Calça para operador de motosserra", custo: 50 },
-  { id: "epi19", desc: "Camisa para operador de motosserra", custo: 50 },
-  { id: "epi20", desc: "Luva vaqueta motosserrista", custo: 50 },
-];
-
 export const EPC_CAT = [
   { id: "epc1", desc: "Sinalização viária", custo: 2000 },
   { id: "epc2", desc: "Corda linha de vida", custo: 1500 },
