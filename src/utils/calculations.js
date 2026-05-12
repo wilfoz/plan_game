@@ -258,18 +258,22 @@ export function calcCoerencia(moRows, eqRows) {
     const nEq = qtdEq(reg.eqNomes);
     if (nOp === 0 && nEq === 0) continue;
 
+    // Nomes dos equipamentos que o grupo realmente cadastrou (subconjunto de reg.eqNomes)
+    const presentEqNomes = reg.eqNomes.filter(n => eqRows.some(r => r.nome === n));
+    const displayNomes = presentEqNomes.length > 0 ? presentEqNomes : reg.eqNomes;
+
     const eqEsperado = nOp > 0 ? Math.ceil(nOp / reg.opPorEq) : 0;
     const opEsperado = nEq * reg.opPorEq;
 
     if (nOp > 0 && nEq === 0) {
       issues.push({ tipo: "sem_equipamento", cargo: reg.cargo, nOp, eqNomes: reg.eqNomes, eqEsperado });
     } else if (nOp === 0 && nEq > 0) {
-      issues.push({ tipo: "sem_operador", cargo: reg.cargo, nEq, eqNomes: reg.eqNomes, opEsperado });
+      issues.push({ tipo: "sem_operador", cargo: reg.cargo, nEq, eqNomes: displayNomes, opEsperado });
     } else {
       if (nEq < eqEsperado)
-        issues.push({ tipo: "eq_insuficiente", cargo: reg.cargo, nOp, nEq, eqNomes: reg.eqNomes, eqEsperado });
+        issues.push({ tipo: "eq_insuficiente", cargo: reg.cargo, nOp, nEq, eqNomes: displayNomes, eqEsperado });
       else if (nEq > eqEsperado)
-        issues.push({ tipo: "eq_ocioso", cargo: reg.cargo, nOp, nEq, eqNomes: reg.eqNomes, eqEsperado });
+        issues.push({ tipo: "eq_ocioso", cargo: reg.cargo, nOp, nEq, eqNomes: displayNomes, eqEsperado });
       if (reg.opPorEq === 2 && nOp % 2 !== 0)
         issues.push({ tipo: "impar_puller_freio", nOp });
     }
@@ -290,7 +294,9 @@ export function calcCoerencia(moRows, eqRows) {
 }
 
 // ─── Score de segurança ────────────────────────────────────────────────────
-// Classificatório: desclassificado se qualquer requisito aplicável estiver ausente.
+// Classificatório: desclassificado se qualquer requisito aplicável estiver ausente
+// nas atividades que possuem recursos. Atividades sem recursos são ignoradas.
+// Grupo sem nenhum recurso em nenhuma atividade é desclassificado (totalAplicaveis === 0).
 // Retorna { score: 0|100, desq: bool, reprovado: false, missing: [] }
 export const calcSeg = (requisitos, getCompFn) => {
   const missing = [];
@@ -314,7 +320,9 @@ export const calcSeg = (requisitos, getCompFn) => {
     });
   });
 
-  const desq = totalAplicaveis > 0 && addedAplicaveis < totalAplicaveis;
+  // totalAplicaveis === 0 → nenhuma atividade tem recursos → desclassificado
+  // addedAplicaveis < totalAplicaveis → algum requisito aplicável está faltando → desclassificado
+  const desq = totalAplicaveis === 0 || addedAplicaveis < totalAplicaveis;
   const score = desq ? 0 : 100;
   return { score, desq, reprovado: false, missing: desq ? missing : [] };
 };

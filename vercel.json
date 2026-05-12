@@ -1,4 +1,7 @@
 {
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -8,7 +11,8 @@
         { "key": "X-XSS-Protection",                 "value": "1; mode=block" },
         { "key": "Referrer-Policy",                  "value": "strict-origin-when-cross-origin" },
         { "key": "Permissions-Policy",               "value": "geolocation=(), microphone=(), camera=()" },
-        { "key": "Strict-Transport-Security",        "value": "max-age=31536000; includeSubDomains" }
+        { "key": "Strict-Transport-Security",        "value": "max-age=31536000; includeSubDomains" },
+        { "key": "Content-Security-Policy",          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'" }
       ]
     }
   ]

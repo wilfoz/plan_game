@@ -405,16 +405,18 @@ export function AppProvider({ children }) {
       let dm;
       if (duracaoSomada) {
         dm = ATIVS.reduce((s, a) => {
-          const c = calcA(getCompEff(i, a.id), volumesPrev[a.id] || 0);
-          return s + c.dur;
+          const c   = calcA(getCompEff(i, a.id), volumesPrev[a.id] || 0);
+          const pen = PENALTY[ef.porAtiv[a.id]?.impactoPrazo] ?? 1.0;
+          return s + c.dur * pen;
         }, 0);
       } else {
         const pts = ATIVS.map(a => {
           const compEff = getCompEff(i, a.id);
-          const c = calcA(compEff, volumesPrev[a.id] || 0);
+          const c   = calcA(compEff, volumesPrev[a.id] || 0);
           if (c.dur <= 0) return null;
+          const pen = PENALTY[ef.porAtiv[a.id]?.impactoPrazo] ?? 1.0;
           const mes = compEff.mesInicia > 0 ? compEff.mesInicia : (mesIniciaBase[a.id] > 0 ? mesIniciaBase[a.id] : 1);
-          return { s: mes, e: mes + Math.ceil(c.dur) - 1 };
+          return { s: mes, e: mes + Math.ceil(c.dur * pen) - 1 };
         }).filter(Boolean);
         dm = pts.length
           ? Math.max(...pts.map(x => x.e)) - Math.min(...pts.map(x => x.s)) + 1

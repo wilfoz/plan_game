@@ -1,0 +1,304 @@
+REQUISITOS DE SEGURANÇA POR ATIVIDADE
+5ª Jornada de Segurança · Grandes Redes
+======================================================================
+Legenda:  [✓] APLICÁVEL — deve ser incluído
+          [✗] NÃO APLICÁVEL — armadilha, não inclua (gera penalidade)
+======================================================================
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+A1 · PRÉ MONTAGEM TORRE  (unid: TON)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROCEDIMENTOS
+  [✓] APR - Análise Preliminar de Riscos
+  [✓] Inspeção e conferência de peças da torre
+  [✓] Procedimento de movimentação e içamento de cargas
+  [✓] Controle de codificação e segregação de peças
+  [✗] Detector de Tensão
+  [✗] NR-33 - Espaços Confinados
+  [✗] MOPP - Movimentação de Produtos Perigosos
+
+EPIs
+  [✓] Capacete com aba frontal
+  [✓] Óculos de segurança antirrisco
+  [✓] Luva de vaqueta
+  [✓] Botina com biqueira de PVC
+  [✓] Colete refletivo
+  [✓] Protetor auricular
+  [✗] Cinto tipo paraquedista
+  [✗] Trava-quedas
+
+EPC
+  [✓] Sinalização e isolamento da área de trabalho
+  [✓] Barricada de proteção
+
+TREINAMENTOS
+  [✓] NR-35 - Trabalho em Altura
+  [✓] NR-10 - Segurança em Instalações Elétricas
+  [✓] Operação segura de equipamentos de içamento
+  [✓] Primeiros Socorros
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+A2 · MONTAGEM MECANIZADA  (unid: TON)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROCEDIMENTOS
+  [✓] APR - Análise Preliminar de Riscos
+  [✓] Plano de Içamento aprovado
+  [✓] Ficha de inspeção do guindaste
+  [✓] Procedimento de trabalho em altura
+  [✓] Sinalização de área para operação de guindaste
+  [✗] Içamento excedendo capacidade nominal do guindaste
+  [✗] NR-33 - Espaços Confinados
+  [✗] MOPP - Movimentação de Produtos Perigosos
+
+EPIs
+  [✓] Capacete com aba frontal
+  [✓] Óculos de segurança antirrisco
+  [✓] Luva de vaqueta
+  [✓] Botina com biqueira de PVC
+  [✓] Colete refletivo
+  [✓] Protetor auricular
+  [✓] Cinto tipo paraquedista
+  [✓] Trava-quedas
+  [✗] Botina com biqueira de aço
+
+EPC
+  [✓] Sinalização e isolamento da área de trabalho
+  [✓] Barricada de proteção
+  [✓] Linha de vida horizontal na torre
+  [✓] Placas de advertência
+
+TREINAMENTOS
+  [✓] NR-35 - Trabalho em Altura
+  [✓] NR-10 - Segurança em Instalações Elétricas
+  [✓] NR-11 - Operação de Guindaste
+  [✓] Primeiros Socorros e Resgate em Altura
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+A3 · MONTAGEM MANUAL  (unid: TON)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROCEDIMENTOS
+  [✓] APR - Análise Preliminar de Riscos
+  [✓] Procedimento de trabalho em altura
+  [✓] Inspeção de guincho de montagem
+  [✓] Inspeção de mastros de montagem
+  [✓] Plano de montagem manual da torre
+  [✓] Procedimento para uso de talha e blocos
+  [✗] Pluma com números de séries divergentes
+  [✗] NR-33 - Espaços Confinados
+
+EPIs
+  [✓] Capacete com aba frontal
+  [✓] Óculos de segurança antirrisco
+  [✓] Luva de vaqueta
+  [✓] Botina com biqueira de PVC
+  [✓] Colete refletivo
+  [✓] Protetor auricular
+  [✓] Cinto tipo paraquedista
+  [✓] Trava-quedas
+  [✓] Talabarte em Y
+  [✓] Perneira de proteção
+
+EPC
+  [✓] Sinalização e isolamento da área de trabalho
+  [✓] Barricada de proteção
+  [✓] Linha de vida horizontal na torre
+  [✗] EPC Autofalante
+
+TREINAMENTOS
+  [✓] NR-35 - Trabalho em Altura
+  [✓] NR-10 - Segurança em Instalações Elétricas
+  [✓] Resgate em Altura
+  [✓] Primeiros Socorros
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+A4 · REVISÃO TORRE  (unid: TON)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROCEDIMENTOS
+  [✓] APR - Análise Preliminar de Riscos
+  [✓] Procedimento de revisão e inspeção de torres
+  [✓] Procedimento de trabalho em altura
+  [✓] Inspeção de equipamentos de subida de torre
+  [✓] Controle de torque de parafusos e conectores
+  [✗] Plano de içamento aprovado
+  [✗] NR-33 - Espaços Confinados
+  [✗] MOPP - Movimentação de Produtos Perigosos
+
+EPIs
+  [✓] Capacete com aba frontal
+  [✓] Óculos de segurança antirrisco
+  [✓] Luva de vaqueta
+  [✓] Botina com biqueira de PVC
+  [✓] Colete refletivo
+  [✓] Protetor auricular
+  [✓] Cinto tipo paraquedista
+  [✓] Trava-quedas
+  [✓] Talabarte em Y
+  [✓] Perneira de proteção
+  [✗] Botina com biqueira de aço
+
+EPC
+  [✓] Sinalização e isolamento da área de trabalho
+  [✓] Barricada de proteção
+  [✓] Linha de vida horizontal na torre
+  [✗] EPC Autofalante
+
+TREINAMENTOS
+  [✓] NR-35 - Trabalho em Altura
+  [✓] NR-10 - Segurança em Instalações Elétricas
+  [✓] Resgate em Altura
+  [✓] Primeiros Socorros
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+A5 · LANÇAMENTO DE CABO OPGW  (unid: KM)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROCEDIMENTOS
+  [✓] APR - Análise Preliminar de Riscos
+  [✓] Plano de lançamento de cabo piloto
+  [✓] Inspeção do trator agrícola
+  [✓] Controle de comunicação entre equipes de campo
+  [✓] Procedimento para passagem de cabos por cruzamentos
+  [✓] Inspeção das vias de acesso e servidões
+  [✗] NR-33 - Espaços Confinados
+  [✗] Segurança em Corte e Solda
+  [✗] Ponte de fase para fase
+
+EPIs
+  [✓] Capacete com aba frontal
+  [✓] Óculos de segurança antirrisco
+  [✓] Luva de vaqueta
+  [✓] Botina com biqueira de PVC
+  [✓] Colete refletivo
+  [✓] Protetor auricular
+  [✓] Cinto tipo paraquedista
+  [✓] Trava-quedas
+  [✓] Talabarte em Y
+  [✓] Perneira de proteção
+  [✗] Botina com biqueira de aço
+
+EPC
+  [✓] Sinalização das equipes de lançamento
+  [✓] Barricada de proteção em cruzamentos
+  [✓] Cones e placas de sinalização viária
+  [✗] EPC Autofalante
+
+TREINAMENTOS
+  [✓] NR-35 - Trabalho em Altura
+  [✓] NR-10 - Segurança em Instalações Elétricas
+  [✓] Operação de Equipamentos de Lançamento
+  [✓] Primeiros Socorros
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+A6 · LANÇAMENTO DE CABO CONDUTOR  (unid: KM)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROCEDIMENTOS
+  [✓] APR - Análise Preliminar de Riscos
+  [✓] Plano de lançamento de condutor
+  [✓] Ficha de inspeção do conjunto puller/freio
+  [✓] Plano de cruzamentos com rodovias e ferrovias
+  [✓] Procedimento de emendas de condutor
+  [✓] Controle de tensão de lançamento
+  [✓] Procedimento de uso de prensa hidráulica
+  [✗] NR-33 - Espaços Confinados
+  [✗] Segurança em Corte e Solda
+
+EPIs
+  [✓] Capacete com aba frontal
+  [✓] Óculos de segurança antirrisco
+  [✓] Luva de vaqueta
+  [✓] Botina com biqueira de PVC
+  [✓] Colete refletivo
+  [✓] Protetor auricular
+  [✓] Cinto tipo paraquedista
+  [✓] Trava-quedas
+  [✓] Talabarte em Y
+  [✓] Perneira de proteção
+  [✓] Luva de raspagem de condutor
+  [✗] Botina com biqueira de aço
+
+EPC
+  [✓] Sinalização das equipes de lançamento
+  [✓] Barricada de proteção em cruzamentos
+  [✓] Cones e placas de sinalização viária
+  [✗] EPC Autofalante
+  [✗] Ponte de fase para fase
+
+TREINAMENTOS
+  [✓] NR-35 - Trabalho em Altura
+  [✓] NR-10 - Segurança em Instalações Elétricas
+  [✓] Operação de Conjunto Puller e Freio
+  [✓] Operação de Prensa Hidráulica para Emendas
+  [✓] Primeiros Socorros e Resgate em Altura
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+A7 · GRAMPEAÇÃO DE CABO CONDUTOR  (unid: TORRE)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROCEDIMENTOS
+  [✓] APR - Análise Preliminar de Riscos
+  [✓] Plano de grampeação de condutor
+  [✓] Procedimento de instalação de grampos e suspensores
+  [✓] Procedimento de ancoragem de cabos
+  [✓] Controle de torque de parafusos
+  [✓] Inspeção de equipamentos de subida de torre
+  [✗] NR-33 - Espaços Confinados
+  [✗] Segurança em Corte e Solda
+
+EPIs
+  [✓] Capacete com aba frontal
+  [✓] Óculos de segurança antirrisco
+  [✓] Luva de vaqueta
+  [✓] Botina com biqueira de PVC
+  [✓] Colete refletivo
+  [✓] Protetor auricular
+  [✓] Cinto tipo paraquedista
+  [✓] Trava-quedas
+  [✓] Talabarte em Y
+  [✓] Perneira de proteção
+  [✓] Luva anticorte
+  [✗] Botina com biqueira de aço
+
+EPC
+  [✓] Sinalização e isolamento da área de grampeação
+  [✓] Linha de vida na torre
+  [✓] Cones e placas de sinalização
+  [✗] EPC Autofalante
+  [✗] Ponte de fase para fase
+
+TREINAMENTOS
+  [✓] NR-35 - Trabalho em Altura
+  [✓] NR-10 - Segurança em Instalações Elétricas
+  [✓] Grampeação de cabos condutores
+  [✓] Ancoragem de cabos condutores
+  [✓] Primeiros Socorros e Resgate em Altura
+
+
+======================================================================
+RESUMO — CONTAGEM DE REQUISITOS
+======================================================================
+
+  Atividade                       Aplicáveis   Armadilhas   Total
+  ─────────────────────────────   ──────────   ──────────   ─────
+  A1 · Pré Montagem Torre              14            5        19
+  A2 · Montagem Mecanizada             17            4        21
+  A3 · Montagem Manual                 17            3        20
+  A4 · Revisão Torre                   17            5        22
+  A5 · Lançamento de Cabo OPGW         16            5        21
+  A6 · Lançamento de Cabo Condutor     18            5        23
+  A7 · Grampeação de Cabo Condutor     16            5        21
+  ─────────────────────────────   ──────────   ──────────   ─────
+  TOTAL GERAL                         115           32       147
+
+======================================================================

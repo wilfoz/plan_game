@@ -77,6 +77,41 @@ function RadarPerformance({ titulo, categorias, series }) {
   );
 }
 
+function BarCustoAtividade({ titulo, categorias, series }) {
+  const MO_COLOR = "#3B82F6";
+  const EQ_COLOR = "#F59E0B";
+  const data = categorias.map((cat, i) => {
+    const entry = { cat: cat.length > 12 ? cat.slice(0, 12) + "…" : cat };
+    series.forEach(s => { entry[s.nome] = +(s.valores[i] ?? 0); });
+    return entry;
+  });
+  const fmt = v => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v;
+  return (
+    <div>
+      <div style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", marginBottom: 8, letterSpacing: 1 }}>
+        {titulo}
+      </div>
+      <ResponsiveContainer width="100%" height={190}>
+        <BarChart data={data} barGap={2} barCategoryGap="30%">
+          <CartesianGrid strokeDasharray="3 3" stroke="#1E3A5F" vertical={false} />
+          <XAxis dataKey="cat" tick={{ fontSize: 8.5, fill: "#64748B" }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 8.5, fill: "#64748B" }} axisLine={false} tickLine={false}
+            tickFormatter={fmt} width={48} />
+          <Tooltip {...darkTooltip}
+            formatter={(v, name) => [`R$ ${Math.round(v).toLocaleString("pt-BR")}`, name]} />
+          <Legend wrapperStyle={{ fontSize: 9, paddingTop: 4 }} />
+          {series.map((s, i) => (
+            <Bar key={s.nome} dataKey={s.nome} stackId="cost"
+              fill={i === 0 ? MO_COLOR : EQ_COLOR}
+              radius={i === series.length - 1 ? [3, 3, 0, 0] : [0, 0, 0, 0]}
+              maxBarSize={40} />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 // Renderiza um bloco de gráfico a partir do input da tool `renderizar_grafico`
 export function ChartBlock({ input }) {
   const { tipo, titulo, categorias, series, unidade } = input ?? {};
@@ -93,6 +128,9 @@ export function ChartBlock({ input }) {
       )}
       {tipo === "radar_performance" && (
         <RadarPerformance titulo={titulo} categorias={categorias} series={series} />
+      )}
+      {tipo === "barras_custo_atividade" && (
+        <BarCustoAtividade titulo={titulo} categorias={categorias} series={series} />
       )}
     </div>
   );

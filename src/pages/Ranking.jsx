@@ -8,7 +8,7 @@ import { Card } from "../components/ui/Card";
 import { Hdr2, Tag } from "../components/ui/Typography";
 import { TH, TD } from "../components/ui/Table";
 import { ScoreRing } from "../components/ui/Typography";
-import { analyzeEficienciaStream } from "../services/claudeAI";
+import { analyzeEficienciaStream, analyzeFollowUp, analyzeSessionStream } from "../services/claudeAI";
 import { calcCoerencia } from "../utils/calculations";
 import { ChartBlock } from "../components/ui/ChartBlock";
 import { useAiAnalises } from "../hooks/useAiAnalises";
@@ -44,12 +44,16 @@ function MdText({ text, style }) {
 const HAS_KEY = true;
 
 export default function Ranking() {
-  const { lt, buildRank, gc, realtimeConnected, role, activeSessionId } = useApp();
+  const { lt, buildRank, gc, realtimeConnected, role, activeSessionId, calcA, volumesPrev } = useApp();
   const rank = buildRank();
   const medals = ["🥇", "🥈", "🥉"];
 
-  // { [grupoId]: { status: 'loading'|'tools'|'streaming'|'done'|'error', text, charts, error } }
+  // { [grupoId]: { status, text, charts, error, conversationMessages, followUps: [{question, answer, status}] } }
   const [aiState, setAiState] = useState({});
+  // { [grupoId]: string } — input text de follow-up por grupo
+  const [followUpInput, setFollowUpInput] = useState({});
+  // Análise consolidada da sessão para o facilitador
+  const [sessionAi, setSessionAi] = useState({ status: "idle", text: "", error: "" });
   const aiHook = useAiAnalises(activeSessionId);
 
   // Inicializa aiState com análises salvas no Supabase (não sobrescreve análises em andamento)
@@ -68,20 +72,32 @@ export default function Ranking() {
   }, [aiHook.query.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAnalyze = async (g) => {
-    setAiState(prev => ({ ...prev, [g.id]: { status: "loading", text: "", charts: [], error: "" } }));
+    setAiState(prev => ({ ...prev, [g.id]: { status: "loading", text: "", charts: [], error: "", followUps: [], conversationMessages: [] } }));
 
     const ativs = Object.entries(g.ef?.porAtiv ?? {})
       .map(([aId, efAtv]) => ({ atv: ATIVS.find(a => a.id === aId), efAtv }))
       .filter(({ atv, efAtv }) => atv && efAtv.temBase && efAtv.temGrupo);
 
+    const calcAResults = ATIVS.map(a => {
+      const comp = gc(g.gi, a.id);
+      const hasRes = comp.moRows.length > 0 || comp.eqRows.length > 0 || comp.kpi > 0;
+      return { aId: a.id, result: hasRes ? calcA(comp, volumesPrev[a.id] || 0) : null };
+    });
+
+    const rankContext = rank.filter(r => r.id !== g.id).map(r => ({
+      nome: r.nome, sC: r.sC, sD: r.sD, total: r.total, desq: r.desq,
+    }));
+
     try {
-      await analyzeEficienciaStream({
+      const { conversationMessages } = await analyzeEficienciaStream({
         grupo: g, lt,
         ef: g.ef ?? {},
         scores: { sC: g.sC, sD: g.sD, sS: g.sS, total: g.total, desq: g.desq },
         penSeg: g.penSeg,
         ativs,
         compsRaw: ATIVS.map(a => ({ atv: a, ...gc(g.gi, a.id) })),
+        calcAResults,
+        rankContext,
         onTool: ({ id, input }) =>
           setAiState(prev => {
             const cur = prev[g.id] ?? { charts: [] };
@@ -97,13 +113,66 @@ export default function Ranking() {
           })),
       });
       setAiState(prev => {
-        const final = { ...prev[g.id], status: "done" };
-        // Salva no Supabase após conclusão
+        const final = { ...prev[g.id], status: "done", conversationMessages };
         aiHook.save.mutate({ grupoId: g.id, text: final.text, charts: final.charts ?? [] });
         return { ...prev, [g.id]: final };
       });
     } catch (err) {
-      setAiState(prev => ({ ...prev, [g.id]: { status: "error", text: "", charts: [], error: err.message } }));
+      setAiState(prev => ({ ...prev, [g.id]: { status: "error", text: "", charts: [], error: err.message, followUps: [] } }));
+    }
+  };
+
+  const handleFollowUp = async (g) => {
+    const question = (followUpInput[g.id] ?? "").trim();
+    if (!question) return;
+    const ai = aiState[g.id];
+    if (!ai?.conversationMessages?.length) return;
+
+    setFollowUpInput(prev => ({ ...prev, [g.id]: "" }));
+    setAiState(prev => ({
+      ...prev,
+      [g.id]: {
+        ...prev[g.id],
+        followUps: [...(prev[g.id].followUps ?? []), { question, answer: "", status: "streaming" }],
+      },
+    }));
+
+    try {
+      const { conversationMessages: updatedMsgs } = await analyzeFollowUp({
+        conversationMessages: ai.conversationMessages,
+        userQuestion: question,
+        onChunk: answer =>
+          setAiState(prev => {
+            const fups = [...(prev[g.id].followUps ?? [])];
+            fups[fups.length - 1] = { ...fups[fups.length - 1], answer, status: "streaming" };
+            return { ...prev, [g.id]: { ...prev[g.id], followUps: fups } };
+          }),
+      });
+      setAiState(prev => {
+        const fups = [...(prev[g.id].followUps ?? [])];
+        fups[fups.length - 1] = { ...fups[fups.length - 1], status: "done" };
+        return { ...prev, [g.id]: { ...prev[g.id], followUps: fups, conversationMessages: updatedMsgs } };
+      });
+    } catch (err) {
+      setAiState(prev => {
+        const fups = [...(prev[g.id].followUps ?? [])];
+        fups[fups.length - 1] = { ...fups[fups.length - 1], status: "error", answer: `⚠️ ${err.message}` };
+        return { ...prev, [g.id]: { ...prev[g.id], followUps: fups } };
+      });
+    }
+  };
+
+  const handleSessionAnalyze = async () => {
+    setSessionAi({ status: "loading", text: "", error: "" });
+    try {
+      await analyzeSessionStream({
+        lt,
+        groups: rank,
+        onChunk: text => setSessionAi(prev => ({ ...prev, status: "streaming", text })),
+      });
+      setSessionAi(prev => ({ ...prev, status: "done" }));
+    } catch (err) {
+      setSessionAi({ status: "error", text: "", error: err.message });
     }
   };
 
@@ -170,7 +239,16 @@ export default function Ranking() {
                     {!g.desq && i > 0 && <Tag text="✅ APROVADO" col={C.greenL} />}
                     {g.desq && <Tag text="❌ DESCLASSIFICADO" col={C.redL} />}
                     {(g.penSeg?.count ?? 0) > 0 && (
-                      <Tag text={`+${g.penSeg.pct}% CUSTO (${g.penSeg.count} req. n/aplic.)`} col={C.yellow} />
+                      <Tag text={`💰 +${g.penSeg.pct}% CUSTO (${g.penSeg.count} req. n/aplic.)`} col={C.yellow} />
+                    )}
+                    {(g.ef?.countPrazoRisco ?? 0) > 0 && (
+                      <Tag text={`⏱️💰 +20%: ${g.ef.countPrazoRisco} ativ. (KPI risco)`} col={C.yellow} />
+                    )}
+                    {(g.ef?.countPrazoPior ?? 0) > 0 && (
+                      <Tag text={`⏱️💰 +40%: ${g.ef.countPrazoPior} ativ. (KPI pior)`} col={C.redL} />
+                    )}
+                    {(g.ef?.countSubAlocacao ?? 0) > 0 && (
+                      <Tag text={`📉 SUB-ALOC.: ${g.ef.countSubAlocacao} ativ.`} col={C.redL} />
                     )}
                   </div>
                 </td>
@@ -179,6 +257,76 @@ export default function Ranking() {
           </tbody>
         </table>
       </Card>
+
+      {/* ANÁLISE CONSOLIDADA DA SESSÃO — apenas facilitador */}
+      {role === "F" && (
+        <Card>
+          <Hdr2 ch="🤖 ANÁLISE CONSOLIDADA DA SESSÃO" />
+          <div style={{ padding: "8px 14px 14px" }}>
+            <div style={{ fontSize: 10, color: C.txt3, marginBottom: 12, lineHeight: 1.6 }}>
+              Visão geral da sessão para o facilitador: padrões de erros comuns, grupos destaque e pontos-chave para o debriefing.
+            </div>
+            {(sessionAi.status === "idle" || sessionAi.status === "done" || sessionAi.status === "error") && (
+              <button
+                style={{ ...S.btnS, fontSize: 10, padding: "5px 14px", borderColor: "#A78BFA", color: "#A78BFA" }}
+                onClick={handleSessionAnalyze}
+              >
+                🤖 {sessionAi.status === "done" ? "Nova análise da sessão" : "Analisar sessão completa"}
+              </button>
+            )}
+            {sessionAi.status === "error" && (
+              <div style={{ marginTop: 8, fontSize: 10, color: C.redL }}>⚠️ {sessionAi.error}</div>
+            )}
+            {(sessionAi.status === "loading" || sessionAi.status === "streaming" || sessionAi.status === "done") && (
+              <div style={{
+                marginTop: 10, borderRadius: 6,
+                background: "#0F172A", border: "1px solid #2E1065",
+                overflow: "hidden"
+              }}>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 7,
+                  padding: "8px 12px", borderBottom: "1px solid #2E1065", background: "#0A0A1A"
+                }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#A78BFA", letterSpacing: 2 }}>
+                    🤖 ANÁLISE DA SESSÃO — FACILITADOR
+                  </span>
+                  {sessionAi.status === "loading" && (
+                    <span style={{ fontSize: 9, color: "#94A3B8", fontStyle: "italic" }}>conectando...</span>
+                  )}
+                  {sessionAi.status === "streaming" && (
+                    <span style={{ fontSize: 9, color: "#34D399", fontStyle: "italic" }}>● analisando</span>
+                  )}
+                  {sessionAi.status === "done" && (
+                    <span style={{ fontSize: 9, color: "#6B7280" }}>sonnet-4-6</span>
+                  )}
+                </div>
+                <div style={{ padding: "12px 14px", minHeight: 40 }}>
+                  {sessionAi.status === "loading" && (
+                    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                      {[0, 1, 2].map(j => (
+                        <span key={j} style={{
+                          width: 5, height: 5, borderRadius: "50%", background: "#A78BFA", opacity: 0.7,
+                          animation: `pulse 1.2s ease-in-out ${j * 0.2}s infinite`
+                        }} />
+                      ))}
+                    </div>
+                  )}
+                  {sessionAi.text && (
+                    <MdText text={sessionAi.text} style={{ fontSize: 11, color: "#CBD5E1", lineHeight: 1.7, whiteSpace: "pre-wrap" }} />
+                  )}
+                  {sessionAi.status === "streaming" && (
+                    <span style={{
+                      display: "inline-block", width: 8, height: 14,
+                      background: "#A78BFA", marginLeft: 2, verticalAlign: "text-bottom",
+                      animation: "blink 0.8s step-end infinite"
+                    }} />
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* ANÁLISE DE EFICIÊNCIA */}
       {temEficiencia && (
@@ -407,7 +555,7 @@ export default function Ranking() {
                             )}
                             {ai.status === "done" && (
                               <span style={{ fontSize: 9, color: "#6B7280" }}>
-                                claude-haiku-4-5
+                                haiku (gráficos) · sonnet-4-6 (análise)
                                 {ai.savedAt && ` · ${new Date(ai.savedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`}
                               </span>
                             )}
@@ -473,6 +621,67 @@ export default function Ranking() {
                               animation: "blink 0.8s step-end infinite"
                             }} />
                           )}
+
+                          {/* Follow-up Q&A threads */}
+                          {(ai.followUps ?? []).map((fu, fi) => (
+                            <div key={fi} style={{ marginTop: 12, borderTop: "1px solid #1E3A5F", paddingTop: 10 }}>
+                              <div style={{ fontSize: 9, color: "#60A5FA", fontWeight: 700, marginBottom: 4 }}>
+                                🧑 {fu.question}
+                              </div>
+                              {fu.answer && (
+                                <MdText text={fu.answer}
+                                  style={{ fontSize: 11, color: "#CBD5E1", lineHeight: 1.7, whiteSpace: "pre-wrap" }} />
+                              )}
+                              {fu.status === "streaming" && (
+                                <span style={{
+                                  display: "inline-block", width: 8, height: 14,
+                                  background: "#60A5FA", marginLeft: 2, verticalAlign: "text-bottom",
+                                  animation: "blink 0.8s step-end infinite"
+                                }} />
+                              )}
+                              {fu.status === "error" && (
+                                <span style={{ fontSize: 10, color: C.redL }}>{fu.answer}</span>
+                              )}
+                            </div>
+                          ))}
+
+                          {/* Follow-up input — disponível após análise concluída */}
+                          {ai.status === "done" && ai.conversationMessages?.length > 0 && (() => {
+                            const isFollowing = (ai.followUps ?? []).some(f => f.status === "streaming");
+                            return (
+                              <div style={{ marginTop: 14, borderTop: "1px solid #1E3A5F", paddingTop: 10 }}>
+                                <div style={{ fontSize: 9, color: "#475569", letterSpacing: 1, marginBottom: 6 }}>
+                                  💬 PERGUNTE AO AGENTE
+                                </div>
+                                <div style={{ display: "flex", gap: 6 }}>
+                                  <input
+                                    type="text"
+                                    value={followUpInput[g.id] ?? ""}
+                                    onChange={e => setFollowUpInput(prev => ({ ...prev, [g.id]: e.target.value }))}
+                                    onKeyDown={e => { if (e.key === "Enter" && !isFollowing) handleFollowUp(g); }}
+                                    placeholder="Ex: Qual o impacto de adicionar 1 guindaste na atividade A2?"
+                                    disabled={isFollowing}
+                                    style={{
+                                      flex: 1, background: "#0A1628", border: "1px solid #1E3A5F",
+                                      borderRadius: 4, padding: "5px 9px", color: "#CBD5E1", fontSize: 10,
+                                      outline: "none",
+                                    }}
+                                  />
+                                  <button
+                                    onClick={() => handleFollowUp(g)}
+                                    disabled={isFollowing || !(followUpInput[g.id] ?? "").trim()}
+                                    style={{
+                                      ...S.btnS, fontSize: 9, padding: "5px 12px",
+                                      borderColor: isFollowing ? "#475569" : "#3B82F6",
+                                      color: isFollowing ? "#475569" : "#3B82F6",
+                                    }}
+                                  >
+                                    {isFollowing ? "..." : "↩ Enviar"}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                     )}
