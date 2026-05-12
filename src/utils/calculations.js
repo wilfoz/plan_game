@@ -224,9 +224,10 @@ const COERENCIA_REGRAS = [
   // CONJUNTO LANÇAMENTO inclui puller + freio; cada conjunto exige 2 operadores
   { cargo: "OPERADOR DE PULLER/FREIO",     eqNomes: ["CONJUNTO LANÇAMENTO - PULLER E FREIO"],                               opPorEq: 2 },
   { cargo: "MOTORISTA OPERADOR MUNCK",     eqNomes: ["CAMINHÃO MUNCK"],                                                      opPorEq: 1 },
-  { cargo: "MOTORISTA",                    eqNomes: ["CAMINHÃO PRANCHA", "CAMINHONETE 4X4", "CAMINHÃO CABINADO 10 PESSOAS"], opPorEq: 1 },
+  { cargo: "MOTORISTA",                    eqNomes: ["CAMINHÃO PRANCHA", "CAMINHONETE 4X4", "CAMINHÃO CABINADO 10 PESSOAS", "CAMINHÃO CARROCERIA", "MICRO ONIBUS (20 PASSAGEIROS)", "MICRO ONIBUS (30 PASSAGEIROS)"], opPorEq: 1 },
   { cargo: "OPERADOR DE TRATOR",           eqNomes: ["TRATOR", "TRATOR DE ESTEIRA"],                                         opPorEq: 1 },
-  { cargo: "OPERADOR DE MAQUINAS", eqNomes: ["ESCAVADEIRA HIDRÁULICA", "RETROESCAVADEIRA 4X4"],                     opPorEq: 1 },
+  { cargo: "OPERADOR DE MAQUINAS",         eqNomes: ["ESCAVADEIRA HIDRÁULICA", "RETROESCAVADEIRA 4X4", "PÁ CARREGADEIRA"],   opPorEq: 1 },
+  { cargo: "MOTOSSERRISTA",               eqNomes: ["MOTOSSERRA"],                                                            opPorEq: 1 },
   { cargo: "NIVELADOR",                    eqNomes: ["ESTAÇÃO TOTAL", "GPS RTK"],                                            opPorEq: 1 },
 ];
 
@@ -238,6 +239,9 @@ export const CAPACIDADE_TRANSPORTE = {
   "CAMINHÃO CABINADO 10 PESSOAS": 12,
   "CAMINHONETE 4X4": 5,
   "CAMINHÃO PRANCHA": 2,
+  "CAMINHÃO CARROCERIA": 2,
+  "MICRO ONIBUS (20 PASSAGEIROS)": 21,
+  "MICRO ONIBUS (30 PASSAGEIROS)": 31,
 };
 
 // Cargos que já possuem veículo próprio e não precisam de vaga nos veículos coletivos.
