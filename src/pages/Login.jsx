@@ -6,7 +6,7 @@ import { useApp } from "../context/AppContext";
 import { supabase } from "../lib/supabase";
 
 // ── Rate limiting (client-side, por chave no localStorage) ─────────────────
-const MAX_ATTEMPTS   = 5;
+const MAX_ATTEMPTS   = 10;
 const LOCKOUT_MS     = 15 * 60 * 1000; // 15 minutos
 const LS_KEY         = "jlt_login_attempts";
 
