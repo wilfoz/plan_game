@@ -9,6 +9,7 @@ import { Hdr2, Tag } from "../components/ui/Typography";
 import { TH, TD } from "../components/ui/Table";
 import { ScoreRing } from "../components/ui/Typography";
 import { analyzeEficienciaStream } from "../services/claudeAI";
+import { calcCoerencia } from "../utils/calculations";
 import { ChartBlock } from "../components/ui/ChartBlock";
 import { useAiAnalises } from "../hooks/useAiAnalises";
 
@@ -299,6 +300,57 @@ export default function Ranking() {
                       })}
                     </tbody>
                   </table>
+
+                  {/* ── ALERTAS DE INCOMPATIBILIDADE ── */}
+                  {(() => {
+                    const alertasKpi = Object.entries(porAtiv)
+                      .filter(([, e]) => e.varKpiPct != null && e.varKpiPct > 40)
+                      .map(([aId, e]) => ({ aId, atv: ATIVS.find(a => a.id === aId), e }));
+                    const alertasSub = Object.entries(porAtiv)
+                      .flatMap(([aId, e]) => (e.subAlocacao ?? []).map(s => ({ ...s, aId, atv: ATIVS.find(a => a.id === aId) })));
+                    const coerenciaRank = Object.keys(porAtiv).flatMap(aId => {
+                      const comp = gc(g.gi, aId);
+                      const atv = ATIVS.find(a => a.id === aId);
+                      if (!atv) return [];
+                      const { issues } = calcCoerencia(comp.moRows ?? [], comp.eqRows ?? []);
+                      return issues.map(iss => ({ ...iss, aId, atv }));
+                    });
+                    if (alertasKpi.length === 0 && alertasSub.length === 0 && coerenciaRank.length === 0) return null;
+                    return (
+                      <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 5, background: C.yellow + "0E", border: `1px solid ${C.yellow}55` }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.yellow, letterSpacing: 2, marginBottom: 8 }}>
+                          ⚠️ ATENÇÃO: RECURSOS OU KPI — INCOMPATÍVEIS
+                        </div>
+                        {alertasKpi.map(({ aId, atv, e }) => (
+                          <div key={aId + "_kpi"} style={{ fontSize: 9, color: C.yellow, padding: "3px 0 3px 8px", borderLeft: `2px solid ${C.yellow}`, marginBottom: 4, lineHeight: 1.5 }}>
+                            🎯 <strong>{atv?.desc}</strong>: KPI declarado <strong>{e.kpiGrupo}</strong> vs base <strong>{e.kpiBase}</strong> un/dia ({e.varKpiPct > 0 ? "+" : ""}{e.varKpiPct}%) — produtividade acima de 40% da referência
+                          </div>
+                        ))}
+                        {alertasSub.map((s, si) => (
+                          <div key={`${s.aId}_${s.cargo}_${si}`} style={{ fontSize: 9, color: C.redL, padding: "3px 0 3px 8px", borderLeft: `2px solid ${C.redL}`, marginBottom: 4, lineHeight: 1.5 }}>
+                            📉 <strong>{s.atv?.desc}</strong> — {s.cargo}: coef {s.coefGrupo} Hh/und abaixo do mínimo {s.minCoef} Hh/und (redução máx. {s.minVarPct}%)
+                          </div>
+                        ))}
+                        {coerenciaRank.map((iss, i) => {
+                          let msg = "";
+                          switch (iss.type) {
+                            case "sem_equipamento": msg = `${iss.cargo} (${iss.qtd}) sem equipamento correspondente`; break;
+                            case "sem_operador": msg = `${iss.equip} (${iss.qtd}) sem operador/motorista correspondente`; break;
+                            case "eq_insuficiente": msg = `${iss.equip} — quantidade insuficiente para os operadores`; break;
+                            case "eq_ocioso": msg = `${iss.equip} (${iss.qtd}) em excesso — sem operadores suficientes`; break;
+                            case "impar_puller_freio": msg = `Puller e Freio devem ser em quantidade igual`; break;
+                            case "transporte_insuficiente": msg = `Transporte insuficiente para a equipe`; break;
+                            default: msg = iss.type;
+                          }
+                          return (
+                            <div key={`coer_${i}`} style={{ fontSize: 9, color: C.txt2, padding: "3px 0 3px 8px", borderLeft: `2px solid ${C.txt3}`, marginBottom: 4, lineHeight: 1.5 }}>
+                              ⚙️ <strong>{iss.atv?.desc}</strong> — {msg}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
 
                   {/* ── BLOCO DE ANÁLISE IA ── */}
                   <div style={{ marginTop: 12 }}>

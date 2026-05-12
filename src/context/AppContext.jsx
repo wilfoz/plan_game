@@ -398,7 +398,7 @@ export function AppProvider({ children }) {
       const ctBase = ATIVS.reduce((s, a) => {
         const c  = calcA(getCompEff(i, a.id), volumesPrev[a.id] || 0);
         const pen = PENALTY[ef.porAtiv[a.id]?.impactoPrazo] ?? 1.0;
-        return s + c.total * (c.durMeses > 0 ? c.durMeses * pen : 0);
+        return s + c.total * (c.durMeses > 0 ? c.durMeses * pen * c.fatorMobilizacao : 0);
       }, 0);
       const penSeg = calcNaoAplicPenaltyBase(requisitos, (aId) => gc(i, aId));
       const ct = ctBase * penSeg.fator;

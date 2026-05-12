@@ -30,8 +30,8 @@ export default function Cronograma() {
     const kpiEff = hasResources ? (comp.kpi > 0 ? comp.kpi : kpisBase[a.id] || 0) : 0;
     const eqEff = travaEquipes ? 1 : (comp.equipes || 1);
     const compEff = { ...comp, kpi: kpiEff, equipes: eqEff };
-    const { total: ctMensal, dur, durMeses, durTotalDias } = calcA(compEff, vol);
-    const ct = ctMensal * (durMeses > 0 ? durMeses : 0);
+    const { total: ctMensal, dur, durMeses, durTotalDias, fatorMobilizacao } = calcA(compEff, vol);
+    const ct = ctMensal * (durMeses > 0 ? durMeses * fatorMobilizacao : 0);
     const vols = monthlyVolumes(vol, kpiEff, eqEff);
     // Mês de início efetivo (1-indexed → 0-indexed). 0 = não definido → começa no mês 0.
     const mesGrupo = comp.mesInicia > 0 ? comp.mesInicia - 1 : null;

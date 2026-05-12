@@ -69,6 +69,19 @@ function formatObrigatorioAusente(ef) {
     : "✅ Nenhum recurso obrigatório ausente nas atividades analisadas.";
 }
 
+function formatMobilizacao(coerenciaAtivs) {
+  const linhas = [];
+  for (const { atv, equipes } of coerenciaAtivs) {
+    if ((equipes ?? 1) > 1) {
+      const pct = Math.round(0.20 * (equipes - 1) * 100);
+      linhas.push(`• ${atv.desc}: ${equipes} equipes → +${pct}% sobre o custo total desta atividade`);
+    }
+  }
+  return linhas.length > 0
+    ? linhas.join("\n")
+    : "• Nenhuma atividade com equipes adicionais mobilizadas.";
+}
+
 function formatCoerencia(coerenciaAtivs) {
   const linhas = [];
   let totalIssues = 0;
@@ -106,6 +119,21 @@ function formatCoerencia(coerenciaAtivs) {
   return linhas.join("\n");
 }
 
+function formatIncompat(ativs) {
+  const linhas = [];
+  for (const { atv, efAtv } of ativs) {
+    if (efAtv.varKpiPct != null && efAtv.varKpiPct > 40) {
+      linhas.push(`⚠️ KPI ALTO (+${efAtv.varKpiPct}%): ${atv.desc} — KPI grupo ${efAtv.kpiGrupo} un/dia vs base ${efAtv.kpiBase} un/dia. Risco: prazo irreal por superprodutividade declarada incompatível com os recursos alocados.`);
+    }
+    for (const s of (efAtv.subAlocacao ?? [])) {
+      linhas.push(`❌ COEFICIENTE ABAIXO DO LIMITE (CBIC/ANEEL): ${atv.desc} — ${s.cargo}: ${s.coefGrupo.toFixed(2)} Hh/und (mínimo ${s.minCoef.toFixed(2)} Hh/und, redução máxima permitida: ${s.minVarPct}%). Sub-alocação crítica — frente de trabalho subdimensionada.`);
+    }
+  }
+  return linhas.length > 0
+    ? linhas.join("\n")
+    : "✅ Nenhum alerta de incompatibilidade detectado.";
+}
+
 function buildPrompt({ grupo, lt, ef, scores, ativs, penSeg, coerenciaAtivs }) {
   const pct = v => (v != null ? `${v > 0 ? "+" : ""}${v}%` : "—");
 
@@ -133,10 +161,11 @@ PROJETO: ${lt.nome || "LT"} | ${lt.tensao} | ${lt.ext} km | Circuito ${lt.circ} 
 GRUPO ANALISADO: ${grupo.nome}${grupo.resp ? ` (${grupo.resp})` : ""}
 
 METODOLOGIA DE SCORING:
-- sC = CUSTO TOTAL DO PROJETO = custo_mensal × duração_penalizada × penalidade_segurança
+- sC = CUSTO TOTAL DO PROJETO = custo_mensal × duração_penalizada × fator_mobilização × penalidade_segurança
 - sD: atividades "risco" +20%, "pior" +40% sobre duração declarada
 - PENALIDADE DE SEGURANÇA: +2% no custo por cada requisito "Não Aplicável" adicionado indevidamente
-- Todos os scores já refletem estas penalidades
+- CUSTO DE MOBILIZAÇÃO (quando equipes > 1 e edição liberada): +20% por equipe adicional s/ custo total da atividade. Fórmula: custo_atividade × (1 + 0,20 × (equipes − 1)). Ex: 2 equipes = +20%, 3 equipes = +40%, 4 equipes = +60%
+- Todos os scores já refletem estas penalidades e o custo de mobilização
 
 PENALIDADE DE SEGURANÇA DESTE GRUPO:
 - Requisitos "Não Aplicável" adicionados indevidamente: ${penSeg?.count ?? 0}
@@ -165,14 +194,20 @@ ${formatObrigatorioAusente(ef)}
 COERÊNCIA DE RECURSOS (verificação automática operador ↔ equipamento e transporte):
 ${formatCoerencia(coerenciaAtivs)}
 
+ALERTAS DE INCOMPATIBILIDADE (KPI > 40% DA BASE OU COEFICIENTES ABAIXO DO LIMITE CBIC/ANEEL):
+${formatIncompat(ativs)}
+
+CUSTO DE MOBILIZAÇÃO POR ATIVIDADE (equipes > 1 quando edição liberada pelo facilitador):
+${formatMobilizacao(coerenciaAtivs)}
+
 ---
 INSTRUÇÕES:
 1. Use renderizar_grafico para criar os gráficos (obrigatório antes do texto)
 2. Depois forneça análise em 4 seções (máximo 400 palavras, português brasileiro, tom técnico):
    **1. Diagnóstico de Eficiência** — padrões nos coeficientes, atividades com maior desvio
-   **2. Impacto em Custo e Prazo** — relação coeficiente × KPI, atividades críticas, efeito cascata em LT sequencial
-   **3. Recursos Obrigatórios e Coerência** — liste cada cargo/equipamento obrigatório ausente e explique o risco operacional específico (NR, segurança, viabilidade da frente). Para problemas de coerência operador↔equipamento: classifique como OCIOSO, RISCO OPERACIONAL ou INVIÁVEL. Se não houver problemas, confirme brevemente.
-   **4. Recomendações** — 3 ações práticas específicas priorizando primeiramente a inclusão de recursos obrigatórios ausentes, depois ajustes de coerência e eficiência`;
+   **2. Impacto em Custo e Prazo** — relação coeficiente × KPI, atividades críticas, custo de mobilização (equipes extras encarecem a atividade em 20%/equipe), efeito cascata em LT sequencial
+   **3. Recursos Obrigatórios, Coerência e Incompatibilidades** — liste cada cargo/equipamento obrigatório ausente e explique o risco operacional específico (NR, segurança, viabilidade da frente). Para alertas de KPI acima de 40% da base: questione a viabilidade de campo e o impacto no prazo declarado. Para sub-alocação abaixo do piso CBIC: classifique como CRÍTICO e explique o risco para a frente. Para coerência operador↔equipamento: classifique como OCIOSO, RISCO OPERACIONAL ou INVIÁVEL. Se não houver problemas, confirme brevemente.
+   **4. Recomendações** — 3 ações práticas específicas priorizando primeiramente a inclusão de recursos obrigatórios ausentes e correção de incompatibilidades KPI/coeficiente, depois avaliação do custo-benefício de equipes adicionais vs. penalidade de mobilização, e ajustes de coerência e eficiência`;
 }
 
 async function fetchRound1(prompt) {
@@ -242,10 +277,11 @@ async function streamRound2(messages, onChunk) {
 //   Round 2 (streaming): Claude gera texto final → onChunk(textAcumulado)
 export async function analyzeEficienciaStream({ grupo, lt, ef, scores, ativs, compsRaw, penSeg, onTool, onChunk }) {
 
-  // Verificação de coerência por atividade (determinística, antes de chamar a IA)
-  const coerenciaAtivs = (compsRaw ?? []).map(({ atv, moRows, eqRows }) => ({
+  // Verificação de coerência e mobilização por atividade (determinística, antes de chamar a IA)
+  const coerenciaAtivs = (compsRaw ?? []).map(({ atv, moRows, eqRows, equipes }) => ({
     atv,
     issues: calcCoerencia(moRows ?? [], eqRows ?? []).issues,
+    equipes: equipes ?? 1,
   }));
 
   const prompt = buildPrompt({ grupo, lt, ef, scores, ativs, penSeg, coerenciaAtivs });

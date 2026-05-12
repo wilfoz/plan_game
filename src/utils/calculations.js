@@ -9,8 +9,15 @@ export const calcA = (comp, esc) => {
   const total = custoMo + custoEq;
 
   const durDias = comp.kpi && esc && comp.equipes ? esc / (comp.equipes * comp.kpi) : 0;
-  const durMeses = durDias > 0 ? durDias / DIAS_MES : 0;
+  const durMesesRaw = durDias > 0 ? durDias / DIAS_MES : 0;
+  const durMeses = Math.ceil(durMesesRaw * 100) / 100;
   const moQtd = comp.moRows.reduce((s, r) => s + r.qtd, 0);
+
+  // Mobilização: +20% por equipe adicional sobre o custo total da atividade (equipes > 1)
+  const equipes = comp.equipes || 1;
+  const fatorMobilizacao = equipes > 1 ? 1 + 0.20 * (equipes - 1) : 1;
+  const custoMobilizacaoPct = equipes > 1 ? Math.round(0.20 * (equipes - 1) * 100) : 0;
+  const custoMobilizacao = total * durMeses * (fatorMobilizacao - 1);
 
   // Coeficientes: Hh ou Ch por unidade produzida
   const kpi = comp.kpi || 0;
@@ -25,10 +32,11 @@ export const calcA = (comp, esc) => {
     custoMo, custoEq, total,
     durDias: Math.ceil(durDias),
     durTotalDias: Math.ceil(durDias),
-    dur: Math.ceil(durMeses * 100) / 100,
-    durMeses: Math.ceil(durMeses * 100) / 100,
+    dur: durMeses,
+    durMeses,
     moQtd, eqQtd: comp.eqRows.length,
     coefMo, coefEq,
+    fatorMobilizacao, custoMobilizacaoPct, custoMobilizacao,
   };
 };
 

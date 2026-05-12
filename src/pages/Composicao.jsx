@@ -8,7 +8,7 @@ import { BtnDel } from "../components/ui/Card";
 import { Hdr2, Tag, Pill } from "../components/ui/Typography";
 import { TH } from "../components/ui/Table";
 import { LocalNumInp, Sel } from "../components/ui/Inputs";
-import { calcEficiencia } from "../utils/calculations";
+import { calcEficiencia, calcCoerencia } from "../utils/calculations";
 
 const fmt2 = n => n != null ? n.toFixed(2) : "—";
 
@@ -40,7 +40,7 @@ export default function Composicao() {
     const kpiEff = hasRes ? (raw.kpi > 0 ? raw.kpi : kpisBase[a.id] || 0) : 0;
     const eqEff = travaEquipes ? 1 : (raw.equipes || 1);
     const c = calcA({ ...raw, kpi: kpiEff, equipes: eqEff }, volumesPrev[a.id] || 0);
-    return s + c.total * (c.durMeses > 0 ? c.durMeses : 0);
+    return s + c.total * (c.durMeses > 0 ? c.durMeses * c.fatorMobilizacao : 0);
   }, 0);
   const reqsAtiv = requisitos.filter(r => r.aId === aObj.id);
 
@@ -59,6 +59,7 @@ export default function Composicao() {
   const kpiBase = kpisBase?.[aObj.id] ?? 0;
   const ef = calcEficiencia(comp, baseComp, kpiBase, aObj.id);
   const subAlocacaoMap = Object.fromEntries((ef.subAlocacao || []).map(s => [s.cargo, s]));
+  const coer = calcCoerencia(comp.moRows, comp.eqRows);
 
   const kpi = comp.kpi || 0;
 
@@ -251,14 +252,22 @@ export default function Composicao() {
                 )}
               </tbody>
             </table>
-            {role !== "G" && (ef.obrigatorioAusente || []).filter(o => o.tipo === "mo").length > 0 && (
-              <div style={{ padding: "6px 12px", background: C.redL + "0D", borderTop: `1px solid ${C.redL}33` }}>
-                {(ef.obrigatorioAusente || []).filter(o => o.tipo === "mo").map(o => (
-                  <div key={o.label} style={{ fontSize: 10, color: C.redL, padding: "2px 0" }}>
-                    ❌ {o.label} — cargo obrigatório não adicionado
+            {(ef.obrigatorioAusente || []).filter(o => o.tipo === "mo").length > 0 && (
+              role === "G" ? (
+                <div style={{ padding: "10px 14px", background: C.redL + "15", borderTop: `2px solid ${C.redL}` }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.redL, letterSpacing: 1 }}>
+                    ⚠️ RECURSO OBRIGATÓRIO NÃO INCLUÍDO NA EQUIPE
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <div style={{ padding: "6px 12px", background: C.redL + "0D", borderTop: `1px solid ${C.redL}33` }}>
+                  {(ef.obrigatorioAusente || []).filter(o => o.tipo === "mo").map(o => (
+                    <div key={o.label} style={{ fontSize: 10, color: C.redL, padding: "2px 0" }}>
+                      ❌ {o.label} — cargo obrigatório não adicionado
+                    </div>
+                  ))}
+                </div>
+              )
             )}
             <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8, alignItems: "center" }}>
               <div style={{ flex: 1 }}>
@@ -345,6 +354,23 @@ export default function Composicao() {
                 )}
               </tbody>
             </table>
+            {(ef.obrigatorioAusente || []).filter(o => o.tipo === "eq").length > 0 && (
+              role === "G" ? (
+                <div style={{ padding: "10px 14px", background: C.redL + "15", borderTop: `2px solid ${C.redL}` }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.redL, letterSpacing: 1 }}>
+                    ⚠️ RECURSO OBRIGATÓRIO NÃO INCLUÍDO NA EQUIPE
+                  </div>
+                </div>
+              ) : (
+                <div style={{ padding: "6px 12px", background: C.redL + "0D", borderTop: `1px solid ${C.redL}33` }}>
+                  {(ef.obrigatorioAusente || []).filter(o => o.tipo === "eq").map(o => (
+                    <div key={o.label} style={{ fontSize: 10, color: C.redL, padding: "2px 0" }}>
+                      ❌ {o.label} — equipamento obrigatório não adicionado
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
             <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8, alignItems: "center" }}>
               <div style={{ flex: 1 }}>
                 <Sel
@@ -427,6 +453,16 @@ export default function Composicao() {
                       <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 12, fontWeight: 700, color: col }}>{fmt(v)}</td>
                     </tr>
                   ))}
+                  {calc.fatorMobilizacao > 1 && (
+                    <tr style={{ borderBottom: `1px solid ${C.border}`, background: C.yellow + "0A" }}>
+                      <td style={{ padding: "5px 9px 5px 18px", fontSize: 11, color: C.yellow }}>
+                        └ 🚛 Mobilização ({(compEff.equipes || 1) - 1} eq. extra) · +{calc.custoMobilizacaoPct}% s/ custo total
+                      </td>
+                      <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 11, fontWeight: 700, color: C.yellow }}>
+                        +{fmt(calc.custoMobilizacao)}
+                      </td>
+                    </tr>
+                  )}
                   <tr style={{ borderBottom: `1px solid ${C.border}` }}>
                     <td style={{ padding: "6px 9px", fontSize: 11, color: C.txt2 }}>⏱️ Duração estimada</td>
                     <td style={{ padding: "6px 9px", textAlign: "right", fontSize: 12, fontWeight: 700, color: calc.dur > 0 ? C.greenL : C.txt3 }}>
@@ -448,7 +484,7 @@ export default function Composicao() {
                 </tbody>
               </table>
 
-              {/* Alertas de sub-alocação */}
+              {/* Alertas de sub-alocação — facilitador */}
               {role !== "G" && ef.temSubAlocacao && (
                 <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, marginBottom: 10 }}>
                   <div style={{ fontSize: 9, color: C.redL, letterSpacing: 3, marginBottom: 6 }}>⚠️ ALERTAS DE COMPOSIÇÃO</div>
@@ -463,6 +499,65 @@ export default function Composicao() {
                       <span style={{ color: C.txt3 }}>coef {fmt2(s.coefGrupo)} · mín. {fmt2(s.minCoef)} ({s.minVarPct}%)</span>
                     </div>
                   ))}
+                </div>
+              )}
+              {/* Alerta para o grupo — recursos obrigatórios ausentes */}
+              {role === "G" && (ef.obrigatorioAusente || []).length > 0 && (
+                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, marginBottom: 10 }}>
+                  <div style={{ padding: "10px 12px", borderRadius: 4, background: C.redL + "15", border: `2px solid ${C.redL}` }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.redL, letterSpacing: 1 }}>
+                      ⚠️ RECURSO OBRIGATÓRIO NÃO INCLUÍDO NA EQUIPE
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* Alerta de incompatibilidade KPI/Coeficientes/Coerência — todos os papéis */}
+              {((ef.varKpiPct != null && ef.varKpiPct > 40) || (ef.subAlocacao || []).length > 0 || coer.issues.length > 0) && (
+                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, marginBottom: 10 }}>
+                  <div style={{ padding: "10px 12px", borderRadius: 4, background: C.yellow + "10", border: `1px solid ${C.yellow}55` }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.yellow, letterSpacing: 2, marginBottom: 6 }}>
+                      ⚠️ RECURSOS OU KPI — INCOMPATÍVEIS
+                    </div>
+                    {role !== "G" && ef.varKpiPct != null && ef.varKpiPct > 40 && (
+                      <div style={{ fontSize: 9, color: C.yellow, padding: "3px 0 3px 8px", borderLeft: `2px solid ${C.yellow}`, marginBottom: 4, lineHeight: 1.4 }}>
+                        🎯 KPI {ef.kpiGrupo} vs base {ef.kpiBase} un/dia ({ef.varKpiPct > 0 ? "+" : ""}{ef.varKpiPct}%) — divergente do valor de referência
+                      </div>
+                    )}
+                    {role !== "G" && (ef.subAlocacao || []).map(s => (
+                      <div key={s.cargo} style={{ fontSize: 9, color: C.redL, padding: "3px 0 3px 8px", borderLeft: `2px solid ${C.redL}`, marginBottom: 4, lineHeight: 1.4 }}>
+                        📉 {s.cargo}: coef {s.coefGrupo} Hh abaixo do mínimo {s.minCoef} Hh ({s.minVarPct}%)
+                      </div>
+                    ))}
+                    {coer.issues.map((iss, i) => {
+                      let msg = null;
+                      switch (iss.tipo) {
+                        case "sem_equipamento":
+                          msg = `${iss.nOp}× ${iss.cargo} sem ${iss.eqNomes.join(" / ")} — faltam ${iss.eqEsperado} equip.`;
+                          break;
+                        case "sem_operador":
+                          msg = `${iss.nEq}× ${iss.eqNomes[0]}: falta ${iss.cargo} — precisam de ${iss.opEsperado} operador(es)`;
+                          break;
+                        case "eq_insuficiente":
+                          msg = `${iss.nOp}× ${iss.cargo}: apenas ${iss.nEq} ${iss.eqNomes[0]} (precisam de ${iss.eqEsperado})`;
+                          break;
+                        case "eq_ocioso":
+                          msg = `${iss.nEq}× ${iss.eqNomes[0]}: ${iss.nEq - iss.eqEsperado} ocioso(s) p/ ${iss.nOp}× ${iss.cargo}`;
+                          break;
+                        case "impar_puller_freio":
+                          msg = `Ímpar: ${iss.nOp}× PULLER/FREIO — cada CONJUNTO requer 2 operadores`;
+                          break;
+                        case "transporte_insuficiente":
+                          msg = `Transporte: ${iss.precisam} pessoas, ${iss.vagas} vagas — déficit de ${iss.deficit} vaga(s)`;
+                          break;
+                        default: return null;
+                      }
+                      return (
+                        <div key={i} style={{ fontSize: 9, color: C.yellow, padding: "3px 0 3px 8px", borderLeft: `2px solid ${C.yellow}`, marginBottom: 4, lineHeight: 1.4 }}>
+                          ⚙️ {msg}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
