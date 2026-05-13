@@ -22,7 +22,7 @@ export default function Composicao() {
     moAdd, moDel, moUpd,
     eqAdd, eqDel, eqUpd,
     uKpi, uEq, uMesInicia,
-    requisitos, toggleReq,
+    requisitos, toggleReq, addAllReqs,
     equipesBase, kpisBase, mesIniciaBase,
     travaEquipes,
     lt,
@@ -425,11 +425,23 @@ export default function Composicao() {
                     placeholder={availReqOpts.length === 0 ? "✅ Todos os requisitos adicionados" : "+ Selecione um requisito para adicionar..."}
                   />
                 </div>
-                {addedReqs.length > 0 && (
-                  <span style={{ fontSize: 10, color: C.txt3, whiteSpace: "nowrap" }}>
-                    {addedReqs.length}/{reqsAtiv.length} requisitos
-                  </span>
+                {availReqOpts.length > 0 && (
+                  <button
+                    onClick={() => addAllReqs(gIdx, aObj.id)}
+                    style={{
+                      fontSize: 10, fontWeight: 700, padding: "5px 10px",
+                      borderRadius: 4, border: `1px solid ${C.greenL}55`,
+                      background: C.greenL + "15", color: C.greenL,
+                      cursor: "pointer", whiteSpace: "nowrap",
+                    }}
+                    title="Adicionar todos os requisitos desta atividade de uma vez"
+                  >
+                    ✅ Marcar todos
+                  </button>
                 )}
+                <span style={{ fontSize: 10, color: C.txt3, whiteSpace: "nowrap" }}>
+                  {addedReqs.length}/{reqsAtiv.length}
+                </span>
               </div>
             )}
           </Card>

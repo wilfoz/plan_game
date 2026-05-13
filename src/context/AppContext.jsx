@@ -356,6 +356,11 @@ export function AppProvider({ children }) {
     });
   };
 
+  const addAllReqs = (gi, aId) => {
+    const allIds = requisitos.filter(r => r.aId === aId).map(r => String(r._id));
+    updateComp(gi, aId, c => ({ ...c, reqIds: allIds }));
+  };
+
   const moAdd = (gi, aId, catId) => {
     const cat = MO_CAT.find(r => r.id === catId);
     if (!cat) return;
@@ -432,16 +437,23 @@ export function AppProvider({ children }) {
           : 0;
       }
       const seg = calcSeg(i);
-      return { ...g, gi: i, ct, dm, seg: seg.score, desq: seg.desq, reprovado: seg.reprovado, missing: seg.missing, ef, penSeg };
+      const atvsVazias = ATIVS.filter(a => {
+        const comp = gc(i, a.id);
+        return !(comp.moRows?.length > 0 || comp.eqRows?.length > 0 || comp.kpi > 0);
+      }).map(a => a.id);
+      const desqIncompleto = atvsVazias.length > 0;
+      return { ...g, gi: i, ct, dm, seg: seg.score, desq: seg.desq, reprovado: seg.reprovado, missing: seg.missing, ef, penSeg, desqIncompleto, atvsVazias };
     });
-    const valid = res.filter(r => !r.desq);
+    // Apenas equipes com todas as atividades preenchidas entram no cálculo de referência (mc/md)
+    const valid = res.filter(r => !r.desq && !r.desqIncompleto);
     const mc = Math.min(...valid.map(r => r.ct).filter(v => v > 0), Infinity);
     const md = Math.min(...valid.map(r => r.dm).filter(v => v > 0), Infinity);
     return res.map(r => {
-      const sC = r.ct > 0 ? Math.round(Math.min(100, (mc / r.ct) * 100)) : 0;
-      const sD = r.dm > 0 ? Math.round(Math.min(100, (md / r.dm) * 100)) : 0;
+      const isOut = r.desq || r.desqIncompleto;
+      const sC = !isOut && r.ct > 0 ? Math.round(Math.min(100, (mc / r.ct) * 100)) : 0;
+      const sD = !isOut && r.dm > 0 ? Math.round(Math.min(100, (md / r.dm) * 100)) : 0;
       const sS = r.seg; // 100 (aprovado) ou 0 (desclassificado) — gate classificatório
-      const total = r.desq ? 0 : Math.round(sC * .5 + sD * .5);
+      const total = isOut ? 0 : Math.round(sC * .5 + sD * .5);
       return { ...r, sC, sD, sS, total };
     }).sort((a, b) => b.total - a.total);
   };
@@ -464,7 +476,7 @@ export function AppProvider({ children }) {
       mesIniciaBase, setMesIniciaBase,
       requisitos, addRequisito, delRequisito, updRequisito, resetRequisitosToDefault,
       epiCargo, togEpi,
-      comps, gc, updateComp, toggleReq,
+      comps, gc, updateComp, toggleReq, addAllReqs,
       moAdd, moDel, moUpd,
       eqAdd, eqDel, eqUpd,
       uKpi, uEq, uMesInicia,

@@ -113,14 +113,14 @@ export default function Ranking() {
     });
 
     const rankContext = rank.filter(r => r.id !== g.id).map(r => ({
-      nome: r.nome, sC: r.sC, sD: r.sD, total: r.total, desq: r.desq,
+      nome: r.nome, sC: r.sC, sD: r.sD, total: r.total, desq: r.desq, desqIncompleto: r.desqIncompleto,
     }));
 
     try {
       const { conversationMessages } = await analyzeEficienciaStream({
         grupo: g, lt,
         ef: g.ef ?? {},
-        scores: { sC: g.sC, sD: g.sD, sS: g.sS, total: g.total, desq: g.desq },
+        scores: { sC: g.sC, sD: g.sD, sS: g.sS, total: g.total, desq: g.desq, desqIncompleto: g.desqIncompleto },
         penSeg: g.penSeg,
         ativs,
         compsRaw: ATIVS.map(a => ({ atv: a, ...gc(g.gi, a.id) })),
@@ -243,13 +243,15 @@ export default function Ranking() {
             <TH ch="SCORE" right accent /><TH ch="STATUS" />
           </tr></thead>
           <tbody>
-            {rank.map((g, i) => (
+            {rank.map((g, i) => {
+              const isOut = g.desq || g.desqIncompleto;
+              return (
               <tr key={g.id} style={{
                 borderBottom: `1px solid ${C.border}`,
-                background: g.desq ? C.redL + "08" : i === 0 ? C.gold + "08" : "transparent"
+                background: isOut ? C.redL + "08" : i === 0 ? C.gold + "08" : "transparent"
               }}>
                 <td style={{ padding: "10px 9px", fontSize: 18, textAlign: "center" }}>
-                  {g.desq ? "❌" : medals[i] ?? ""}
+                  {isOut ? "❌" : medals[i] ?? ""}
                 </td>
                 <td style={{ padding: "10px 9px" }}>
                   <div style={{ fontSize: 12, fontWeight: 700 }}>{g.nome}</div>
@@ -260,15 +262,16 @@ export default function Ranking() {
                 <td style={{ padding: "9px", textAlign: "right", fontSize: 11, color: C.blueL }}>{+g.dm.toFixed(2)}m</td>
                 <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sC} label="CUSTO" /></td>
                 <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sD} label="DUR." /></td>
-                <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sS} label="SEG." col={g.desq ? C.redL : C.greenL} /></td>
-                <td style={{ padding: "10px 9px", textAlign: "right", fontSize: 22, fontWeight: 700, color: g.desq ? C.redL : sc(g.total || 0) }}>
-                  {g.desq ? "—" : g.total}
+                <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sS} label="SEG." col={isOut ? C.redL : C.greenL} /></td>
+                <td style={{ padding: "10px 9px", textAlign: "right", fontSize: 22, fontWeight: 700, color: isOut ? C.redL : sc(g.total || 0) }}>
+                  {isOut ? "—" : g.total}
                 </td>
                 <td style={{ padding: "9px" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                    {!g.desq && i === 0 && <Tag text="⚡ ALTA PERFORMANCE" col={C.gold} />}
-                    {!g.desq && i > 0 && <Tag text="✅ APROVADO" col={C.greenL} />}
+                    {!isOut && i === 0 && <Tag text="⚡ ALTA PERFORMANCE" col={C.gold} />}
+                    {!isOut && i > 0 && <Tag text="✅ APROVADO" col={C.greenL} />}
                     {g.desq && <Tag text="❌ DESCLASSIFICADO" col={C.redL} />}
+                    {g.desqIncompleto && <Tag text="⚠️ ATIV. SEM RECURSO" col={C.yellow} />}
                     {(g.penSeg?.count ?? 0) > 0 && (
                       <Tag text={`💰 +${g.penSeg.pct}% CUSTO (${g.penSeg.count} req. n/aplic.)`} col={C.yellow} />
                     )}
@@ -284,7 +287,8 @@ export default function Ranking() {
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </Card>
@@ -743,7 +747,7 @@ export default function Ranking() {
                   </tr></thead>
                   <tbody>
                     {g.missing.map((m, mi) => (
-                      <tr key={mi} style={{ borderBottom: `1px solid ${C.border}`, background: (g.desq ? C.redL : C.yellow) + "08" }}>
+                      <tr key={mi} style={{ borderBottom: `1px solid ${C.border}`, background: C.redL + "08" }}>
                         <td style={{ padding: "5px 9px", fontSize: 10, color: C.txt2 }}>{m.atividade}</td>
                         <td style={{ padding: "5px 9px" }}><Tag text={m.categoria} col={C.redL} /></td>
                         <td style={{ padding: "5px 9px", fontSize: 10, color: C.txt }}>{m.desc || "(sem descrição)"}</td>
@@ -756,6 +760,40 @@ export default function Ranking() {
             <div style={{ marginTop: 6, padding: "10px 14px", borderRadius: 5, background: C.gold + "10", border: `1px solid ${C.gold}33`, color: C.txt, fontSize: 11 }}>
               💡 <strong>"A Liderança que Protege sabe dimensionar o recurso certo para o risco da atividade. Segurança não é custo — é parte da composição de alta performance."</strong>
             </div>
+          </div>
+        </Card>
+      )}
+
+      {/* DEBRIEFING — ATIVIDADES SEM RECURSO */}
+      {rank.some(g => g.desqIncompleto) && (
+        <Card b={C.yellow + "44"}>
+          <Hdr2 col={C.yellow} ch="⚠️ DEBRIEFING — ATIVIDADES SEM RECURSO ALOCADO" />
+          <div style={{ padding: 14 }}>
+            <div style={{ fontSize: 10, color: C.txt2, marginBottom: 12, lineHeight: 1.6 }}>
+              Os grupos abaixo deixaram uma ou mais atividades sem nenhum recurso (MO, EQ ou KPI) e foram desclassificados do ranking.
+              Equipes incompletas reduzem artificialmente custo e prazo — o score só é válido quando todas as atividades estão dimensionadas.
+            </div>
+            {rank.filter(g => g.desqIncompleto).map(g => (
+              <div key={g.id} style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.txt, marginBottom: 6 }}>
+                  ⚠️ {g.nome} — {g.atvsVazias?.length} atividade(s) sem recurso:
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {(g.atvsVazias ?? []).map(aId => {
+                    const atv = ATIVS.find(a => a.id === aId);
+                    return (
+                      <div key={aId} style={{
+                        padding: "4px 10px", borderRadius: 4, fontSize: 10,
+                        background: C.yellow + "15", border: `1px solid ${C.yellow}44`,
+                        color: C.yellow, fontWeight: 600,
+                      }}>
+                        {aId} — {atv?.desc ?? aId}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
       )}

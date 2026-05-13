@@ -177,7 +177,7 @@ function formatRankContext(rankContext) {
   if (!rankContext || rankContext.length === 0)
     return "Análise individual (único grupo ou contexto de comparação indisponível).";
   const linhas = rankContext.map(r => {
-    const status = r.desq ? "❌ DESQ" : "✅";
+    const status = r.desq ? "❌ DESQ(SEG)" : r.desqIncompleto ? "⚠️ DESQ(ATIV.INCOMPLETAS)" : "✅";
     return `• ${r.nome}: Score ${r.total ?? "—"} (sC ${r.sC ?? "—"}% | sD ${r.sD ?? "—"}%) ${status}`;
   });
   return linhas.join("\n");
@@ -192,7 +192,10 @@ function formatSegDetalhes(penSeg, scores) {
     });
   }
   if (scores?.desq) {
-    linhas.push(`DESCLASSIFICAÇÃO: grupo não incluiu todos os requisitos APLICÁVEIS obrigatórios.`);
+    linhas.push(`DESCLASSIFICAÇÃO (SEGURANÇA): grupo não incluiu todos os requisitos APLICÁVEIS obrigatórios.`);
+  }
+  if (scores?.desqIncompleto) {
+    linhas.push(`DESCLASSIFICAÇÃO (ATIVIDADES INCOMPLETAS): grupo deixou uma ou mais atividades sem nenhum recurso alocado — scores zerados.`);
   }
   return linhas.length > 0 ? linhas.join("\n") : "✅ Sem armadilhas ativadas e todos os requisitos aplicáveis incluídos.";
 }
@@ -235,6 +238,7 @@ SCORES DO GRUPO (após todas as penalidades):
 - Score de Custo (sC): ${scores.sC ?? "—"}% | Score de Duração (sD): ${scores.sD ?? "—"}%
 - Score Total: ${scores.total ?? "—"}% (50% Custo + 50% Prazo)
 - Segurança (classificatória): ${scores.desq ? "❌ DESCLASSIFICADO — requisito aplicável ausente" : "✅ APROVADO — todos os requisitos incluídos"}
+- Atividades completas: ${scores.desqIncompleto ? "❌ DESCLASSIFICADO — uma ou mais atividades sem recurso alocado" : "✅ Todas as atividades preenchidas"}
 
 SEMÁFORO DE PREENCHIMENTO DAS ATIVIDADES (recursos alocados pelo grupo):
 ${(compsRaw ?? []).map(({ atv, moRows, eqRows, kpi }) => {
@@ -253,7 +257,7 @@ MÉDIAS GERAIS:
 - Atividades prazo melhor: ${ef.countPrazoMelhor ?? 0} | risco: ${ef.countPrazoRisco ?? 0} | pior: ${ef.countPrazoPior ?? 0}
 
 VALORES PRÉ-CALCULADOS PARA O RADAR (use exatamente estes):
-- Custo = ${scores.sC ?? 0} | Prazo = ${scores.sD ?? 0} | Segurança = ${scores.desq ? 0 : 100}
+- Custo = ${scores.sC ?? 0} | Prazo = ${scores.sD ?? 0} | Segurança = ${(scores.desq || scores.desqIncompleto) ? 0 : 100}
 - Efic.MO = ${efMO} | Efic.EQ = ${efEQ}
 - Referência (Base) = todos os valores 100
 
@@ -432,11 +436,12 @@ function buildSessionPrompt({ lt, groups }) {
   ];
 
   groups.forEach((g, i) => {
-    const pos = g.desq ? "DESQ" : `${i + 1}º`;
+    const pos = (g.desq || g.desqIncompleto) ? "DESQ" : `${i + 1}º`;
     linhas.push(``, `[${pos}] ${g.nome}${g.resp ? ` (${g.resp})` : ""}`);
     linhas.push(`  Score: ${g.total ?? 0} | sC: ${g.sC ?? 0}% | sD: ${g.sD ?? 0}%`);
     linhas.push(`  Custo: ${BRL(g.ct)} | Duração: ${(g.dm ?? 0).toFixed(1)} meses`);
-    if (g.desq) linhas.push(`  ❌ DESCLASSIFICADO`);
+    if (g.desq) linhas.push(`  ❌ DESCLASSIFICADO (segurança)`);
+    if (g.desqIncompleto) linhas.push(`  ⚠️ DESCLASSIFICADO (atividades sem recurso: ${(g.atvsVazias ?? []).join(", ")})`);
     if ((g.penSeg?.count ?? 0) > 0) linhas.push(`  Armadilhas: ${g.penSeg.count} req. indevidos (+${g.penSeg.pct}% custo)`);
     if ((g.ef?.countPrazoRisco ?? 0) > 0 || (g.ef?.countPrazoPior ?? 0) > 0)
       linhas.push(`  KPI crítico: ${g.ef.countPrazoRisco ?? 0} ativ. risco | ${g.ef.countPrazoPior ?? 0} ativ. pior`);
