@@ -236,6 +236,12 @@ SCORES DO GRUPO (após todas as penalidades):
 - Score Total: ${scores.total ?? "—"}% (50% Custo + 50% Prazo)
 - Segurança (classificatória): ${scores.desq ? "❌ DESCLASSIFICADO — requisito aplicável ausente" : "✅ APROVADO — todos os requisitos incluídos"}
 
+SEMÁFORO DE PREENCHIMENTO DAS ATIVIDADES (recursos alocados pelo grupo):
+${(compsRaw ?? []).map(({ atv, moRows, eqRows, kpi }) => {
+  const filled = (moRows?.length > 0) || (eqRows?.length > 0) || (kpi > 0);
+  return `${filled ? "🟢" : "🔴"} ${atv.desc} (${atv.und}): ${filled ? "preenchida" : "SEM RECURSOS — atividade não dimensionada"}`;
+}).join("\n")}
+
 COMPOSIÇÃO DE RECURSOS POR ATIVIDADE (mão de obra e equipamentos declarados pelo grupo):
 ${formatComposicao(compsRaw, calcAResults)}
 
@@ -274,7 +280,7 @@ INSTRUÇÕES:
 2. Depois forneça análise em 4 seções (máximo 700 palavras, português brasileiro, tom técnico):
    **1. Diagnóstico de Eficiência** — padrões nos coeficientes, atividades com maior desvio, composição de recursos crítica
    **2. Impacto em Custo e Prazo** — relação coeficiente × KPI, atividades críticas, custo de mobilização (equipes extras encarecem em 20%/equipe), posicionamento vs outros grupos
-   **3. Recursos Obrigatórios, Coerência e Incompatibilidades** — liste cada cargo/equipamento obrigatório ausente e explique o risco operacional (NR, segurança, viabilidade). Para KPI acima de 40% da base: questione viabilidade de campo. Para sub-alocação abaixo do piso CBIC: classifique como CRÍTICO. Para coerência operador↔equipamento: classifique como OCIOSO, RISCO OPERACIONAL ou INVIÁVEL.
+   **3. Recursos Obrigatórios, Coerência e Incompatibilidades** — liste cada cargo/equipamento obrigatório ausente e explique o risco operacional (NR, segurança, viabilidade). Para KPI acima de 40% da base: questione viabilidade de campo. Para sub-alocação abaixo do piso CBIC: classifique como CRÍTICO. Para coerência operador↔equipamento: classifique como OCIOSO, RISCO OPERACIONAL ou INVIÁVEL. Se houver atividades com 🔴 no semáforo (SEM RECURSOS), mencione-as explicitamente e alerte que o dimensionamento está incompleto.
    **4. Recomendações** — 3 ações práticas específicas: primeiro inclusão de recursos obrigatórios ausentes e correção de incompatibilidades KPI/coeficiente; depois custo-benefício de equipes adicionais vs penalidade de mobilização; e ajustes de coerência e segurança`;
 }
 

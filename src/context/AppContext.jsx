@@ -232,6 +232,15 @@ export function AppProvider({ children }) {
   const addRequisito = (aId) => reqHook.add.mutate({ ativId: aId });
   const delRequisito = (_id) => reqHook.remove.mutate(_id);
   const updRequisito = (_id, k, v) => reqHook.update.mutate({ id: _id, campo: k, valor: v });
+  const resetRequisitosToDefault = () => reqHook.resetToDefault.mutate(
+    BASE_REQUIREMENTS.map(r => ({
+      session_id:   activeSessionId,
+      atividade_id: r.aId,
+      categoria:    r.categoria,
+      descricao:    r.desc,
+      aplicavel:    r.aplicavel,
+    }))
+  );
 
   // ── EPI ───────────────────────────────────────────────────────────────────
   const epiCargo = epiHook.query.data ?? {};
@@ -453,7 +462,7 @@ export function AppProvider({ children }) {
       volumesPrev, setVolumesPrev,
       comentariosAtiv, setComentariosAtiv,
       mesIniciaBase, setMesIniciaBase,
-      requisitos, addRequisito, delRequisito, updRequisito,
+      requisitos, addRequisito, delRequisito, updRequisito, resetRequisitosToDefault,
       epiCargo, togEpi,
       comps, gc, updateComp, toggleReq,
       moAdd, moDel, moUpd,

@@ -17,10 +17,16 @@ const selStyle = (col) => ({
 });
 
 export default function Requisitos() {
-  const { requisitos, addRequisito, delRequisito, updRequisito } = useApp();
+  const { requisitos, addRequisito, delRequisito, updRequisito, resetRequisitosToDefault } = useApp();
   const totalReqs = requisitos.length;
   const aplicaveis = requisitos.filter(r => r.aplicavel !== false).length;
   const naoAplicaveis = requisitos.filter(r => r.aplicavel === false).length;
+
+  const handlePadronizar = () => {
+    if (window.confirm("Isso substituirá TODOS os requisitos desta sessão pelo padrão da sessão LT 500 kV CS - NORMAL AUTOPORTANTE (202 requisitos). Continuar?")) {
+      resetRequisitosToDefault();
+    }
+  };
 
   return (
     <div style={S.pg}>
@@ -36,6 +42,15 @@ export default function Requisitos() {
             <div style={{ fontSize: 9, color: C.txt3, letterSpacing: 1 }}>{l}</div>
           </div>
         ))}
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+        <button
+          style={{ ...S.btnS, background: C.yellow + "22", borderColor: C.yellow + "66", color: C.yellow }}
+          onClick={handlePadronizar}
+          title="Substitui todos os requisitos desta sessão pelo padrão (LT 500 kV CS - NORMAL AUTOPORTANTE)"
+        >
+          ⟳ PADRONIZAR REQUISITOS
+        </button>
       </div>
 
       {[["M", C.blueL, "🏗️ MONTAGEM"], ["L", C.greenL, "🔌 LANÇAMENTO"]].map(([grp, col, label]) => (

@@ -76,5 +76,18 @@ export function useRequisitos(sessionId) {
     onSuccess: inv,
   });
 
-  return { query, add, update, remove, seedAll };
+  const resetToDefault = useMutation({
+    mutationFn: async (rows) => {
+      const { error: delErr } = await supabase
+        .from("requisitos")
+        .delete()
+        .eq("session_id", sessionId);
+      if (delErr) throw delErr;
+      const { error: insErr } = await supabase.from("requisitos").insert(rows);
+      if (insErr) throw insErr;
+    },
+    onSuccess: inv,
+  });
+
+  return { query, add, update, remove, seedAll, resetToDefault };
 }

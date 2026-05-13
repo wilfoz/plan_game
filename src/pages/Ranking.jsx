@@ -15,6 +15,34 @@ import { useAiAnalises } from "../hooks/useAiAnalises";
 
 const fmt2 = n => (n != null ? n.toFixed(2) : "—");
 
+// Semáforo das 7 atividades: verde = recursos preenchidos, vermelho = sem recurso
+function Semaforo({ gi, gc }) {
+  return (
+    <div style={{ display: "flex", gap: 3, marginTop: 5, flexWrap: "wrap" }}>
+      {ATIVS.map(a => {
+        const comp = gc(gi, a.id);
+        const filled = (comp.moRows?.length > 0) || (comp.eqRows?.length > 0) || (comp.kpi > 0);
+        return (
+          <div
+            key={a.id}
+            title={`${a.desc} (${a.und}): ${filled ? "✅ preenchida" : "🔴 sem recurso"}`}
+            style={{
+              width: 16, height: 16, borderRadius: "50%",
+              background: filled ? C.greenL : C.redL,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 7.5, fontWeight: 800, color: "#000",
+              boxShadow: `0 0 5px ${filled ? C.greenL : C.redL}66`,
+              cursor: "default", flexShrink: 0,
+            }}
+          >
+            {a.id[1]}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function varColor(pct) {
   if (pct == null) return C.txt3;
   if (pct <= 0) return C.greenL;
@@ -223,7 +251,10 @@ export default function Ranking() {
                 <td style={{ padding: "10px 9px", fontSize: 18, textAlign: "center" }}>
                   {g.desq ? "❌" : medals[i] ?? ""}
                 </td>
-                <td style={{ padding: "10px 9px", fontSize: 12, fontWeight: 700 }}>{g.nome}</td>
+                <td style={{ padding: "10px 9px" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700 }}>{g.nome}</div>
+                  <Semaforo gi={g.gi} gc={gc} />
+                </td>
                 <TD ch={g.resp || "—"} muted />
                 <td style={{ padding: "9px", textAlign: "right", fontSize: 11, color: C.yellow }}>{fmt(g.ct)}</td>
                 <td style={{ padding: "9px", textAlign: "right", fontSize: 11, color: C.blueL }}>{+g.dm.toFixed(2)}m</td>
