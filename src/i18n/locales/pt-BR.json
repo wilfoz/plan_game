@@ -450,5 +450,28 @@
     "useThis": "USAR ESTA →",
     "startFromScratch": "COMEÇAR DO ZERO",
     "error": "Falha ao copiar as composições. Tente novamente."
+  },
+  "admin": {
+    "title": "PAINEL ADMINISTRATIVO",
+    "createEvent": "Criar Novo Evento",
+    "eventName": "NOME DO EVENTO",
+    "facLogin": "LOGIN DO FACILITADOR",
+    "facPassword": "SENHA DO FACILITADOR",
+    "createButton": "+ CRIAR EVENTO",
+    "eventsList": "EVENTOS CADASTRADOS",
+    "created": "Criado em",
+    "totalSessions": "{{count}} sessão",
+    "totalSessions_plural": "{{count}} sessões",
+    "totalGroups": "{{count}} grupo",
+    "totalGroups_plural": "{{count}} grupos",
+    "confirmDelete": "Excluir este evento? Todas as sessões e grupos associados serão apagados permanentemente.",
+    "errorEmpty": "Preencha todos os campos do evento.",
+    "errorLoginTaken": "Este login de facilitador já está em uso.",
+    "errorGeneric": "Ocorreu um erro. Tente novamente.",
+    "indicatorEvents": "Total de Eventos",
+    "indicatorSessions": "Total de Sessões",
+    "indicatorGroups": "Total de Grupos",
+    "emptyEvents": "Nenhum evento criado ainda.",
+    "actions": "Ações"
   }
 }

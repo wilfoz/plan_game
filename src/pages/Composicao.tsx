@@ -162,7 +162,7 @@ export default function Composicao() {
       </div>
 
       {/* conteúdo 2 colunas */}
-      <div style={S.g2}>
+      <div className="admin-grid-layout">
         {/* ESQUERDA */}
         <div>
           {/* cabeçalho atividade */}

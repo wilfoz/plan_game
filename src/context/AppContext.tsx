@@ -31,8 +31,15 @@ const EMPTY_LT: LtConfig = { nome: "", tensao: "500kV", ext: 0, circ: "simples",
 interface AppContextType {
   screen: string;
   setScreen: (s: string) => void;
-  role: "F" | "G" | null;
-  setRole: (r: "F" | "G" | null) => void;
+  role: "F" | "G" | "ADMIN" | null;
+  setRole: (r: "F" | "G" | "ADMIN" | null) => void;
+  activeEventId: string | null;
+  setActiveEventId: (id: string | null) => void;
+  activeEventNome: string | null;
+  setActiveEventNome: (n: string | null) => void;
+  adminSenha: string | null;
+  setAdminSenha: (s: string | null) => void;
+  logout: () => void;
   gIdx: number;
   setGIdx: (i: number) => void;
   aTab: string;
@@ -123,16 +130,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     catch { return {}; }
   })();
   const [screen, setScreen]               = useState<string>(_ss.screen           ?? "login");
-  const [role, setRole]                   = useState<"F" | "G" | null>(_ss.role              ?? null);
+  const [role, setRole]                   = useState<"F" | "G" | "ADMIN" | null>(_ss.role              ?? null);
   const [gIdx, setGIdx]                   = useState<number>(_ss.gIdx              ?? 0);
   const [aTab, setATab]                   = useState<string>("a1");
   const [epiCargoAtivo, setEpiCargoAtivo] = useState<string>("mo1");
   const [activeSessionId, setActiveSessionId] = useState<string | null>(_ss.activeSessionId ?? null);
+  const [activeEventId, setActiveEventId] = useState<string | null>(_ss.activeEventId ?? null);
+  const [activeEventNome, setActiveEventNome] = useState<string | null>(_ss.activeEventNome ?? null);
+  const [adminSenha, setAdminSenha]       = useState<string | null>(_ss.adminSenha ?? null);
   const [duracaoSomada, setDuracaoSomada] = useState<boolean>(true);
   const [copyOptions, setCopyOptions]     = useState<any>(null);
 
   // ── Supabase hooks ────────────────────────────────────────────────────────
-  const sessionsHook = useSessions();
+  const sessionsHook = useSessions(activeEventId);
   const ltHook       = useLtConfig(activeSessionId);
   const ativHook     = useAtividadesConfig(activeSessionId);
   const ebHook       = useEquipeBase(activeSessionId);
@@ -142,12 +152,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ── Persistência de sessão (sessionStorage — apaga ao fechar a aba) ────────
   useEffect(() => {
-    if (role && activeSessionId) {
-      sessionStorage.setItem("jlt_sess", JSON.stringify({ role, gIdx, activeSessionId, screen }));
+    if (role) {
+      sessionStorage.setItem("jlt_sess", JSON.stringify({
+        role,
+        gIdx,
+        activeSessionId,
+        screen,
+        activeEventId,
+        activeEventNome,
+        adminSenha
+      }));
     } else {
       sessionStorage.removeItem("jlt_sess");
     }
-  }, [role, activeSessionId, gIdx, screen]);
+  }, [role, activeSessionId, gIdx, screen, activeEventId, activeEventNome, adminSenha]);
+
+  const logout = () => {
+    setRole(null);
+    setActiveSessionId(null);
+    setActiveEventId(null);
+    setActiveEventNome(null);
+    setAdminSenha(null);
+    setScreen("login");
+    sessionStorage.removeItem("jlt_sess");
+  };
 
   // grupos precisa estar disponível antes de inicializar compsHook
   const grupos = gruposHook.query.data ?? [];
@@ -161,21 +189,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addSession = (nome: string) => {
     const id = uid();
     // Optimistically insert into cache so setActiveSessionId works immediately
-    qc.setQueryData(["sessions"], (old: any = []) => [
+    qc.setQueryData(["sessions", activeEventId], (old: any = []) => [
       ...old,
-      { id, nome: nome || "Nova Sessão", created_at: new Date().toISOString(), grupos: [], lt: { nome: "" } },
+      { id, nome: nome || "Nova Sessão", created_at: new Date().toISOString(), event_id: activeEventId || undefined, grupos: [], lt: { nome: "" } },
     ]);
-    sessionsHook.add.mutate({ id, nome: nome || "Nova Sessão" });
+    sessionsHook.add.mutate({ id, nome: nome || "Nova Sessão", eventId: activeEventId });
     return id;
   };
 
   const delSession = (id: string) => {
-    qc.setQueryData(["sessions"], (old: any = []) => (old ?? []).filter((s: any) => s.id !== id));
+    qc.setQueryData(["sessions", activeEventId], (old: any = []) => (old ?? []).filter((s: any) => s.id !== id));
     sessionsHook.remove.mutate(id);
   };
 
   const uSessionNome = (id: string, nome: string) => {
-    qc.setQueryData(["sessions"], (old: any = []) =>
+    qc.setQueryData(["sessions", activeEventId], (old: any = []) =>
       (old ?? []).map((s: any) => s.id === id ? { ...s, nome } : s)
     );
     sessionsHook.rename.mutate({ id, nome });
@@ -551,6 +579,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       screen, setScreen, role, setRole, gIdx, setGIdx, aTab, setATab,
+      activeEventId, setActiveEventId, activeEventNome, setActiveEventNome,
+      adminSenha, setAdminSenha, logout,
       epiCargoAtivo, setEpiCargoAtivo,
       duracaoSomada, setDuracaoSomada,
       travaEquipes, setTravaEquipes,

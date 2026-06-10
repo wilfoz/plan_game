@@ -71,6 +71,7 @@ export interface Session {
   id: string;
   nome: string;
   created_at: string;
+  event_id?: string;
   grupos?: Grupo[];
   lt?: LtConfig;
 }
@@ -112,4 +113,22 @@ export interface AtividadeConfig {
 
 export interface AtividadesConfig {
   [atividadeId: string]: AtividadeConfig;
+}
+
+export interface Evento {
+  id: string;
+  nome: string;
+  facilitador_login: string;
+  created_at: string;
+  total_sessions?: number;
+  total_groups?: number;
+}
+
+export interface AdminDashboardData {
+  event_id: string;
+  event_nome: string;
+  facilitador_login: string;
+  created_at: string;
+  total_sessions: number;
+  total_groups: number;
 }

@@ -60,7 +60,7 @@ const inputStyle = (hasErro: boolean, disabled: boolean) => ({
 
 export default function Login() {
   const { t } = useTranslation();
-  const { setRole, setGIdx, setActiveSessionId, setScreen, setCopyOptions } = useApp();
+  const { setRole, setGIdx, setActiveSessionId, setScreen, setCopyOptions, setActiveEventId, setActiveEventNome, setAdminSenha } = useApp();
 
   const [usuario, setUsuario]       = useState("");
   const [senha, setSenha]           = useState("");
@@ -152,10 +152,11 @@ export default function Login() {
     const usr = usuario.trim();
     if (!usr || !senha) { setErro(t("login.errorEmpty")); return; }
 
-    const tipo = usr.toUpperCase() === "FACILITADOR" ? "facilitador" : "grupo";
+    const isAdmin = usr.toUpperCase() === "ADMIN" || usr.toUpperCase() === "ADMINISTRADOR";
+    const lockKey = isAdmin ? "admin" : "user";
 
     // Verificar bloqueio
-    const locked = secondsLocked(tipo);
+    const locked = secondsLocked(lockKey);
     if (locked > 0) {
       const min = Math.ceil(locked / 60);
       setErro(t("login.lockout", { min }));
@@ -163,18 +164,19 @@ export default function Login() {
       return;
     }
 
-    // ── Facilitador (verificação via RPC — senha nunca no bundle) ────────────
-    if (tipo === "facilitador") {
-      setCarregando(true);
-      try {
-        const { data: ok, error } = await supabase.rpc("login_facilitador", { p_senha: senha });
+    setCarregando(true);
+    try {
+      if (isAdmin) {
+        // 1. Tentar Login do Administrador
+        const { data: ok, error } = await supabase.rpc("login_admin", { p_senha: senha });
         if (error) throw error;
         if (ok) {
-          clearRecord("facilitador");
-          setRole("F");
-          setScreen("session-manager");
+          clearRecord("admin");
+          setAdminSenha(senha);
+          setRole("ADMIN");
+          setScreen("admin_dashboard");
         } else {
-          const count = registerFail("facilitador");
+          const count = registerFail("admin");
           const remaining = MAX_ATTEMPTS - count;
           setErro(remaining > 0
             ? t("login.wrongPassword", { remaining })
@@ -183,49 +185,47 @@ export default function Login() {
           if (remaining <= 0) setBloqueioSeg(LOCKOUT_MS / 1000);
           setSenha("");
         }
-      } catch {
-        setErro(t("login.connError"));
-      } finally {
-        setCarregando(false);
-      }
-      return;
-    }
-
-    // ── Grupo (verificação via RPC com bcrypt) ────────────────────────────────
-    setCarregando(true);
-    try {
-      const { data, error } = await supabase.rpc("login_grupo", {
-        p_nome:  usr,
-        p_senha: senha,
-      });
-
-      if (error) throw error;
-
-      if (data && data.length === 1) {
-        clearRecord("grupo");
-        entrarNaSessao(data[0], data);
-      } else if (data && data.length > 1) {
-        clearRecord("grupo");
-        setSessoes(data);
       } else {
-        const { data: exists } = await supabase
-          .from("grupos")
-          .select("id")
-          .ilike("nome", usr)
-          .limit(1);
-
-        if (exists?.length) {
-          const count = registerFail("grupo");
-          const remaining = MAX_ATTEMPTS - count;
-          setErro(remaining > 0
-            ? t("login.wrongPassword", { remaining })
-            : t("login.accountLocked")
-          );
-          if (remaining <= 0) setBloqueioSeg(LOCKOUT_MS / 1000);
+        // 2. Tentar Login de Facilitador de Evento
+        const { data: facData, error: facErr } = await supabase.rpc("login_event_facilitador", {
+          p_login: usr,
+          p_senha: senha
+        });
+        if (facErr) throw facErr;
+        
+        if (facData && facData.length === 1) {
+          clearRecord("user");
+          setActiveEventId(facData[0].event_id);
+          setActiveEventNome(facData[0].event_nome);
+          setRole("F");
+          setScreen("session-manager");
         } else {
-          setErro(t("login.groupNotFound"));
+          // 3. Tentar Login de Grupo
+          const { data: grpData, error: grpErr } = await supabase.rpc("login_grupo", {
+            p_nome: usr,
+            p_senha: senha
+          });
+          if (grpErr) throw grpErr;
+
+          if (grpData && grpData.length === 1) {
+            clearRecord("user");
+            setActiveEventId(grpData[0].event_id);
+            entrarNaSessao(grpData[0], grpData);
+          } else if (grpData && grpData.length > 1) {
+            clearRecord("user");
+            setActiveEventId(grpData[0].event_id);
+            setSessoes(grpData);
+          } else {
+            const count = registerFail("user");
+            const remaining = MAX_ATTEMPTS - count;
+            setErro(remaining > 0
+              ? t("login.wrongPassword", { remaining })
+              : t("login.accountLocked")
+            );
+            if (remaining <= 0) setBloqueioSeg(LOCKOUT_MS / 1000);
+            setSenha("");
+          }
         }
-        setSenha("");
       }
     } catch {
       setErro(t("login.connError"));
@@ -253,9 +253,6 @@ export default function Login() {
             <img src={logoSvg} alt="Logo" style={{ width: 64, height: 64 }} />
           </div>
           <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: 6 }}>{t("header.tagline")}</div>
-          <div style={{ fontSize: 10, color: C.gold, letterSpacing: 4, marginTop: 6 }}>
-            {t("login.taglineSub")}
-          </div>
         </div>
 
         {/* ── Seletor de sessão ── */}

@@ -266,68 +266,70 @@ export default function Ranking() {
 
       <Card>
         <Hdr2 ch={t("ranking.title").toUpperCase()} />
-        <table style={S.tbl}>
-          <thead><tr>
-            <TH ch="#" w={30} />
-            <TH ch={t("ranking.tableHeaders.group")} />
-            <TH ch={t("ranking.tableHeaders.leader")} />
-            <TH ch={t("ranking.tableHeaders.cost")} right />
-            <TH ch={t("ranking.tableHeaders.duration")} right />
-            <TH ch={t("ranking.tableHeaders.sCost")} right />
-            <TH ch={t("ranking.tableHeaders.sDur")} right />
-            <TH ch={t("ranking.tableHeaders.sSeg")} right />
-            <TH ch={t("ranking.tableHeaders.score")} right accent />
-            <TH ch={t("ranking.tableHeaders.status")} />
-          </tr></thead>
-          <tbody>
-            {rank.map((g, i) => {
-              const isOut = g.desq || g.desqIncompleto;
-              return (
-                <tr key={g.id} style={{
-                  borderBottom: `1px solid ${C.border}`,
-                  background: isOut ? C.redL + "08" : i === 0 ? C.gold + "08" : "transparent"
-                }}>
-                  <td style={{ padding: "10px 9px", fontSize: 18, textAlign: "center" }}>
-                    {isOut ? "❌" : medals[i] ?? ""}
-                  </td>
-                  <td style={{ padding: "10px 9px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 700 }}>{g.nome}</div>
-                    <Semaforo gi={g.gi} gc={gc} lang={currentLang} />
-                  </td>
-                  <TD ch={g.resp || "—"} muted />
-                  <td style={{ padding: "9px", textAlign: "right", fontSize: 11, color: C.yellow }}>{fmt(g.ct, currentLang)}</td>
-                  <td style={{ padding: "9px", textAlign: "right", fontSize: 11, color: C.blueL }}>{+g.dm.toFixed(2)}m</td>
-                  <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sC} label="CUSTO" /></td>
-                  <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sD} label="DUR." /></td>
-                  <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sS} label="SEG." col={isOut ? C.redL : C.greenL} /></td>
-                  <td style={{ padding: "10px 9px", textAlign: "right", fontSize: 22, fontWeight: 700, color: isOut ? C.redL : sc(g.total || 0) }}>
-                    {isOut ? "—" : g.total}
-                  </td>
-                  <td style={{ padding: "9px" }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                      {!isOut && i === 0 && <Tag text={t("ranking.tags.performance")} col={C.gold} />}
-                      {!isOut && i > 0 && <Tag text={t("ranking.tags.approved")} col={C.greenL} />}
-                      {g.desq && <Tag text={t("ranking.tags.disqualified")} col={C.redL} />}
-                      {g.desqIncompleto && <Tag text={t("ranking.tags.incomplete")} col={C.yellow} />}
-                      {(g.penSeg?.count ?? 0) > 0 && (
-                        <Tag text={t("ranking.tags.penSeg", { pct: g.penSeg.pct, count: g.penSeg.count })} col={C.yellow} />
-                      )}
-                      {(g.ef?.countPrazoRisco ?? 0) > 0 && (
-                        <Tag text={t("ranking.tags.kpiRisco", { count: g.ef.countPrazoRisco })} col={C.yellow} />
-                      )}
-                      {(g.ef?.countPrazoPior ?? 0) > 0 && (
-                        <Tag text={t("ranking.tags.kpiPior", { count: g.ef.countPrazoPior })} col={C.redL} />
-                      )}
-                      {(g.ef?.countSubAlocacao ?? 0) > 0 && (
-                        <Tag text={t("ranking.tags.suballoc", { count: g.ef.countSubAlocacao })} col={C.redL} />
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="table-responsive">
+          <table style={S.tbl}>
+            <thead><tr>
+              <TH ch="#" w={30} />
+              <TH ch={t("ranking.tableHeaders.group")} />
+              <TH ch={t("ranking.tableHeaders.leader")} />
+              <TH ch={t("ranking.tableHeaders.cost")} right />
+              <TH ch={t("ranking.tableHeaders.duration")} right />
+              <TH ch={t("ranking.tableHeaders.sCost")} right />
+              <TH ch={t("ranking.tableHeaders.sDur")} right />
+              <TH ch={t("ranking.tableHeaders.sSeg")} right />
+              <TH ch={t("ranking.tableHeaders.score")} right accent />
+              <TH ch={t("ranking.tableHeaders.status")} />
+            </tr></thead>
+            <tbody>
+              {rank.map((g, i) => {
+                const isOut = g.desq || g.desqIncompleto;
+                return (
+                  <tr key={g.id} style={{
+                    borderBottom: `1px solid ${C.border}`,
+                    background: isOut ? C.redL + "08" : i === 0 ? C.gold + "08" : "transparent"
+                  }}>
+                    <td style={{ padding: "10px 9px", fontSize: 18, textAlign: "center" }}>
+                      {isOut ? "❌" : medals[i] ?? ""}
+                    </td>
+                    <td style={{ padding: "10px 9px" }}>
+                      <div style={{ fontSize: 12, fontWeight: 700 }}>{g.nome}</div>
+                      <Semaforo gi={g.gi} gc={gc} lang={currentLang} />
+                    </td>
+                    <TD ch={g.resp || "—"} muted />
+                    <td style={{ padding: "9px", textAlign: "right", fontSize: 11, color: C.yellow }}>{fmt(g.ct, currentLang)}</td>
+                    <td style={{ padding: "9px", textAlign: "right", fontSize: 11, color: C.blueL }}>{+g.dm.toFixed(2)}m</td>
+                    <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sC} label="CUSTO" /></td>
+                    <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sD} label="DUR." /></td>
+                    <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sS} label="SEG." col={isOut ? C.redL : C.greenL} /></td>
+                    <td style={{ padding: "10px 9px", textAlign: "right", fontSize: 22, fontWeight: 700, color: isOut ? C.redL : sc(g.total || 0) }}>
+                      {isOut ? "—" : g.total}
+                    </td>
+                    <td style={{ padding: "9px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                        {!isOut && i === 0 && <Tag text={t("ranking.tags.performance")} col={C.gold} />}
+                        {!isOut && i > 0 && <Tag text={t("ranking.tags.approved")} col={C.greenL} />}
+                        {g.desq && <Tag text={t("ranking.tags.disqualified")} col={C.redL} />}
+                        {g.desqIncompleto && <Tag text={t("ranking.tags.incomplete")} col={C.yellow} />}
+                        {(g.penSeg?.count ?? 0) > 0 && (
+                          <Tag text={t("ranking.tags.penSeg", { pct: g.penSeg.pct, count: g.penSeg.count })} col={C.yellow} />
+                        )}
+                        {(g.ef?.countPrazoRisco ?? 0) > 0 && (
+                          <Tag text={t("ranking.tags.kpiRisco", { count: g.ef.countPrazoRisco })} col={C.yellow} />
+                        )}
+                        {(g.ef?.countPrazoPior ?? 0) > 0 && (
+                          <Tag text={t("ranking.tags.kpiPior", { count: g.ef.countPrazoPior })} col={C.redL} />
+                        )}
+                        {(g.ef?.countSubAlocacao ?? 0) > 0 && (
+                          <Tag text={t("ranking.tags.suballoc", { count: g.ef.countSubAlocacao })} col={C.redL} />
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </Card>
 
       {/* ANÁLISE CONSOLIDADA DA SESSÃO — apenas facilitador */}
@@ -448,77 +450,80 @@ export default function Ranking() {
                   </div>
 
                   {/* Tabela por atividade */}
-                  <table style={{ ...S.tbl, marginBottom: 8 }}>
-                    <thead><tr>
-                      <TH ch={t("ranking.efficiencyTableHeaders.activity")} w={180} />
-                      <TH ch={t("ranking.efficiencyTableHeaders.coefMoGroup")} right w={115} />
-                      <TH ch={t("ranking.efficiencyTableHeaders.coefMoBase")} right w={110} />
-                      <TH ch={t("ranking.efficiencyTableHeaders.varMo")} right w={75} />
-                      <TH ch={t("ranking.efficiencyTableHeaders.varKpi")} right w={75} />
-                      <TH ch={t("ranking.efficiencyTableHeaders.coefEqGroup")} right w={115} />
-                      <TH ch={t("ranking.efficiencyTableHeaders.coefEqBase")} right w={110} />
-                      <TH ch={t("ranking.efficiencyTableHeaders.varEq")} right w={75} />
-                      <TH ch={t("ranking.efficiencyTableHeaders.prazo")} right w={80} />
-                    </tr></thead>
-                    <tbody>
-                      {ativsComComp.map(([aId, ef]: [string, any]) => {
-                        const atv = ATIVS.find(a => a.id === aId);
-                        if (!atv) return null;
-                        const und = atv.und[currentLang].toLowerCase();
-                        const colMo = varColor(ef.varMoPct);
-                        const colEq = varColor(ef.varEqPct);
-                        const colKpi = ef.varKpiPct == null ? C.txt3
-                          : ef.varKpiPct >= 0 ? C.greenL : C.redL;
-                        const prazoIcon = ef.impactoPrazo === "melhor" ? { icon: "↓", col: C.greenL, tip: "menor" }
-                          : ef.impactoPrazo === "pior" ? { icon: "↑", col: C.redL, tip: "maior" }
-                          : ef.impactoPrazo === "risco" ? { icon: "?", col: C.yellow, tip: "validar" }
-                          : { icon: "=", col: C.txt3, tip: "neutro" };
-                        return (
-                          <tr key={aId} style={{ borderBottom: `1px solid ${C.border}` }}>
-                            <td style={{ padding: "5px 8px", fontSize: 10, color: C.txt2 }}>{atv.desc[currentLang]}</td>
-                            <td style={{ padding: "5px 8px", textAlign: "right", fontSize: 10, color: C.txt }}>
-                              {ef.coefMoGrupo != null ? `${fmt2(ef.coefMoGrupo)} Hh/${und}` : "—"}
-                            </td>
-                            <td style={{ padding: "5px 8px", textAlign: "right", fontSize: 10, color: C.txt3 }}>
-                              {ef.coefMoBase != null ? `${fmt2(ef.coefMoBase)} Hh/${und}` : "—"}
-                            </td>
-                            <td style={{ padding: "5px 8px", textAlign: "right" }}>
-                              {ef.varMoPct != null ? (
-                                <span style={{ fontSize: 9, fontWeight: 700, color: colMo, background: colMo + "18", border: `1px solid ${colMo}44`, borderRadius: 3, padding: "1px 5px" }}>
-                                  {ef.varMoPct > 0 ? "+" : ""}{ef.varMoPct}%
+                  {/* Tabela por atividade */}
+                  <div className="table-responsive">
+                    <table style={{ ...S.tbl, marginBottom: 8 }}>
+                      <thead><tr>
+                        <TH ch={t("ranking.efficiencyTableHeaders.activity")} w={180} />
+                        <TH ch={t("ranking.efficiencyTableHeaders.coefMoGroup")} right w={115} />
+                        <TH ch={t("ranking.efficiencyTableHeaders.coefMoBase")} right w={110} />
+                        <TH ch={t("ranking.efficiencyTableHeaders.varMo")} right w={75} />
+                        <TH ch={t("ranking.efficiencyTableHeaders.varKpi")} right w={75} />
+                        <TH ch={t("ranking.efficiencyTableHeaders.coefEqGroup")} right w={115} />
+                        <TH ch={t("ranking.efficiencyTableHeaders.coefEqBase")} right w={110} />
+                        <TH ch={t("ranking.efficiencyTableHeaders.varEq")} right w={75} />
+                        <TH ch={t("ranking.efficiencyTableHeaders.prazo")} right w={80} />
+                      </tr></thead>
+                      <tbody>
+                        {ativsComComp.map(([aId, ef]: [string, any]) => {
+                          const atv = ATIVS.find(a => a.id === aId);
+                          if (!atv) return null;
+                          const und = atv.und[currentLang].toLowerCase();
+                          const colMo = varColor(ef.varMoPct);
+                          const colEq = varColor(ef.varEqPct);
+                          const colKpi = ef.varKpiPct == null ? C.txt3
+                            : ef.varKpiPct >= 0 ? C.greenL : C.redL;
+                          const prazoIcon = ef.impactoPrazo === "melhor" ? { icon: "↓", col: C.greenL, tip: "menor" }
+                            : ef.impactoPrazo === "pior" ? { icon: "↑", col: C.redL, tip: "maior" }
+                            : ef.impactoPrazo === "risco" ? { icon: "?", col: C.yellow, tip: "validar" }
+                            : { icon: "=", col: C.txt3, tip: "neutro" };
+                          return (
+                            <tr key={aId} style={{ borderBottom: `1px solid ${C.border}` }}>
+                              <td style={{ padding: "5px 8px", fontSize: 10, color: C.txt2 }}>{atv.desc[currentLang]}</td>
+                              <td style={{ padding: "5px 8px", textAlign: "right", fontSize: 10, color: C.txt }}>
+                                {ef.coefMoGrupo != null ? `${fmt2(ef.coefMoGrupo)} Hh/${und}` : "—"}
+                              </td>
+                              <td style={{ padding: "5px 8px", textAlign: "right", fontSize: 10, color: C.txt3 }}>
+                                {ef.coefMoBase != null ? `${fmt2(ef.coefMoBase)} Hh/${und}` : "—"}
+                              </td>
+                              <td style={{ padding: "5px 8px", textAlign: "right" }}>
+                                {ef.varMoPct != null ? (
+                                  <span style={{ fontSize: 9, fontWeight: 700, color: colMo, background: colMo + "18", border: `1px solid ${colMo}44`, borderRadius: 3, padding: "1px 5px" }}>
+                                    {ef.varMoPct > 0 ? "+" : ""}{ef.varMoPct}%
+                                  </span>
+                                ) : <span style={{ color: C.txt3, fontSize: 9 }}>—</span>}
+                              </td>
+                              <td style={{ padding: "5px 8px", textAlign: "right" }}>
+                                {ef.varKpiPct != null ? (
+                                  <span style={{ fontSize: 9, fontWeight: 700, color: colKpi, background: colKpi + "18", border: `1px solid ${colKpi}44`, borderRadius: 3, padding: "1px 5px" }}>
+                                    {ef.varKpiPct > 0 ? "+" : ""}{ef.varKpiPct}%
+                                  </span>
+                                ) : <span style={{ color: C.txt3, fontSize: 9 }}>—</span>}
+                              </td>
+                              <td style={{ padding: "5px 8px", textAlign: "right", fontSize: 10, color: C.txt }}>
+                                {ef.coefEqGrupo != null && ef.coefEqGrupo > 0 ? `${fmt2(ef.coefEqGrupo)} Ch/${und}` : "—"}
+                              </td>
+                              <td style={{ padding: "5px 8px", textAlign: "right", fontSize: 10, color: C.txt3 }}>
+                                {ef.coefEqBase != null && ef.coefEqBase > 0 ? `${fmt2(ef.coefEqBase)} Ch/${und}` : "—"}
+                              </td>
+                              <td style={{ padding: "5px 8px", textAlign: "right" }}>
+                                {ef.varEqPct != null && ef.varEqPct !== 0 ? (
+                                  <span style={{ fontSize: 9, fontWeight: 700, color: colEq, background: colEq + "18", border: `1px solid ${colEq}44`, borderRadius: 3, padding: "1px 5px" }}>
+                                    {ef.varEqPct > 0 ? "+" : ""}{ef.varEqPct}%
+                                  </span>
+                                ) : <span style={{ color: C.txt3, fontSize: 9 }}>—</span>}
+                              </td>
+                              <td style={{ padding: "5px 8px", textAlign: "right" }}>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: prazoIcon.col }} title={prazoIcon.tip}>
+                                  {prazoIcon.icon}
                                 </span>
-                              ) : <span style={{ color: C.txt3, fontSize: 9 }}>—</span>}
-                            </td>
-                            <td style={{ padding: "5px 8px", textAlign: "right" }}>
-                              {ef.varKpiPct != null ? (
-                                <span style={{ fontSize: 9, fontWeight: 700, color: colKpi, background: colKpi + "18", border: `1px solid ${colKpi}44`, borderRadius: 3, padding: "1px 5px" }}>
-                                  {ef.varKpiPct > 0 ? "+" : ""}{ef.varKpiPct}%
-                                </span>
-                              ) : <span style={{ color: C.txt3, fontSize: 9 }}>—</span>}
-                            </td>
-                            <td style={{ padding: "5px 8px", textAlign: "right", fontSize: 10, color: C.txt }}>
-                              {ef.coefEqGrupo != null && ef.coefEqGrupo > 0 ? `${fmt2(ef.coefEqGrupo)} Ch/${und}` : "—"}
-                            </td>
-                            <td style={{ padding: "5px 8px", textAlign: "right", fontSize: 10, color: C.txt3 }}>
-                              {ef.coefEqBase != null && ef.coefEqBase > 0 ? `${fmt2(ef.coefEqBase)} Ch/${und}` : "—"}
-                            </td>
-                            <td style={{ padding: "5px 8px", textAlign: "right" }}>
-                              {ef.varEqPct != null && ef.varEqPct !== 0 ? (
-                                <span style={{ fontSize: 9, fontWeight: 700, color: colEq, background: colEq + "18", border: `1px solid ${colEq}44`, borderRadius: 3, padding: "1px 5px" }}>
-                                  {ef.varEqPct > 0 ? "+" : ""}{ef.varEqPct}%
-                                </span>
-                              ) : <span style={{ color: C.txt3, fontSize: 9 }}>—</span>}
-                            </td>
-                            <td style={{ padding: "5px 8px", textAlign: "right" }}>
-                              <span style={{ fontSize: 11, fontWeight: 700, color: prazoIcon.col }} title={prazoIcon.tip}>
-                                {prazoIcon.icon}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
 
                   {/* ── ALERTAS DE INCOMPATIBILIDADE ── */}
                   {(() => {

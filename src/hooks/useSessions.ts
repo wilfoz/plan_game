@@ -2,21 +2,27 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
 import { Session } from "../types";
 
-export function useSessions() {
+export function useSessions(eventId?: string | null) {
   const qc = useQueryClient();
 
   const query = useQuery<Session[]>({
-    queryKey: ["sessions"],
+    queryKey: ["sessions", eventId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("sessions")
-        .select("*, grupos(id, nome, resp, ordem), lt_config(nome)")
-        .order("created_at", { ascending: true });
+        .select("*, grupos(id, nome, resp, ordem), lt_config(nome)");
+      
+      if (eventId) {
+        q = q.eq("event_id", eventId);
+      }
+
+      const { data, error } = await q.order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []).map((s: any) => ({
         id: s.id,
         nome: s.nome,
         created_at: s.created_at,
+        event_id: s.event_id,
         grupos: (s.grupos ?? []).sort((a: any, b: any) => a.ordem - b.ordem),
         lt: s.lt_config?.[0] ?? { nome: "" },
       }));
@@ -24,8 +30,8 @@ export function useSessions() {
   });
 
   const add = useMutation({
-    mutationFn: async ({ id, nome = "Nova Sessão" }: { id: string; nome?: string }) => {
-      const { error } = await supabase.from("sessions").insert({ id, nome });
+    mutationFn: async ({ id, nome = "Nova Sessão", eventId: evId }: { id: string; nome?: string; eventId?: string | null }) => {
+      const { error } = await supabase.from("sessions").insert({ id, nome, event_id: evId || null });
       if (error) throw error;
       // Create default lt_config row for the new session
       const { error: ltErr } = await supabase
@@ -34,7 +40,7 @@ export function useSessions() {
       if (ltErr) throw ltErr;
       return id;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions", eventId] }),
   });
 
   const rename = useMutation({
@@ -45,7 +51,7 @@ export function useSessions() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions", eventId] }),
   });
 
   const remove = useMutation({
@@ -53,7 +59,7 @@ export function useSessions() {
       const { error } = await supabase.from("sessions").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions", eventId] }),
   });
 
   return { query, add, rename, remove };

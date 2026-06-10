@@ -4,6 +4,7 @@ import { S } from "./styles";
 import { C } from "./constants/colors";
 import Header from "./components/layout/Header";
 import SessionManager from "./pages/SessionManager";
+import AdminDashboard from "./pages/AdminDashboard";
 import Login from "./pages/Login";
 import Engenharia from "./pages/Engenharia";
 import Equipes from "./pages/Equipes";
@@ -28,6 +29,7 @@ function LoadingBar({ visible }: { visible: boolean }) {
 
 function AppInner() {
   const { screen, isLoading } = useApp();
+  if (screen === "admin_dashboard") return <><LoadingBar visible={isLoading} /><AdminDashboard /></>;
   if (screen === "session-manager") return <><LoadingBar visible={isLoading} /><SessionManager /></>;
   if (screen === "login") return <Login />;
   if (screen === "copiar-composicao") return <CopiarComposicao />;
