@@ -1,0 +1,335 @@
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { C } from "../constants/colors";
+import { S } from "../styles";
+import { fmt, fmtI } from "../utils/formatters";
+import { ATIVS, MO_CAT, EQ_CAT } from "../constants/catalogs";
+import { useApp } from "../context/AppContext";
+import { Card } from "../components/ui/Card";
+import { BtnDel } from "../components/ui/Card";
+import { Hdr2, Tag } from "../components/ui/Typography";
+import { TH } from "../components/ui/Table";
+import { LocalNumInp, Sel } from "../components/ui/Inputs";
+import { MoRow, EqRow, AtividadeItem } from "../types";
+
+const fmt2 = (n: number | null | undefined, locale: string = "pt-BR") =>
+  n != null ? n.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
+
+interface CoefCellProps {
+  row: { qtd: number; horasDia?: number };
+  kpi: number;
+  locale: string;
+}
+
+function CoefCell({ row, kpi, locale }: CoefCellProps) {
+  if (!kpi) return <span style={{ color: C.txt3 }}>—</span>;
+  const ht = row.qtd * (row.horasDia ?? 8.5);
+  const cf = ht / kpi;
+  return (
+    <span style={{ color: C.goldL, fontWeight: 700 }}>
+      {fmt2(cf, locale)}
+    </span>
+  );
+}
+
+interface AtivBlockProps {
+  a: AtividadeItem;
+  base: { moRows: MoRow[]; eqRows: EqRow[] } | undefined;
+  kpi: number;
+  vol: number;
+}
+
+function AtivBlock({ a, base, kpi, vol }: AtivBlockProps) {
+  const { t } = useTranslation();
+  const {
+    eqBaseAddMo, eqBaseDelMo, eqBaseUpdMo,
+    eqBaseAddEq, eqBaseDelEq, eqBaseUpdEq,
+    lang,
+  } = useApp();
+
+  const [open, setOpen] = useState(false);
+
+  const currentLang = (lang === "es" ? "es" : "pt") as "pt" | "es";
+
+  const moRows = base?.moRows ?? [];
+  const eqRows = base?.eqRows ?? [];
+  const colGrp = a.grp === "M" ? C.blueL : C.greenL;
+
+  const somaHh = kpi > 0
+    ? moRows.reduce((s, r) => s + r.qtd * (r.horasDia ?? 8.5), 0) / kpi
+    : null;
+  const somaCh = kpi > 0
+    ? eqRows.reduce((s, r) => s + r.qtd * (r.horasDia ?? 8.5), 0) / kpi
+    : null;
+
+  const hasBase = moRows.length > 0 || eqRows.length > 0;
+
+  const moUsados = new Set(moRows.map(r => r.catId));
+  const moOpts = MO_CAT.filter(r => !moUsados.has(r.id)).map(r => ({ id: r.id, label: r.cargo[currentLang] }));
+  const eqOpts = EQ_CAT.map(r => ({ id: r.id, label: r.nome[currentLang] }));
+
+  const translateCargo = (cargoName: string) => {
+    return MO_CAT.find(m => m.cargo.pt === cargoName)?.cargo[currentLang] || cargoName;
+  };
+
+  const translateEquip = (eqName: string) => {
+    return EQ_CAT.find(e => e.nome.pt === eqName)?.nome[currentLang] || eqName;
+  };
+
+  const activityUnit = a.und[currentLang].toLowerCase();
+
+  return (
+    <div style={{ borderBottom: `1px solid ${C.border}` }}>
+      {/* Cabeçalho da atividade */}
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          padding: "10px 14px", cursor: "pointer",
+          background: open ? colGrp + "10" : "transparent",
+          userSelect: "none",
+        }}
+      >
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: C.txt }}>{a.desc[currentLang]}</span>
+          <Tag text={a.und[currentLang]} col={colGrp} />
+          {kpi > 0 && <Tag text={`${t("common.kpi")}: ${kpi} ${activityUnit}/${t("gantt.months").toLowerCase().replace("eses", "mes").replace("es", "mes").replace("pt-br", "dia").replace("pt", "dia")}`} col={C.gold} />}
+          {vol > 0 && <Tag text={`${t("gantt.cols.volume")}: ${fmtI(vol, currentLang)} ${activityUnit}`} col={C.txt2} />}
+          {hasBase && (
+            <Tag text={`${moRows.length} MO · ${eqRows.length} EQ`} col={C.greenL} />
+          )}
+          {somaHh != null && (
+            <Tag text={`Σ ${fmt2(somaHh, currentLang)} Hh/${activityUnit}`} col={C.goldL} />
+          )}
+          {somaCh != null && somaCh > 0 && (
+            <Tag text={`Σ ${fmt2(somaCh, currentLang)} Ch/${activityUnit}`} col={C.yellow} />
+          )}
+        </div>
+        <span style={{ fontSize: 14, color: C.txt3 }}>{open ? "▲" : "▼"}</span>
+      </div>
+
+      {open && (
+        <div style={{ padding: "0 14px 14px" }}>
+
+          {/* MÃO DE OBRA */}
+          <div style={{ marginTop: 10 }}>
+            <div style={{ fontSize: 9, color: C.blueL, letterSpacing: 3, marginBottom: 6 }}>
+              {t("composition.moTitle")}
+            </div>
+            <table style={S.tbl}>
+              <thead><tr>
+                <TH ch={t("composition.moCols.cargo")} w={200} />
+                <TH ch={t("composition.moCols.qtd")} right w={60} />
+                <TH ch={t("composition.moCols.hours")} right w={80} />
+                <TH ch={t("composition.moCols.hoursTotal")} right w={90} />
+                <TH ch={t("composition.moCols.coef", { und: activityUnit })} right w={120} accent />
+                <TH ch={t("composition.moCols.salary")} right w={110} />
+                <TH ch="" w={30} />
+              </tr></thead>
+              <tbody>
+                {moRows.length === 0 && (
+                  <tr><td colSpan={7} style={{ padding: "10px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
+                    {t("baseTeam.noLaborDefined")}
+                  </td></tr>
+                )}
+                {moRows.map(r => {
+                  const ht = r.qtd * (r.horasDia ?? 8.5);
+                  return (
+                    <tr key={r._id} style={S.trOn(C.blueL)}>
+                      <td style={{ padding: "4px 9px", fontSize: 11, fontWeight: 600, color: C.txt }}>{translateCargo(r.cargo)}</td>
+                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
+                        <LocalNumInp v={r.qtd} onSave={v => eqBaseUpdMo(a.id, r._id, "qtd", v)} w={50} />
+                      </td>
+                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
+                        <LocalNumInp v={r.horasDia ?? 8.5} onSave={v => eqBaseUpdMo(a.id, r._id, "horasDia", v)} w={60} />
+                      </td>
+                      <td style={{ padding: "4px 9px", textAlign: "right", fontSize: 11, color: C.txt2 }}>
+                        {fmt2(ht, currentLang)}
+                      </td>
+                      <td style={{ padding: "4px 9px", textAlign: "right" }}>
+                        <CoefCell row={r} kpi={kpi} locale={currentLang} />
+                      </td>
+                      <td style={{ padding: "4px 9px", textAlign: "right", fontSize: 11, color: C.txt2 }}>
+                        {fmt(r.sal * r.qtd, currentLang)}
+                      </td>
+                      <td style={{ padding: "3px 6px", textAlign: "center" }}>
+                        <BtnDel onClick={() => eqBaseDelMo(a.id, r._id)} />
+                      </td>
+                    </tr>
+                  );
+                })}
+                {moRows.length > 0 && somaHh != null && (
+                  <tr style={S.totRow}>
+                    <td colSpan={4} style={{ padding: "5px 9px", fontSize: 11, fontWeight: 700, color: C.goldL }}>
+                      {t("baseTeam.totalMo", { count: moRows.reduce((s, r) => s + r.qtd, 0) })}
+                    </td>
+                    <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 12, fontWeight: 700, color: C.goldL }}>
+                      {fmt2(somaHh, currentLang)} Hh/{activityUnit}
+                    </td>
+                    <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 12, fontWeight: 700, color: C.goldL }}>
+                      {fmt(moRows.reduce((s, r) => s + r.sal * r.qtd, 0), currentLang)}
+                    </td>
+                    <td />
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8 }}>
+              <div style={{ flex: 1 }}>
+                <Sel
+                  v=""
+                  onChange={e => { if (e.target.value) eqBaseAddMo(a.id, e.target.value); }}
+                  opts={moOpts}
+                  placeholder={moOpts.length === 0 ? t("composition.moSelectAll") : t("baseTeam.selectLabor")}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* EQUIPAMENTOS */}
+          <div style={{ marginTop: 10 }}>
+            <div style={{ fontSize: 9, color: C.yellow, letterSpacing: 3, marginBottom: 6 }}>
+              {t("composition.eqTitle")}
+            </div>
+            <table style={S.tbl}>
+              <thead><tr>
+                <TH ch={t("composition.eqCols.name")} w={240} />
+                <TH ch={t("composition.eqCols.qtd")} right w={60} />
+                <TH ch={t("composition.eqCols.hours")} right w={80} />
+                <TH ch={t("composition.eqCols.hoursTotal")} right w={90} />
+                <TH ch={t("composition.eqCols.coef", { und: activityUnit })} right w={120} accent />
+                <TH ch={t("composition.eqCols.rent")} right w={110} />
+                <TH ch="" w={30} />
+              </tr></thead>
+              <tbody>
+                {eqRows.length === 0 && (
+                  <tr><td colSpan={7} style={{ padding: "10px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
+                    {t("baseTeam.noEqDefined")}
+                  </td></tr>
+                )}
+                {eqRows.map(r => {
+                  const ht = r.qtd * (r.horasDia ?? 8.5);
+                  return (
+                    <tr key={r._id} style={S.trOn(C.yellow)}>
+                      <td style={{ padding: "4px 9px", fontSize: 11, fontWeight: 600, color: C.txt }}>{translateEquip(r.nome)}</td>
+                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
+                        <LocalNumInp v={r.qtd} onSave={v => eqBaseUpdEq(a.id, r._id, "qtd", v)} w={50} />
+                      </td>
+                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
+                        <LocalNumInp v={r.horasDia ?? 8.5} onSave={v => eqBaseUpdEq(a.id, r._id, "horasDia", v)} w={60} />
+                      </td>
+                      <td style={{ padding: "4px 9px", textAlign: "right", fontSize: 11, color: C.txt2 }}>
+                        {fmt2(ht, currentLang)}
+                      </td>
+                      <td style={{ padding: "4px 9px", textAlign: "right" }}>
+                        <CoefCell row={{ ...r, horasDia: r.horasDia ?? 8.5 }} kpi={kpi} locale={currentLang} />
+                      </td>
+                      <td style={{ padding: "4px 9px", textAlign: "right", fontSize: 11, color: C.txt2 }}>
+                        {fmt(r.loc * r.qtd, currentLang)}
+                      </td>
+                      <td style={{ padding: "3px 6px", textAlign: "center" }}>
+                        <BtnDel onClick={() => eqBaseDelEq(a.id, r._id)} />
+                      </td>
+                    </tr>
+                  );
+                })}
+                {eqRows.length > 0 && somaCh != null && somaCh > 0 && (
+                  <tr style={S.totRow}>
+                    <td colSpan={4} style={{ padding: "5px 9px", fontSize: 11, fontWeight: 700, color: C.goldL }}>
+                      {t("baseTeam.totalEq", { count: eqRows.reduce((s, r) => s + r.qtd, 0) })}
+                    </td>
+                    <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 12, fontWeight: 700, color: C.goldL }}>
+                      {fmt2(somaCh, currentLang)} Ch/{activityUnit}
+                    </td>
+                    <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 12, fontWeight: 700, color: C.goldL }}>
+                      {fmt(eqRows.reduce((s, r) => s + r.loc * r.qtd, 0), currentLang)}
+                    </td>
+                    <td />
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8 }}>
+              <div style={{ flex: 1 }}>
+                <Sel
+                  v=""
+                  onChange={e => { if (e.target.value) eqBaseAddEq(a.id, e.target.value); }}
+                  opts={eqOpts}
+                  placeholder={t("baseTeam.selectEquipment")}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Aviso quando kpi não definido */}
+          {!kpi && (
+            <div
+              style={{
+                marginTop: 8, padding: "8px 12px", borderRadius: 4,
+                background: C.yellow + "10", border: `1px solid ${C.yellow}44`,
+                fontSize: 10, color: C.yellow
+              }}
+              dangerouslySetInnerHTML={{ __html: t("baseTeam.kpiWarning") }}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function EquipeBase() {
+  const { t } = useTranslation();
+  const { equipesBase, kpisBase, volumesPrev, lang } = useApp();
+
+  const currentLang = (lang === "es" ? "es" : "pt") as "pt" | "es";
+
+  const totalAtivComBase = ATIVS.filter(a => {
+    const b = equipesBase?.[a.id];
+    return (b?.moRows?.length ?? 0) > 0 || (b?.eqRows?.length ?? 0) > 0;
+  }).length;
+
+  return (
+    <div style={S.pg}>
+      {/* Resumo topo */}
+      <div style={{
+        display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 14
+      }}>
+        {[
+          [t("baseTeam.activitiesWithBase"), `${totalAtivComBase}/${ATIVS.length}`, C.gold],
+          [t("baseTeam.purpose"), t("baseTeam.technicalReference"), C.blueL],
+          [t("baseTeam.objective"), t("baseTeam.compareEfficiency"), C.greenL],
+        ].map(([l, v, col]) => (
+          <div key={l} style={{ ...S.stat, borderColor: col + "44" }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: col }}>{v}</div>
+            <div style={{ fontSize: 9, color: C.txt3, letterSpacing: 1 }}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      <div
+        style={{
+          padding: "10px 14px", marginBottom: 12, borderRadius: 6,
+          background: C.gold + "08", border: `1px solid ${C.gold}22`,
+          fontSize: 11, color: C.txt2, lineHeight: 1.7
+        }}
+        dangerouslySetInnerHTML={{ __html: t("baseTeam.infoBanner") }}
+      />
+
+      {[["M", C.blueL, t("activities.groups.M")], ["L", C.greenL, t("activities.groups.L")]].map(([grp, col, label]) => (
+        <Card key={grp}>
+          <Hdr2 col={col} ch={label} />
+          {ATIVS.filter(a => a.grp === grp).map(a => (
+            <AtivBlock
+              key={a.id}
+              a={a}
+              base={equipesBase?.[a.id]}
+              kpi={kpisBase?.[a.id] ?? 0}
+              vol={volumesPrev?.[a.id] ?? 0}
+            />
+          ))}
+        </Card>
+      ))}
+    </div>
+  );
+}

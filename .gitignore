@@ -29,3 +29,8 @@ template/*
 
 # Testsprites
 testsprite_tests
+
+# Agente e especificações
+.claude/
+.specs/
+
