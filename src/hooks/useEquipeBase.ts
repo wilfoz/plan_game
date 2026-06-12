@@ -22,6 +22,8 @@ function buildMap(moRows: any[], eqRows: any[]): EquipeBaseMap {
       sal:      r.sal,
       qtd:      r.qtd,
       horasDia: r.horas_dia,
+      obrigatorio: r.obrigatorio,
+      minVarPct: r.min_var_pct,
     });
   }
   for (const r of eqRows ?? []) {
@@ -33,6 +35,7 @@ function buildMap(moRows: any[], eqRows: any[]): EquipeBaseMap {
       loc:      r.loc,
       qtd:      r.qtd,
       horasDia: r.horas_dia,
+      obrigatorio: r.obrigatorio,
     });
   }
   return map;
@@ -68,6 +71,8 @@ export function useEquipeBase(sessionId: string | null) {
       sal,
       qtd,
       horasDia,
+      obrigatorio,
+      minVarPct,
     }: {
       ativId: string;
       catId: string;
@@ -75,6 +80,8 @@ export function useEquipeBase(sessionId: string | null) {
       sal?: number;
       qtd?: number;
       horasDia?: number;
+      obrigatorio?: boolean;
+      minVarPct?: number | null;
     }) => {
       if (!sessionId) return;
       const { error } = await supabase.from("equipe_base_mo").insert({
@@ -85,6 +92,8 @@ export function useEquipeBase(sessionId: string | null) {
         sal:          sal      ?? 0,
         qtd:          qtd      ?? 1,
         horas_dia:    horasDia ?? 8.5,
+        obrigatorio:  obrigatorio ?? false,
+        min_var_pct:  minVarPct   ?? null,
       });
       if (error) throw error;
     },
@@ -101,7 +110,7 @@ export function useEquipeBase(sessionId: string | null) {
 
   const updMo = useMutation({
     mutationFn: async ({ id, campo, valor }: { id: string; campo: string; valor: any }) => {
-      const colMap: Record<string, string> = { sal: "sal", qtd: "qtd", horasDia: "horas_dia" };
+      const colMap: Record<string, string> = { sal: "sal", qtd: "qtd", horasDia: "horas_dia", obrigatorio: "obrigatorio", minVarPct: "min_var_pct" };
       const col = colMap[campo] ?? campo;
       const { error } = await supabase
         .from("equipe_base_mo")
@@ -121,6 +130,7 @@ export function useEquipeBase(sessionId: string | null) {
       loc,
       qtd,
       horasDia,
+      obrigatorio,
     }: {
       ativId: string;
       catId: string;
@@ -128,6 +138,7 @@ export function useEquipeBase(sessionId: string | null) {
       loc?: number;
       qtd?: number;
       horasDia?: number;
+      obrigatorio?: boolean;
     }) => {
       if (!sessionId) return;
       const { error } = await supabase.from("equipe_base_eq").insert({
@@ -138,6 +149,7 @@ export function useEquipeBase(sessionId: string | null) {
         loc:       loc      ?? 0,
         qtd:       qtd      ?? 1,
         horas_dia: horasDia ?? 8.5,
+        obrigatorio: obrigatorio ?? false,
       });
       if (error) throw error;
     },
@@ -154,7 +166,7 @@ export function useEquipeBase(sessionId: string | null) {
 
   const updEq = useMutation({
     mutationFn: async ({ id, campo, valor }: { id: string; campo: string; valor: any }) => {
-      const colMap: Record<string, string> = { loc: "loc", qtd: "qtd", horasDia: "horas_dia" };
+      const colMap: Record<string, string> = { loc: "loc", qtd: "qtd", horasDia: "horas_dia", obrigatorio: "obrigatorio" };
       const col = colMap[campo] ?? campo;
       const { error } = await supabase
         .from("equipe_base_eq")

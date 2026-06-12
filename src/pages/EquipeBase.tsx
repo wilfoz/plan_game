@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { C } from "../constants/colors";
 import { S } from "../styles";
-import { fmt, fmtI } from "../utils/formatters";
-import { ATIVS, MO_CAT, EQ_CAT } from "../constants/catalogs";
+import { fmtI } from "../utils/formatters";
 import { useApp } from "../context/AppContext";
 import { Card } from "../components/ui/Card";
 import { BtnDel } from "../components/ui/Card";
@@ -45,6 +44,9 @@ function AtivBlock({ a, base, kpi, vol }: AtivBlockProps) {
     eqBaseAddMo, eqBaseDelMo, eqBaseUpdMo,
     eqBaseAddEq, eqBaseDelEq, eqBaseUpdEq,
     lang,
+    moCatalog,
+    eqCatalog,
+    formatCurrency,
   } = useApp();
 
   const [open, setOpen] = useState(false);
@@ -65,15 +67,15 @@ function AtivBlock({ a, base, kpi, vol }: AtivBlockProps) {
   const hasBase = moRows.length > 0 || eqRows.length > 0;
 
   const moUsados = new Set(moRows.map(r => r.catId));
-  const moOpts = MO_CAT.filter(r => !moUsados.has(r.id)).map(r => ({ id: r.id, label: r.cargo[currentLang] }));
-  const eqOpts = EQ_CAT.map(r => ({ id: r.id, label: r.nome[currentLang] }));
+  const moOpts = moCatalog.filter(r => !moUsados.has(r.id)).map(r => ({ id: r.id, label: r.cargo[currentLang] }));
+  const eqOpts = eqCatalog.map(r => ({ id: r.id, label: r.nome[currentLang] }));
 
   const translateCargo = (cargoName: string) => {
-    return MO_CAT.find(m => m.cargo.pt === cargoName)?.cargo[currentLang] || cargoName;
+    return moCatalog.find(m => m.cargo.pt === cargoName)?.cargo[currentLang] || cargoName;
   };
 
   const translateEquip = (eqName: string) => {
-    return EQ_CAT.find(e => e.nome.pt === eqName)?.nome[currentLang] || eqName;
+    return eqCatalog.find(e => e.nome.pt === eqName)?.nome[currentLang] || eqName;
   };
 
   const activityUnit = a.und[currentLang].toLowerCase();
@@ -124,11 +126,13 @@ function AtivBlock({ a, base, kpi, vol }: AtivBlockProps) {
                 <TH ch={t("composition.moCols.hoursTotal")} right w={90} />
                 <TH ch={t("composition.moCols.coef", { und: activityUnit })} right w={120} accent />
                 <TH ch={t("composition.moCols.salary")} right w={110} />
+                <TH ch="Obrig.?" center w={60} />
+                <TH ch="Var. Mín %" right w={80} />
                 <TH ch="" w={30} />
               </tr></thead>
               <tbody>
                 {moRows.length === 0 && (
-                  <tr><td colSpan={7} style={{ padding: "10px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
+                  <tr><td colSpan={9} style={{ padding: "10px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
                     {t("baseTeam.noLaborDefined")}
                   </td></tr>
                 )}
@@ -150,7 +154,40 @@ function AtivBlock({ a, base, kpi, vol }: AtivBlockProps) {
                         <CoefCell row={r} kpi={kpi} locale={currentLang} />
                       </td>
                       <td style={{ padding: "4px 9px", textAlign: "right", fontSize: 11, color: C.txt2 }}>
-                        {fmt(r.sal * r.qtd, currentLang)}
+                        {formatCurrency(r.sal * r.qtd)}
+                      </td>
+                      <td style={{ padding: "4px 9px", textAlign: "center" }}>
+                        <input
+                          type="checkbox"
+                          checked={r.obrigatorio ?? false}
+                          onChange={e => {
+                            const val = e.target.checked;
+                            eqBaseUpdMo(a.id, r._id, "obrigatorio", val);
+                            if (val) {
+                              eqBaseUpdMo(a.id, r._id, "minVarPct", null);
+                            }
+                          }}
+                          style={{ cursor: "pointer" }}
+                        />
+                      </td>
+                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
+                        {!(r.obrigatorio ?? false) ? (
+                          <LocalNumInp
+                            v={r.minVarPct ?? ""}
+                            onSave={v => {
+                              if (v === "" || v === null) {
+                                eqBaseUpdMo(a.id, r._id, "minVarPct", null);
+                              } else {
+                                const num = Number(v) || 0;
+                                const val = num > 0 ? -num : num;
+                                eqBaseUpdMo(a.id, r._id, "minVarPct", val);
+                              }
+                            }}
+                            w={60}
+                          />
+                        ) : (
+                          <span style={{ color: C.txt3, fontSize: 11 }}>—</span>
+                        )}
                       </td>
                       <td style={{ padding: "3px 6px", textAlign: "center" }}>
                         <BtnDel onClick={() => eqBaseDelMo(a.id, r._id)} />
@@ -167,9 +204,9 @@ function AtivBlock({ a, base, kpi, vol }: AtivBlockProps) {
                       {fmt2(somaHh, currentLang)} Hh/{activityUnit}
                     </td>
                     <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 12, fontWeight: 700, color: C.goldL }}>
-                      {fmt(moRows.reduce((s, r) => s + r.sal * r.qtd, 0), currentLang)}
+                      {formatCurrency(moRows.reduce((s, r) => s + r.sal * r.qtd, 0))}
                     </td>
-                    <td />
+                    <td /><td /><td />
                   </tr>
                 )}
               </tbody>
@@ -199,11 +236,12 @@ function AtivBlock({ a, base, kpi, vol }: AtivBlockProps) {
                 <TH ch={t("composition.eqCols.hoursTotal")} right w={90} />
                 <TH ch={t("composition.eqCols.coef", { und: activityUnit })} right w={120} accent />
                 <TH ch={t("composition.eqCols.rent")} right w={110} />
+                <TH ch="Obrig.?" center w={60} />
                 <TH ch="" w={30} />
               </tr></thead>
               <tbody>
                 {eqRows.length === 0 && (
-                  <tr><td colSpan={7} style={{ padding: "10px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
+                  <tr><td colSpan={8} style={{ padding: "10px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
                     {t("baseTeam.noEqDefined")}
                   </td></tr>
                 )}
@@ -225,7 +263,18 @@ function AtivBlock({ a, base, kpi, vol }: AtivBlockProps) {
                         <CoefCell row={{ ...r, horasDia: r.horasDia ?? 8.5 }} kpi={kpi} locale={currentLang} />
                       </td>
                       <td style={{ padding: "4px 9px", textAlign: "right", fontSize: 11, color: C.txt2 }}>
-                        {fmt(r.loc * r.qtd, currentLang)}
+                        {formatCurrency(r.loc * r.qtd)}
+                      </td>
+                      <td style={{ padding: "4px 9px", textAlign: "center" }}>
+                        <input
+                          type="checkbox"
+                          checked={r.obrigatorio ?? false}
+                          onChange={e => {
+                            const val = e.target.checked;
+                            eqBaseUpdEq(a.id, r._id, "obrigatorio", val);
+                          }}
+                          style={{ cursor: "pointer" }}
+                        />
                       </td>
                       <td style={{ padding: "3px 6px", textAlign: "center" }}>
                         <BtnDel onClick={() => eqBaseDelEq(a.id, r._id)} />
@@ -242,9 +291,9 @@ function AtivBlock({ a, base, kpi, vol }: AtivBlockProps) {
                       {fmt2(somaCh, currentLang)} Ch/{activityUnit}
                     </td>
                     <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 12, fontWeight: 700, color: C.goldL }}>
-                      {fmt(eqRows.reduce((s, r) => s + r.loc * r.qtd, 0), currentLang)}
+                      {formatCurrency(eqRows.reduce((s, r) => s + r.loc * r.qtd, 0))}
                     </td>
-                    <td />
+                    <td /><td />
                   </tr>
                 )}
               </tbody>
@@ -280,11 +329,11 @@ function AtivBlock({ a, base, kpi, vol }: AtivBlockProps) {
 
 export default function EquipeBase() {
   const { t } = useTranslation();
-  const { equipesBase, kpisBase, volumesPrev, lang } = useApp();
+  const { equipesBase, kpisBase, volumesPrev, lang, atividadesCatalog } = useApp();
 
   const currentLang = (lang === "es" ? "es" : "pt") as "pt" | "es";
 
-  const totalAtivComBase = ATIVS.filter(a => {
+  const totalAtivComBase = atividadesCatalog.filter(a => {
     const b = equipesBase?.[a.id];
     return (b?.moRows?.length ?? 0) > 0 || (b?.eqRows?.length ?? 0) > 0;
   }).length;
@@ -296,7 +345,7 @@ export default function EquipeBase() {
         display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 14
       }}>
         {[
-          [t("baseTeam.activitiesWithBase"), `${totalAtivComBase}/${ATIVS.length}`, C.gold],
+          [t("baseTeam.activitiesWithBase"), `${totalAtivComBase}/${atividadesCatalog.length}`, C.gold],
           [t("baseTeam.purpose"), t("baseTeam.technicalReference"), C.blueL],
           [t("baseTeam.objective"), t("baseTeam.compareEfficiency"), C.greenL],
         ].map(([l, v, col]) => (
@@ -319,7 +368,7 @@ export default function EquipeBase() {
       {[["M", C.blueL, t("activities.groups.M")], ["L", C.greenL, t("activities.groups.L")]].map(([grp, col, label]) => (
         <Card key={grp}>
           <Hdr2 col={col} ch={label} />
-          {ATIVS.filter(a => a.grp === grp).map(a => (
+          {atividadesCatalog.filter(a => a.grp === grp).map(a => (
             <AtivBlock
               key={a.id}
               a={a}

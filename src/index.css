@@ -198,5 +198,57 @@ code {
   }
 }
 
+.comp-grid-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (min-width: 1024px) {
+  .comp-grid-layout {
+    grid-template-columns: 2.2fr minmax(300px, 1fr);
+}
+
+/* Estilos para cards empilhados no mobile */
+.mobile-resource-cards {
+  display: none;
+}
+
+.desktop-table-wrapper {
+  display: block;
+}
+
+@media (max-width: 767px) {
+  .mobile-resource-cards {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px 14px 16px;
+  }
+  .desktop-table-wrapper {
+    display: none !important;
+  }
+}
+
+/* Animação e estilos para o badge de gravação */
+.save-badge-animation {
+  animation: pulse-gold 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse-gold {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 0.7;
+    transform: scale(0.98);
+  }
+}
+
 
 

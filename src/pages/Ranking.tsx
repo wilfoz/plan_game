@@ -2,11 +2,10 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { C } from "../constants/colors";
 import { S } from "../styles";
-import { fmt, sc } from "../utils/formatters";
-import { ATIVS, MO_CAT, EQ_CAT, REQ_CAT_COLORS, REQ_TRANSLATIONS, CAT_TRANSLATIONS } from "../constants/catalogs";
+import { sc } from "../utils/formatters";
+import { REQ_CAT_COLORS, CAT_TRANSLATIONS } from "../constants/catalogs";
 import { useApp } from "../context/AppContext";
 import { Card } from "../components/ui/Card";
-import { BtnDel } from "../components/ui/Card";
 import { Hdr2, Tag } from "../components/ui/Typography";
 import { TH, TD } from "../components/ui/Table";
 import { ScoreRing } from "../components/ui/Typography";
@@ -21,12 +20,13 @@ interface SemaforoProps {
   gi: number;
   gc: (gi: number, aId: string) => any;
   lang: "pt" | "es";
+  atividadesCatalog: any[];
 }
 
-function Semaforo({ gi, gc, lang }: SemaforoProps) {
+function Semaforo({ gi, gc, lang, atividadesCatalog }: SemaforoProps) {
   return (
     <div style={{ display: "flex", gap: 3, marginTop: 5, flexWrap: "wrap" }}>
-      {ATIVS.map(a => {
+      {atividadesCatalog.map(a => {
         const comp = gc(gi, a.id);
         const filled = (comp.moRows?.length > 0) || (comp.eqRows?.length > 0) || (comp.kpi > 0);
         const titleText = lang === "es"
@@ -83,18 +83,21 @@ function MdText({ text, style }: MdTextProps) {
 
 export default function Ranking() {
   const { t } = useTranslation();
-  const { lt, buildRank, gc, realtimeConnected, role, activeSessionId, calcA, volumesPrev, lang } = useApp();
+  const { 
+    lt, buildRank, gc, realtimeConnected, role, activeSessionId, calcA, volumesPrev, lang,
+    moCatalog, eqCatalog, atividadesCatalog, formatCurrency, translateRequisito
+  } = useApp();
   const rank = buildRank();
   const medals = ["🥇", "🥈", "🥉"];
 
   const currentLang = (lang === "es" ? "es" : "pt") as "pt" | "es";
 
   const translateCargo = (cargoName: string) => {
-    return MO_CAT.find(m => m.cargo.pt === cargoName)?.cargo[currentLang] || cargoName;
+    return moCatalog.find(m => m.cargo.pt === cargoName)?.cargo[currentLang] || cargoName;
   };
 
   const translateEquip = (eqName: string) => {
-    return EQ_CAT.find(e => e.nome.pt === eqName)?.nome[currentLang] || eqName;
+    return eqCatalog.find(e => e.nome.pt === eqName)?.nome[currentLang] || eqName;
   };
 
   const translateCategoria = (catName: string) => {
@@ -102,7 +105,7 @@ export default function Ranking() {
   };
 
   const translateAtivName = (name: string) => {
-    const found = ATIVS.find(a => a.desc.pt === name);
+    const found = atividadesCatalog.find(a => a.desc.pt === name);
     return found ? found.desc[currentLang] : name;
   };
 
@@ -129,10 +132,10 @@ export default function Ranking() {
     setAiState(prev => ({ ...prev, [g.id]: { status: "loading", text: "", charts: [], error: "", followUps: [], conversationMessages: [] } }));
 
     const ativs = Object.entries(g.ef?.porAtiv ?? {})
-      .map(([aId, efAtv]) => ({ atv: ATIVS.find(a => a.id === aId), efAtv }))
+      .map(([aId, efAtv]) => ({ atv: atividadesCatalog.find(a => a.id === aId), efAtv }))
       .filter(({ atv, efAtv }) => atv && (efAtv as any).temBase && (efAtv as any).temGrupo);
 
-    const calcAResults = ATIVS.map(a => {
+    const calcAResults = atividadesCatalog.map(a => {
       const comp = gc(g.gi, a.id);
       const hasRes = comp.moRows.length > 0 || comp.eqRows.length > 0 || comp.kpi > 0;
       return { aId: a.id, result: hasRes ? calcA(comp, volumesPrev[a.id] || 0) : null };
@@ -149,7 +152,7 @@ export default function Ranking() {
         scores: { sC: g.sC, sD: g.sD, sS: g.sS, total: g.total, desq: g.desq, desqIncompleto: g.desqIncompleto },
         penSeg: g.penSeg,
         ativs,
-        compsRaw: ATIVS.map(a => ({ atv: a, ...gc(g.gi, a.id) })),
+        compsRaw: atividadesCatalog.map(a => ({ atv: a, ...gc(g.gi, a.id) })),
         calcAResults,
         rankContext,
         onTool: ({ id, input }) =>
@@ -293,10 +296,10 @@ export default function Ranking() {
                     </td>
                     <td style={{ padding: "10px 9px" }}>
                       <div style={{ fontSize: 12, fontWeight: 700 }}>{g.nome}</div>
-                      <Semaforo gi={g.gi} gc={gc} lang={currentLang} />
+                      <Semaforo gi={g.gi} gc={gc} lang={currentLang} atividadesCatalog={atividadesCatalog} />
                     </td>
                     <TD ch={g.resp || "—"} muted />
-                    <td style={{ padding: "9px", textAlign: "right", fontSize: 11, color: C.yellow }}>{fmt(g.ct, currentLang)}</td>
+                    <td style={{ padding: "9px", textAlign: "right", fontSize: 11, color: C.yellow }}>{formatCurrency(g.ct)}</td>
                     <td style={{ padding: "9px", textAlign: "right", fontSize: 11, color: C.blueL }}>{+g.dm.toFixed(2)}m</td>
                     <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sC} label="CUSTO" /></td>
                     <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sD} label="DUR." /></td>
@@ -450,7 +453,6 @@ export default function Ranking() {
                   </div>
 
                   {/* Tabela por atividade */}
-                  {/* Tabela por atividade */}
                   <div className="table-responsive">
                     <table style={{ ...S.tbl, marginBottom: 8 }}>
                       <thead><tr>
@@ -466,7 +468,7 @@ export default function Ranking() {
                       </tr></thead>
                       <tbody>
                         {ativsComComp.map(([aId, ef]: [string, any]) => {
-                          const atv = ATIVS.find(a => a.id === aId);
+                          const atv = atividadesCatalog.find(a => a.id === aId);
                           if (!atv) return null;
                           const und = atv.und[currentLang].toLowerCase();
                           const colMo = varColor(ef.varMoPct);
@@ -529,12 +531,12 @@ export default function Ranking() {
                   {(() => {
                     const alertasKpi = Object.entries(porAtiv)
                       .filter(([, e]) => (e as any).varKpiPct != null && (e as any).varKpiPct > 40)
-                      .map(([aId, e]) => ({ aId, atv: ATIVS.find(a => a.id === aId), e: e as any }));
+                      .map(([aId, e]) => ({ aId, atv: atividadesCatalog.find(a => a.id === aId), e: e as any }));
                     const alertasSub = Object.entries(porAtiv)
-                      .flatMap(([aId, e]) => ((e as any).subAlocacao ?? []).map((s: any) => ({ ...s, aId, atv: ATIVS.find(a => a.id === aId) })));
+                      .flatMap(([aId, e]) => ((e as any).subAlocacao ?? []).map((s: any) => ({ ...s, aId, atv: atividadesCatalog.find(a => a.id === aId) })));
                     const coerenciaRank = Object.keys(porAtiv).flatMap(aId => {
                       const comp = gc(g.gi, aId);
-                      const atv = ATIVS.find(a => a.id === aId);
+                      const atv = atividadesCatalog.find(a => a.id === aId);
                       if (!atv) return [];
                       const { issues } = calcCoerencia(comp.moRows ?? [], comp.eqRows ?? []);
                       return issues.map(iss => ({ ...iss, aId, atv }));
@@ -570,7 +572,7 @@ export default function Ranking() {
                               break;
                             case "eq_insuficiente": 
                               msg = currentLang === "es"
-                                ? `${translateEquip(iss.equip || "")} — cantidad insuficiente para los operadores`
+                                ? `${translateEquip(iss.equip || "")} — quantidade insuficiente para os operadores`
                                 : `${iss.equip} — quantidade insuficiente para os operadores`;
                               break;
                             case "eq_ocioso": 
@@ -811,7 +813,7 @@ export default function Ranking() {
                   </tr></thead>
                   <tbody>
                     {g.missing.map((m: any, mi: number) => {
-                      const displayDesc = currentLang === "es" ? (REQ_TRANSLATIONS[m.desc] || m.desc) : m.desc;
+                      const displayDesc = translateRequisito(m.desc);
                       const displayCategory = translateCategoria(m.categoria);
                       const displayAtivName = translateAtivName(m.atividade);
                       return (
@@ -848,7 +850,7 @@ export default function Ranking() {
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {(g.atvsVazias ?? []).map((aId: string) => {
-                    const atv = ATIVS.find(a => a.id === aId);
+                    const atv = atividadesCatalog.find(a => a.id === aId);
                     return (
                       <div key={aId} style={{
                         padding: "4px 10px", borderRadius: 4, fontSize: 10,

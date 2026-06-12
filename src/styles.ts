@@ -20,11 +20,11 @@ export const S = {
   totRow: { borderTop: `2px solid ${C.border2}`, background: C.surf3 } as React.CSSProperties,
   btnP: {
     background: C.gold, color: "#FFF", border: "none",
-    borderRadius: 4, padding: "8px 18px", fontSize: 11, fontWeight: 700, cursor: "pointer", letterSpacing: 2
+    borderRadius: 4, padding: "10px 20px", fontSize: 11, fontWeight: 700, cursor: "pointer", letterSpacing: 2
   } as React.CSSProperties,
   btnS: {
     background: "transparent", color: C.gold, border: `1px solid ${C.gold}`, borderRadius: 4,
-    padding: "6px 13px", fontSize: 10, fontWeight: 700, cursor: "pointer"
+    padding: "8px 14px", fontSize: 10, fontWeight: 700, cursor: "pointer"
   } as React.CSSProperties,
   nb: (a: boolean) => ({
     padding: "5px 11px", borderRadius: 3, fontSize: 10, fontWeight: 700, letterSpacing: 1,

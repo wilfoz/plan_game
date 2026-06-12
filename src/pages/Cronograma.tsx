@@ -1,9 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { C } from "../constants/colors";
 import { S } from "../styles";
-import { fmt, fmtI } from "../utils/formatters";
+import { fmtI } from "../utils/formatters";
 import { monthlyVolumes } from "../utils/calculations";
-import { ATIVS } from "../constants/catalogs";
 import { useApp } from "../context/AppContext";
 import { Card } from "../components/ui/Card";
 import { Hdr2, Tag, Pill } from "../components/ui/Typography";
@@ -25,13 +24,14 @@ function monthLabel(idx: number, lang: "pt" | "es") {
 export default function Cronograma() {
   const { t } = useTranslation();
   const { 
-    grupos, gIdx, setGIdx, gc, calcA, volumesPrev, kpisBase, mesIniciaBase, lt, role, duracaoSomada, travaEquipes, lang 
+    grupos, gIdx, setGIdx, gc, calcA, volumesPrev, kpisBase, mesIniciaBase, lt, role, duracaoSomada, travaEquipes, lang,
+    atividadesCatalog, formatCurrency
   } = useApp();
   
   const currentLang = (lang === "es" ? "es" : "pt") as "pt" | "es";
   const g = grupos[gIdx] || { nome: "Grupo" };
 
-  const tl = ATIVS.map(a => {
+  const tl = atividadesCatalog.map(a => {
     const comp = gc(gIdx, a.id);
     const vol = volumesPrev[a.id] || 0;
     const hasResources = comp.moRows.length > 0 || comp.eqRows.length > 0 || comp.kpi > 0;
@@ -115,15 +115,15 @@ export default function Cronograma() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 12 }}>
         {[
-          [t("gantt.cards.M"), dispM > 0 ? `${dispM.toFixed(1)} ${t("summary.months")}` : "—", fmt(custoM, currentLang), C.blueL],
-          [t("gantt.cards.L"), dispL > 0 ? `${dispL.toFixed(1)} ${t("summary.months")}` : "—", fmt(custoL, currentLang), C.greenL],
+          [t("gantt.cards.M"), dispM > 0 ? `${dispM.toFixed(1)} ${t("summary.months")}` : "—", formatCurrency(custoM), C.blueL],
+          [t("gantt.cards.L"), dispL > 0 ? `${dispL.toFixed(1)} ${t("summary.months")}` : "—", formatCurrency(custoL), C.greenL],
           [t("gantt.cards.duration"), dispTotal > 0 ? `${dispTotal.toFixed(1)} ${t("summary.months")}` : "—", "", C.gold],
-          [t("gantt.cards.cost"), "", fmt(custoM + custoL, currentLang), C.goldL]
+          [t("gantt.cards.cost"), "", formatCurrency(custoM + custoL), C.goldL]
         ].map(([l, dur, custo, col]) => (
           <div key={l as string} style={{ ...S.stat, borderColor: (col as string) + "33" }}>
             <div style={{ fontSize: 9, color: col as string, letterSpacing: 1, marginBottom: 3 }}>{l}</div>
             {dur && <div style={{ fontSize: 16, fontWeight: 700, color: col as string }}>{dur}</div>}
-            {custo && <div style={{ fontSize: dur ? 10 : 14, fontWeight: 700, color: C.goldL }}>{currentLang === "es" ? "R$ " : "R$ "}{custo}</div>}
+            {custo && <div style={{ fontSize: dur ? 10 : 14, fontWeight: 700, color: C.goldL }}>{custo}</div>}
           </div>
         ))}
       </div>
@@ -169,7 +169,7 @@ export default function Cronograma() {
                       fontWeight: a.dur > 0 ? 700 : 400,
                       color: a.dur > 0 ? C.goldL : C.txt3
                     }}>{a.dur > 0 ? `${a.durTotalDias}d (${a.dur}m)` : "—"}</td>
-                    <TD ch={fmt(a.ct, currentLang)} right />
+                    <TD ch={formatCurrency(a.ct)} right />
                   </tr>
                 );
               })

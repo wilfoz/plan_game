@@ -60,7 +60,7 @@ const inputStyle = (hasErro: boolean, disabled: boolean) => ({
 
 export default function Login() {
   const { t } = useTranslation();
-  const { setRole, setGIdx, setActiveSessionId, setScreen, setCopyOptions, setActiveEventId, setActiveEventNome, setAdminSenha } = useApp();
+  const { setRole, setGIdx, setActiveSessionId, setScreen, setCopyOptions, setActiveEventId, setActiveEventNome, setAdminSenha, userSessions, setUserSessions } = useApp();
 
   const [usuario, setUsuario]       = useState("");
   const [senha, setSenha]           = useState("");
@@ -75,6 +75,18 @@ export default function Login() {
     const t = setTimeout(() => setBloqueioSeg(s => s - 1), 1000);
     return () => clearTimeout(t);
   }, [bloqueioSeg]);
+
+  // Se já temos sessões salvas no contexto e nenhuma sessão ativa selecionada, exibe o seletor
+  useEffect(() => {
+    if (userSessions && userSessions.length > 1 && !sessoes) {
+      setSessoes(userSessions);
+      // Se tivermos as sessões, podemos tentar deduzir o login digitado anteriormente
+      const firstSess = userSessions[0];
+      if (firstSess && firstSess.grupo_nome && !usuario) {
+        setUsuario(firstSess.grupo_nome);
+      }
+    }
+  }, [userSessions, sessoes]);
 
   const entrarNaSessao = async (s: any, allSessoes: any[] = []) => {
     setActiveSessionId(s.session_id);
@@ -210,10 +222,12 @@ export default function Login() {
           if (grpData && grpData.length === 1) {
             clearRecord("user");
             setActiveEventId(grpData[0].event_id);
+            setUserSessions(grpData);
             entrarNaSessao(grpData[0], grpData);
           } else if (grpData && grpData.length > 1) {
             clearRecord("user");
             setActiveEventId(grpData[0].event_id);
+            setUserSessions(grpData);
             setSessoes(grpData);
           } else {
             const count = registerFail("user");
@@ -288,7 +302,7 @@ export default function Login() {
               ))}
             </div>
             <button
-              onClick={() => { setSessoes(null); setSenha(""); setErro(""); }}
+              onClick={() => { setUserSessions([]); setSessoes(null); setSenha(""); setErro(""); }}
               style={{
                 marginTop: 16, width: "100%", padding: "8px",
                 background: "transparent", border: `1px solid ${C.border}`,
@@ -341,12 +355,24 @@ export default function Login() {
           </div>
 
           {locked && (
-            <div style={{
-              marginBottom: 14, padding: "8px 12px", borderRadius: 5,
-              background: C.yellow + "12", border: `1px solid ${C.yellow}44`,
-              fontSize: 11, color: C.yellow, textAlign: "center"
-            }}>
-              {t("login.lockoutTimer", { min: Math.ceil(bloqueioSeg / 60) })}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+              <div style={{
+                padding: "8px 12px", borderRadius: 5,
+                background: C.yellow + "12", border: `1px solid ${C.yellow}44`,
+                fontSize: 11, color: C.yellow, textAlign: "center"
+              }}>
+                {t("login.lockoutTimer", { min: Math.ceil(bloqueioSeg / 60) })}
+              </div>
+              <div style={{
+                padding: "8px 12px", borderRadius: 5,
+                background: C.surf2, border: `1px solid ${C.border2}`,
+                fontSize: 10, color: C.txt3, textAlign: "left", lineHeight: 1.4
+              }}>
+                {usuario.toUpperCase() === "ADMIN" || usuario.toUpperCase() === "ADMINISTRADOR"
+                  ? t("login.lockoutSupportFacilitator")
+                  : t("login.lockoutSupport")
+                }
+              </div>
             </div>
           )}
 

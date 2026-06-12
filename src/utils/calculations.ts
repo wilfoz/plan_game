@@ -143,10 +143,9 @@ export const calcEficiencia = (
 
   const subAlocacao: SubAlocItem[] = [];
   const obrigatorioAusente: ObrigatorioAusenteItem[] = [];
-  const baseRef = aId ? (BASE_COMPOSITIONS as any)[aId] : null;
 
-  if (baseRef) {
-    baseRef.moRows.forEach((refRow: any) => {
+  if (baseComp) {
+    baseComp.moRows.forEach((refRow: any) => {
       const grupoRows = comp.moRows.filter(r => r.catId === refRow.catId);
       const grupoQtd  = grupoRows.reduce((s, r) => s + (r.qtd || 0), 0);
 
@@ -155,10 +154,8 @@ export const calcEficiencia = (
         return;
       }
 
-      if (refRow.minVarPct !== null && refRow.minVarPct > -100 && kpiBase > 0 && kpiGrupo > 0) {
-        const baseRows = (baseComp?.moRows ?? []).filter(r => r.catId === refRow.catId);
-        const hhBase   = baseRows.reduce((s, r) => s + r.qtd * (r.horasDia ?? 8.5), 0);
-        const coefBase = hhBase / kpiBase;
+      if (refRow.minVarPct !== null && refRow.minVarPct !== undefined && refRow.minVarPct > -100 && kpiBase > 0 && kpiGrupo > 0) {
+        const coefBase = (refRow.qtd * (refRow.horasDia ?? 8.5)) / kpiBase;
         if (coefBase > 0) {
           const minCoef   = coefBase * (1 + refRow.minVarPct / 100);
           const hhGrupo   = grupoRows.reduce((s, r) => s + r.qtd * (r.horasDia ?? 8.5), 0);
@@ -177,7 +174,7 @@ export const calcEficiencia = (
       }
     });
 
-    baseRef.eqRows.filter((r: any) => r.obrigatorio).forEach((refRow: any) => {
+    baseComp.eqRows.filter((r: any) => r.obrigatorio).forEach((refRow: any) => {
       const grupoRow = comp.eqRows.find(r => r.catId === refRow.catId);
       if (!grupoRow || grupoRow.qtd < 1)
         obrigatorioAusente.push({ tipo: "eq", eqCatId: refRow.catId });

@@ -1,8 +1,9 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { ATIVS, MO_CAT, EQ_CAT, BASE_COMPOSITIONS, BASE_REQUIREMENTS } from "../constants/catalogs";
+import { ATIVS, MO_CAT, EQ_CAT, BASE_COMPOSITIONS, BASE_REQUIREMENTS, REQ_TRANSLATIONS } from "../constants/catalogs";
 import { uid } from "../utils/formatters";
+import { supabase } from "../lib/supabase";
 import {
   calcA as calcABase,
   calcSeg as calcSegBase,
@@ -113,6 +114,18 @@ interface AppContextType {
   isLoading: boolean;
   realtimeConnected: boolean;
   lang: "pt" | "es";
+  userSessions: any[];
+  setUserSessions: (s: any[]) => void;
+  cotacaoDolar: number;
+  moCatalog: typeof MO_CAT;
+  eqCatalog: typeof EQ_CAT;
+  atividadesCatalog: typeof ATIVS;
+  requisitosBaseCatalog: typeof BASE_REQUIREMENTS;
+  formatCurrency: (v: number) => string;
+  convertCurrency: (v: number) => number;
+  reconvertCurrency: (v: number) => number;
+  currencySymbol: string;
+  translateRequisito: (descPT: string) => string;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -140,6 +153,138 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [adminSenha, setAdminSenha]       = useState<string | null>(_ss.adminSenha ?? null);
   const [duracaoSomada, setDuracaoSomada] = useState<boolean>(true);
   const [copyOptions, setCopyOptions]     = useState<any>(null);
+  const [userSessions, setUserSessions]   = useState<any[]>(_ss.userSessions ?? []);
+
+  // ── Event Custom Catalogs & Currency Exchange ─────────────────────────────
+  const { data: eventData } = useQuery({
+    queryKey: ["event_data", activeEventId],
+    queryFn: async () => {
+      if (!activeEventId) return null;
+      const { data, error } = await supabase
+        .from("events")
+        .select("cotacao_dolar")
+        .eq("id", activeEventId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!activeEventId,
+  });
+  const cotacaoDolar = eventData?.cotacao_dolar ?? 5.0;
+
+  const { data: dbMoCat } = useQuery({
+    queryKey: ["event_mo_cat", activeEventId],
+    queryFn: async () => {
+      if (!activeEventId) return null;
+      const { data, error } = await supabase
+        .from("event_mo_cat")
+        .select("*")
+        .eq("event_id", activeEventId);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!activeEventId,
+  });
+  const moCatalog = dbMoCat
+    ? dbMoCat.map((m: any) => ({
+        id: m.id,
+        cargo: { pt: m.cargo_pt, es: m.cargo_es },
+        sal: Number(m.sal),
+      }))
+    : MO_CAT;
+
+  const { data: dbEqCat } = useQuery({
+    queryKey: ["event_eq_cat", activeEventId],
+    queryFn: async () => {
+      if (!activeEventId) return null;
+      const { data, error } = await supabase
+        .from("event_eq_cat")
+        .select("*")
+        .eq("event_id", activeEventId);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!activeEventId,
+  });
+  const eqCatalog = dbEqCat
+    ? dbEqCat.map((e: any) => ({
+        id: e.id,
+        nome: { pt: e.nome_pt, es: e.nome_es },
+        loc: Number(e.loc),
+      }))
+    : EQ_CAT;
+
+  const { data: dbAtividades } = useQuery({
+    queryKey: ["event_atividades", activeEventId],
+    queryFn: async () => {
+      if (!activeEventId) return null;
+      const { data, error } = await supabase
+        .from("event_atividades")
+        .select("*")
+        .eq("event_id", activeEventId);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!activeEventId,
+  });
+  const atividadesCatalog = dbAtividades
+    ? dbAtividades.map((a: any) => ({
+        id: a.id,
+        grp: a.grp,
+        desc: { pt: a.desc_pt, es: a.desc_es },
+        und: { pt: a.und_pt, es: a.und_es },
+      }))
+    : ATIVS;
+
+  const { data: dbRequisitosBase } = useQuery({
+    queryKey: ["event_requisitos_base", activeEventId],
+    queryFn: async () => {
+      if (!activeEventId) return null;
+      const { data, error } = await supabase
+        .from("event_requisitos_base")
+        .select("*")
+        .eq("event_id", activeEventId);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!activeEventId,
+  });
+  const requisitosBaseCatalog = dbRequisitosBase
+    ? dbRequisitosBase.map((r: any) => ({
+        aId: r.atividade_id,
+        categoria: r.categoria,
+        desc: r.descricao_pt,
+        desc_es: r.descricao_es,
+        aplicavel: r.aplicavel,
+      }))
+    : BASE_REQUIREMENTS;
+
+  const currencySymbol = lang === "es" ? "$ " : "R$ ";
+
+  const convertCurrency = (v: number): number => {
+    if (lang === "es") return v / cotacaoDolar;
+    return v;
+  };
+
+  const reconvertCurrency = (v: number): number => {
+    if (lang === "es") return v * cotacaoDolar;
+    return v;
+  };
+
+  const formatCurrency = (v: number): string => {
+    const converted = convertCurrency(v);
+    const locale = lang === "es" ? "es-US" : "pt-BR";
+    return currencySymbol + converted.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const translateRequisito = (descPT: string): string => {
+    if (lang === "es") {
+      const dynReq = dbRequisitosBase?.find((r: any) => r.descricao_pt === descPT);
+      if (dynReq) return dynReq.descricao_es;
+      return REQ_TRANSLATIONS[descPT] || descPT;
+    }
+    return descPT;
+  };
 
   // ── Supabase hooks ────────────────────────────────────────────────────────
   const sessionsHook = useSessions(activeEventId);
@@ -160,12 +305,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         screen,
         activeEventId,
         activeEventNome,
-        adminSenha
+        adminSenha,
+        userSessions
       }));
     } else {
       sessionStorage.removeItem("jlt_sess");
     }
-  }, [role, activeSessionId, gIdx, screen, activeEventId, activeEventNome, adminSenha]);
+  }, [role, activeSessionId, gIdx, screen, activeEventId, activeEventNome, adminSenha, userSessions]);
 
   const logout = () => {
     setRole(null);
@@ -173,6 +319,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setActiveEventId(null);
     setActiveEventNome(null);
     setAdminSenha(null);
+    setUserSessions([]);
     setScreen("login");
     sessionStorage.removeItem("jlt_sess");
   };
@@ -348,7 +495,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const resetRequisitosToDefault = () => {
     if (!activeSessionId) return;
     reqHook.resetToDefault.mutate(
-      BASE_REQUIREMENTS.map(r => ({
+      requisitosBaseCatalog.map(r => ({
         session_id:   activeSessionId,
         atividade_id: r.aId,
         categoria:    r.categoria,
@@ -383,22 +530,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const moRows: any[] = [];
     const eqRows: any[] = [];
     Object.entries(BASE_COMPOSITIONS).forEach(([aId, bc]) => {
-      bc.moRows.forEach(r => moRows.push({
-        session_id: activeSessionId, atividade_id: aId,
-        cat_id: r.catId, cargo: r.cargo, sal: r.sal, qtd: r.qtd, horas_dia: r.horasDia,
-      }));
-      bc.eqRows.forEach(r => eqRows.push({
-        session_id: activeSessionId, atividade_id: aId,
-        cat_id: r.catId, nome: r.nome, loc: r.loc, qtd: r.qtd, horas_dia: r.horasDia,
-      }));
+      bc.moRows.forEach(r => {
+        const moItem = moCatalog.find(m => m.id === r.catId);
+        moRows.push({
+          session_id: activeSessionId, atividade_id: aId,
+          cat_id: r.catId, cargo: moItem ? moItem.cargo.pt : r.cargo, sal: moItem ? moItem.sal : r.sal, qtd: r.qtd, horas_dia: r.horasDia,
+          obrigatorio: r.obrigatorio ?? false,
+          min_var_pct: r.minVarPct ?? null,
+        });
+      });
+      bc.eqRows.forEach(r => {
+        const eqItem = eqCatalog.find(e => e.id === r.catId);
+        eqRows.push({
+          session_id: activeSessionId, atividade_id: aId,
+          cat_id: r.catId, nome: eqItem ? eqItem.nome.pt : r.nome, loc: eqItem ? eqItem.loc : r.loc, qtd: r.qtd, horas_dia: r.horasDia,
+          obrigatorio: r.obrigatorio ?? false,
+        });
+      });
     });
     ebHook.seedAll.mutate({ moRows, eqRows });
 
     setKpisBase(Object.fromEntries(
-      Object.entries(BASE_COMPOSITIONS).map(([aId, bc]) => [aId, bc.kpi])
+      atividadesCatalog.map(a => {
+        const dbAtiv = dbAtividades?.find((da: any) => da.id === a.id);
+        return [a.id, dbAtiv ? dbAtiv.kpi_base : (BASE_COMPOSITIONS[a.id as keyof typeof BASE_COMPOSITIONS]?.kpi || 0)];
+      })
     ));
 
-    reqHook.seedAll.mutate(BASE_REQUIREMENTS.map(r => ({
+    reqHook.seedAll.mutate(requisitosBaseCatalog.map(r => ({
       session_id:   activeSessionId,
       atividade_id: r.aId,
       categoria:    r.categoria,
@@ -408,20 +567,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [activeSessionId, ebHook.query.isLoading, ebHook.query.data, ativHook.query.isLoading, reqHook.query.isLoading, reqHook.query.data]);
 
   const eqBaseAddMo = (aId: string, catId: string) => {
-    const cat = MO_CAT.find(r => r.id === catId);
+    const cat = moCatalog.find(r => r.id === catId);
     if (!cat) return;
-    ebHook.addMo.mutate({ ativId: aId, catId, cargo: cat.cargo.pt, sal: cat.sal, qtd: 1, horasDia: 8.5 });
+    ebHook.addMo.mutate({ ativId: aId, catId, cargo: cat.cargo.pt, sal: cat.sal, qtd: 1, horasDia: 8.5, obrigatorio: false, minVarPct: null });
   };
   const eqBaseDelMo = (_aId: string, _id: string) => ebHook.delMo.mutate(_id);
-  const eqBaseUpdMo = (_aId: string, _id: string, k: string, v: any) => ebHook.updMo.mutate({ id: _id, campo: k, valor: +v || 0 });
+  const eqBaseUpdMo = (_aId: string, _id: string, k: string, v: any) => ebHook.updMo.mutate({ id: _id, campo: k, valor: k === "obrigatorio" ? !!v : (k === "minVarPct" ? (v === "" || v === null ? null : +v) : +v || 0) });
 
   const eqBaseAddEq = (aId: string, catId: string) => {
-    const cat = EQ_CAT.find(r => r.id === catId);
+    const cat = eqCatalog.find(r => r.id === catId);
     if (!cat) return;
-    ebHook.addEq.mutate({ ativId: aId, catId, nome: cat.nome.pt, loc: cat.loc, qtd: 1, horasDia: 8.5 });
+    ebHook.addEq.mutate({ ativId: aId, catId, nome: cat.nome.pt, loc: cat.loc, qtd: 1, horasDia: 8.5, obrigatorio: false });
   };
   const eqBaseDelEq = (_aId: string, _id: string) => ebHook.delEq.mutate(_id);
-  const eqBaseUpdEq = (_aId: string, _id: string, k: string, v: any) => ebHook.updEq.mutate({ id: _id, campo: k, valor: +v || 0 });
+  const eqBaseUpdEq = (_aId: string, _id: string, k: string, v: any) => ebHook.updEq.mutate({ id: _id, campo: k, valor: k === "obrigatorio" ? !!v : +v || 0 });
 
   // ── Comps (Supabase per-session, local state for immediate UI feedback) ──
   const [comps, setComps] = useState<GrupoComps[]>([]);
@@ -478,7 +637,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const moAdd = (gi: number, aId: string, catId: string) => {
-    const cat = MO_CAT.find(r => r.id === catId);
+    const cat = moCatalog.find(r => r.id === catId);
     if (!cat) return;
     updateComp(gi, aId, c => ({
       ...c,
@@ -491,7 +650,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }));
 
   const eqAdd = (gi: number, aId: string, catId: string) => {
-    const cat = EQ_CAT.find(r => r.id === catId);
+    const cat = eqCatalog.find(r => r.id === catId);
     if (!cat) return;
     updateComp(gi, aId, c => ({
       ...c,
@@ -605,6 +764,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       calcA, calcSeg, calcEfGrupo, buildRank,
       isLoading, realtimeConnected,
       lang,
+      userSessions, setUserSessions,
+      cotacaoDolar,
+      moCatalog,
+      eqCatalog,
+      atividadesCatalog,
+      requisitosBaseCatalog,
+      formatCurrency,
+      convertCurrency,
+      reconvertCurrency,
+      currencySymbol,
+      translateRequisito,
     }}>
       {children}
     </AppContext.Provider>

@@ -131,4 +131,5 @@ export interface AdminDashboardData {
   created_at: string;
   total_sessions: number;
   total_groups: number;
+  cotacao_dolar?: number;
 }

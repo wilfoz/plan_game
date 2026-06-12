@@ -42,7 +42,9 @@
     "password": "CONTRASEÑA",
     "lockout": "Demasiados intentos. Espere {{min}} minuto(s).",
     "wrongPassword": "Contraseña incorrecta. {{remaining}} intento(s) restante(s).",
-    "accountLocked": "Cuenta bloqueada por 15 minutos después de 10 intentos.",
+    "accountLocked": "Cuenta blaqueda por 15 minutos después de 10 intentos.",
+    "lockoutSupport": "Si eres participante y olvidaste tu contraseña, comunícate con el Facilitador de tu grupo en el aula para la liberación o restablecimiento inmediato.",
+    "lockoutSupportFacilitator": "Si eres el Facilitador y olvidaste tu contraseña, comunícate con el Administrador general del evento.",
     "groupNotFound": "Grupo no encontrado en ninguna sesión.",
     "connError": "Error de conexión. Intente de nuevo.",
     "selectSession": "SELECCIONE LA SESIÓN",
@@ -212,6 +214,10 @@
     "baseLabelShort": "base: {{mes}}",
     "durationLabelShort": "DURACIÓN",
     "moTitle": "👷 MANO DE OBRA",
+    "moTitleLong": "👷 MANO DE OBRA (MO)",
+    "eqTitleLong": "🏗️ EQUIPOS (EQ)",
+    "cargosContratados": "Profesionales contratados para esta actividad",
+    "warningKpiExorbitant": "⚠️ CRÍTICO: KPI excesivo (supera el 200% de la referencia). Esta productividad es técnicamente inviable y causará una penalidad severa de +40% de plazo y costo en el ranking final.",
     "moCols": {
       "cargo": "CARGO",
       "qtd": "CANT",
@@ -473,5 +479,50 @@
     "indicatorGroups": "Total de Grupos",
     "emptyEvents": "Ningún evento creado todavía.",
     "actions": "Acciones"
+  },
+  "tutorial": {
+    "title": "📖 Tutorial y Regras de Uso",
+    "close": "Cerrar",
+    "facilitatorTitle": "Guía del Facilitador",
+    "groupTitle": "Guía del Grupo Participante",
+    "back": "Volver",
+    "next": "Avanzar",
+    "roles": {
+      "F": "Facilitador",
+      "G": "Grupo"
+    },
+    "tabs": {
+      "steps": "Paso a Paso",
+      "rules": "Reglas del Juego",
+      "screens": "Pantallas y Navegación",
+      "manual": "Manual Completo"
+    },
+    "rulesTitle": "Principales Reglas y Penalidades",
+    "rulesText": "El motor de cálculo del juego evalúa automáticamente las siguientes reglas:",
+    "safetyTitle": "🦺 Criterio de Seguridad (Clasificatorio)",
+    "safetyDesc": "La seguridad no suma puntos en la nota final, pero es la puerta de entrada para la clasificación. Para ser clasificado, el grupo debe incluir todos los Requisitos de Seguridad que el facilitador marcó como 'Aplicables' para las actividades correspondientes.",
+    "safetyDisq": "Cualquier requisito aplicable no incluido genera la descalificación inmediata del equipo (reprobación automática y puntuación cero en la clasificación).",
+    "safetyPenalty": "Si el grupo incluye requisitos marcados como 'No Aplicable' (trampas registradas por el facilitador), cada ítem indebido suma una penalización de +2% en el costo del proyecto final.",
+    "deadlineTitle": "⏱️ Penalización de Plazo y Productividad",
+    "deadlineDesc": "El sistema calcula la eficiencia comparando los coeficientes de Mano de Obra (Hh/unidad) y Equipamiento (Ch/unidad) con el 'Equipo Base' definido por el facilitador. Reducir los equipos o aumentar el KPI sin coherencia técnica genera penalizaciones:",
+    "deadlineRisco": "Equipo más reducido pero sin aumento real de KPI: +20% en la duración y el costo de la actividad (Estado de Riesgo).",
+    "deadlinePior": "Equipo subasignado y productividad por debajo del límite técnico: +40% en la duración y el costo de la actividad (Estado de Peor Desempeño).",
+    "facSteps": {
+      "title": "Flujo de Configuración de la Jornada (Pasos del Facilitador)",
+      "step1": "1️⃣ Configurar la Línea de Transmisión (Pestaña LT): Defina nombre, extensión de la línea (km), tensión (kV) y número de cables por fase. Estas definiciones determinan automáticamente los volúmenes previstos de tendido.",
+      "step2": "2️⃣ Registrar Grupos de Trabalho (Pestaña Grupos): Cree cada grupo y defina la contraseña individual que los participantes usarán para iniciar sesión.",
+      "step3": "3️⃣ Definir Parámetros Base (Pestaña Actividades): Ajuste la productividad de referencia (KPI) y los volúmenes previstos de producción física para las 7 actividades de Montaje y Tendido.",
+      "step4": "4️⃣ Armar el Equipo Base de Referencia (Pestaña Eq. Base): Especifique la cantidad y cargos de Mano de Obra y Equipos ideales. Esto servirá como benchmark de coeficientes para el ranking.",
+      "step5": "5️⃣ Configurar Seguridad y EPPs (Pestañas Requisitos y EPP/Cargo): Defina el gabarito de requisitos aplicables por actividad y asocie qué EPPs son obligatorios para cada cargo de MO.",
+      "step6": "6️⃣ Monitorear y Liberar Ranking (Pestaña Ranking): Visualice en tempo real el progreso y el ranking en vivo de los grupos. Use el análisis por Claude AI para obtener informes consolidados y guiar el debriefing pedagógico."
+    },
+    "grpSteps": {
+      "title": "Cómo Jugar y Planificar la Obra (Pasos del Grupo)",
+      "step1": "1️⃣ Acceder a la Composición: Ingrese a la pestaña Composición y navegue por las subpestañas de las 7 actividades (Montaje de Torres y Tendido de Cables).",
+      "step2": "2️⃣ Dimensionar Recursos (MO y EQ): Agregue profesionales y máquinas para cada actividad. Recuerde cubrir los cargos/máquinas obligatorios (ej. montadores, grúas) indicados por alertas rojas.",
+      "step3": "3️⃣ Ajustar KPI y Equipos: Ingrese el KPI de productividad diaria por equipo y la cantidad de equipos que actúan en paralelo. Más equipos aceleran la obra, pero elevan el costo de movilización.",
+      "step4": "4️⃣ Definir Requisitos de Seguridad: Marque qué requisitos de seguridad (procedimientos, EPPs, EPCs) desea movilizar para la actividad para evitar la descalificación.",
+      "step5": "5️⃣ Monitorear Cronograma y Resultados: Acompañe en la pestaña Cronograma los plazos críticos y el gráfico Gantt. Evite penalizaciones equilibrando la coherencia técnica entre recursos y productividad."
+    }
   }
 }

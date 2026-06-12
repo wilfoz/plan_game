@@ -4,13 +4,14 @@ import { C } from "../../constants/colors";
 interface CardProps {
   children: ReactNode;
   b?: string;
+  mb?: number;
 }
 
-export const Card = ({ children, b }: CardProps) => (
+export const Card = ({ children, b, mb }: CardProps) => (
   <div style={{
     background: C.surface, border: `1px solid ${b || C.border}`,
     boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)",
-    borderRadius: 6, marginBottom: 12, overflow: "hidden"
+    borderRadius: 6, marginBottom: mb !== undefined ? mb : 12, overflow: "hidden"
   }}>{children}</div>
 );
 
@@ -46,7 +47,8 @@ interface BtnDelProps {
 export const BtnDel = ({ onClick, title = "Remover linha" }: BtnDelProps) => (
   <button onClick={onClick} style={{
     background: "transparent", border: `1px solid ${C.border}`,
-    borderRadius: 3, color: C.txt3, padding: "3px 7px", fontSize: 12, cursor: "pointer", lineHeight: 1
+    borderRadius: 3, color: C.txt3, padding: "6px 10px", fontSize: 11, cursor: "pointer",
+    minWidth: 32, minHeight: 32, display: "inline-flex", alignItems: "center", justifyContent: "center"
   }}
     onMouseOver={e => {
       const target = e.currentTarget;

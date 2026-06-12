@@ -43,6 +43,8 @@
     "lockout": "Muitas tentativas. Aguarde {{min}} minuto(s).",
     "wrongPassword": "Senha incorreta. {{remaining}} tentativa(s) restante(s).",
     "accountLocked": "Conta bloqueada por 15 minutos após 10 tentativas.",
+    "lockoutSupport": "Se você é participante e esqueceu sua senha, contate o Facilitador do seu grupo na sala de aula para liberação ou redefinição imediata.",
+    "lockoutSupportFacilitator": "Se você é o Facilitador e esqueceu sua senha, contate o Administrador geral do evento.",
     "groupNotFound": "Grupo não encontrado em nenhuma sessão.",
     "connError": "Erro de conexão. Tente novamente.",
     "selectSession": "SELECIONE A SESSÃO",
@@ -212,6 +214,10 @@
     "baseLabelShort": "base: {{mes}}",
     "durationLabelShort": "DURAÇÃO",
     "moTitle": "👷 MÃO DE OBRA",
+    "moTitleLong": "👷 MÃO DE OBRA (MO)",
+    "eqTitleLong": "🏗️ EQUIPAMENTOS (EQ)",
+    "cargosContratados": "Profissionais contratados para esta atividade",
+    "warningKpiExorbitant": "⚠️ CRÍTICO: KPI excessivo (excede 200% da referência). Esta produtividade é tecnicamente inviável e causará uma penalidade severa de +40% de prazo e custo no ranking final.",
     "moCols": {
       "cargo": "CARGO",
       "qtd": "QTD",
@@ -473,5 +479,50 @@
     "indicatorGroups": "Total de Grupos",
     "emptyEvents": "Nenhum evento criado ainda.",
     "actions": "Ações"
+  },
+  "tutorial": {
+    "title": "📖 Tutorial e Regras de Uso",
+    "close": "Fechar",
+    "facilitatorTitle": "Guia do Facilitador",
+    "groupTitle": "Guia do Grupo Participante",
+    "back": "Voltar",
+    "next": "Avançar",
+    "roles": {
+      "F": "Facilitador",
+      "G": "Grupo"
+    },
+    "tabs": {
+      "steps": "Passo a Passo",
+      "rules": "Regras do Jogo",
+      "screens": "Telas e Navegação",
+      "manual": "Manual Completo"
+    },
+    "rulesTitle": "Principais Regras e Penalidades",
+    "rulesText": "As regras abaixo são avaliadas automaticamente pelo motor de cálculo do jogo:",
+    "safetyTitle": "🦺 Critério de Segurança (Classificatório)",
+    "safetyDesc": "A segurança não pontua na nota final, mas é a porta de entrada para o ranking. Para ser classificado, o grupo precisa incluir todos os Requisitos de Segurança que foram marcados como 'Aplicáveis' pelo facilitador para as atividades correspondentes.",
+    "safetyDisq": "Qualquer requisito aplicável não incluído gera a desclassificação imediata da equipe (reprovação automática e nota zero no ranking).",
+    "safetyPenalty": "Caso o grupo inclua requisitos marcados como 'Não Aplicável' (armadilhas cadastradas pelo facilitador), cada item indevido adiciona +2% de penalidade de custo no projeto final.",
+    "deadlineTitle": "⏱️ Penalização de Prazo e Produtividade",
+    "deadlineDesc": "O sistema calcula a eficiência comparando os coeficientes de Mão de Obra (Hh/unidade) e Equipamentos (Ch/unidade) com a 'Equipe Base' definida pelo facilitador. Reduzir equipes ou aumentar o KPI sem coerência técnica gera penalidades:",
+    "deadlineRisco": "Equipe mais enxuta mas sem aumento de KPI real: +20% na duração e custo da atividade (Status de Risco).",
+    "deadlinePior": "Equipe sub-alocada e produtividade abaixo do piso técnico: +40% na duração e custo da atividade (Status de Pior Performance).",
+    "facSteps": {
+      "title": "Fluxo de Configuração da Jornada (Passos do Facilitador)",
+      "step1": "1️⃣ Configurar a Linha de Transmissão (Aba LT): Defina nome, extensão da linha (km), tensão (kV) e número de cabos por fase. Essas definições determinam automaticamente os volumes previstos das frentes de lançamento.",
+      "step2": "2️⃣ Cadastrar Grupos de Trabalho (Aba Grupos): Crie cada grupo e defina a senha individual que os participantes usarão para fazer login.",
+      "step3": "3️⃣ Definir Parâmetros Base (Aba Atividades): Ajuste a produtividade de referência (KPI) e os volumes previstos de produção física para as 7 atividades de Montagem e Lançamento.",
+      "step4": "4️⃣ Montar Equipe Base de Referência (Aba Eq. Base): Especifique a quantidade e cargos de Mão de Obra e Equipamentos ideais. Isso servirá como benchmark de coeficientes para o ranking.",
+      "step5": "5️⃣ Configurar Segurança e EPIs (Abas Requisitos e EPI/Cargo): Defina o gabarito de requisitos aplicáveis por atividade e associe quais EPIs são obrigatórios para cada cargo de MO.",
+      "step6": "6️⃣ Acompanhar e Liberar Ranking (Aba Ranking): Visualize em tempo real o andamento e o ranking ao vivo dos grupos. Use a Análise por Claude AI para obter relatórios consolidados e guiar o debriefing pedagógico."
+    },
+    "grpSteps": {
+      "title": "Como Jogar e Planejar a Obra (Passos do Grupo)",
+      "step1": "1️⃣ Acessar a Composição: Entre na aba Composição e navegue pelas sub-abas das 7 atividades (Montagem de Torres e Lançamento de Cabos).",
+      "step2": "2️⃣ Dimensionar Recursos (MO e EQ): Adicione profissionais e máquinas para cada atividade. Lembre-se de cobrir os cargos/máquinas obrigatórios (ex. montadores, guindastes) indicados por alertas vermelhos.",
+      "step3": "3️⃣ Ajustar KPI e Equipes: Insira o KPI de produtividade diária por equipe e a quantidade de equipes atuando em paralelo. Mais equipes aceleram a obra, mas elevam o custo de mobilização.",
+      "step4": "4️⃣ Definir Requisitos de Segurança: Marque quais requisitos de segurança (procedimentos, EPIs, EPCs) você deseja mobilizar para a atividade para evitar a desclassificação.",
+      "step5": "5️⃣ Monitorar Cronograma e Resultados: Acompanhe na aba Cronograma os prazos críticos e o gráfico Gantt. Evite penalizações balanceando coerência técnica entre recursos e produtividade."
+    }
   }
 }

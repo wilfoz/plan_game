@@ -5,6 +5,7 @@ import { C } from "../constants/colors";
 import { S } from "../styles";
 import { useApp } from "../context/AppContext";
 import { Session } from "../types";
+import TutorialModal from "../components/ui/TutorialModal";
 
 export default function SessionManager() {
   const { t } = useTranslation();
@@ -12,6 +13,7 @@ export default function SessionManager() {
   const [novoNome, setNovoNome] = useState("");
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [editNome, setEditNome] = useState("");
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   const criarSessao = () => {
     if (!novoNome.trim()) return;
@@ -140,6 +142,7 @@ export default function SessionManager() {
                 </div>
 
                 <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  <button style={{ ...S.btnS, fontSize: 10 }} onClick={() => setTutorialOpen(true)} title={t("tutorial.title")}>📖</button>
                   <button style={{ ...S.btnS, fontSize: 10 }} onClick={() => iniciarEdicao(s)} title={t("common.edit")}>✏️</button>
                   <button style={{ ...S.btnP, fontSize: 10 }} onClick={() => entrarSessao(s.id)}>{t("sessions.enter")}</button>
                   <button
@@ -167,6 +170,7 @@ export default function SessionManager() {
           </button>
         </div>
       </div>
+      <TutorialModal isOpen={tutorialOpen} onClose={() => setTutorialOpen(false)} defaultRole="F" />
     </div>
   );
 }

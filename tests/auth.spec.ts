@@ -101,7 +101,7 @@ test.describe("Jornadas LT - Testes E2E de Autenticação, Eventos e Responsivid
     });
 
     // Localiza a lixeira específica do card do nosso evento de teste e clica
-    const cardLixeira = page.locator(`xpath=//h3[contains(., "${EVENTO_NOME}")]/ancestor::div[./button][1]//button[contains(., "🗑️")]`);
+    const cardLixeira = page.locator(`xpath=//h3[contains(., "${EVENTO_NOME}")]/ancestor::div[contains(., "🗑️")][1]//button[contains(., "🗑️")]`);
     await cardLixeira.click();
 
     // Valida que o evento de teste foi removido com sucesso
