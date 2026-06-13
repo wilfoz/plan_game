@@ -38,8 +38,8 @@ interface AppContextType {
   setActiveEventId: (id: string | null) => void;
   activeEventNome: string | null;
   setActiveEventNome: (n: string | null) => void;
-  adminSenha: string | null;
-  setAdminSenha: (s: string | null) => void;
+  adminToken: string | null;
+  setAdminToken: (s: string | null) => void;
   logout: () => void;
   gIdx: number;
   setGIdx: (i: number) => void;
@@ -150,7 +150,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(_ss.activeSessionId ?? null);
   const [activeEventId, setActiveEventId] = useState<string | null>(_ss.activeEventId ?? null);
   const [activeEventNome, setActiveEventNome] = useState<string | null>(_ss.activeEventNome ?? null);
-  const [adminSenha, setAdminSenha]       = useState<string | null>(_ss.adminSenha ?? null);
+  const [adminToken, setAdminToken]       = useState<string | null>(_ss.adminToken ?? null);
   const [duracaoSomada, setDuracaoSomada] = useState<boolean>(true);
   const [copyOptions, setCopyOptions]     = useState<any>(null);
   const [userSessions, setUserSessions]   = useState<any[]>(_ss.userSessions ?? []);
@@ -305,20 +305,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
         screen,
         activeEventId,
         activeEventNome,
-        adminSenha,
+        adminToken,
         userSessions
       }));
     } else {
       sessionStorage.removeItem("jlt_sess");
     }
-  }, [role, activeSessionId, gIdx, screen, activeEventId, activeEventNome, adminSenha, userSessions]);
+  }, [role, activeSessionId, gIdx, screen, activeEventId, activeEventNome, adminToken, userSessions]);
 
   const logout = () => {
+    // Invalida a sessão admin no servidor (fire-and-forget) antes de limpar o cliente
+    if (adminToken) {
+      supabase.rpc("logout_admin_session", { p_token: adminToken }).then(undefined, () => { /* */ });
+    }
     setRole(null);
     setActiveSessionId(null);
     setActiveEventId(null);
     setActiveEventNome(null);
-    setAdminSenha(null);
+    setAdminToken(null);
     setUserSessions([]);
     setScreen("login");
     sessionStorage.removeItem("jlt_sess");
@@ -739,7 +743,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{
       screen, setScreen, role, setRole, gIdx, setGIdx, aTab, setATab,
       activeEventId, setActiveEventId, activeEventNome, setActiveEventNome,
-      adminSenha, setAdminSenha, logout,
+      adminToken, setAdminToken, logout,
       epiCargoAtivo, setEpiCargoAtivo,
       duracaoSomada, setDuracaoSomada,
       travaEquipes, setTravaEquipes,

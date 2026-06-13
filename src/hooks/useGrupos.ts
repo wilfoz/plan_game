@@ -13,7 +13,7 @@ export function useGrupos(sessionId: string | null) {
       if (!sessionId) return [];
       const { data, error } = await supabase
         .from("grupos")
-        .select("*")
+        .select("id, session_id, nome, resp, ordem")
         .eq("session_id", sessionId)
         .order("ordem", { ascending: true });
       if (error) throw error;

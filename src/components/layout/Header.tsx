@@ -19,7 +19,7 @@ export default function Header() {
     sess,
     lang,
     logout,
-    adminSenha,
+    adminToken,
     setActiveEventId,
     setActiveEventNome,
     userSessions
@@ -133,7 +133,7 @@ export default function Header() {
           </button>
         )}
 
-        {adminSenha && (
+        {adminToken && (
           <button
             style={{ ...S.nb(false), marginLeft: 8, borderColor: C.gold, color: C.gold }}
             onClick={irParaPainelAdmin}
@@ -271,7 +271,7 @@ export default function Header() {
               </button>
             )}
 
-            {adminSenha && (
+            {adminToken && (
               <button
                 style={{
                   ...S.nb(false),

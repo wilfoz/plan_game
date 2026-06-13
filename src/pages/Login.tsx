@@ -60,7 +60,7 @@ const inputStyle = (hasErro: boolean, disabled: boolean) => ({
 
 export default function Login() {
   const { t } = useTranslation();
-  const { setRole, setGIdx, setActiveSessionId, setScreen, setCopyOptions, setActiveEventId, setActiveEventNome, setAdminSenha, userSessions, setUserSessions } = useApp();
+  const { setRole, setGIdx, setActiveSessionId, setScreen, setCopyOptions, setActiveEventId, setActiveEventNome, setAdminToken, userSessions, setUserSessions } = useApp();
 
   const [usuario, setUsuario]       = useState("");
   const [senha, setSenha]           = useState("");
@@ -179,12 +179,12 @@ export default function Login() {
     setCarregando(true);
     try {
       if (isAdmin) {
-        // 1. Tentar Login do Administrador
-        const { data: ok, error } = await supabase.rpc("login_admin", { p_senha: senha });
+        // 1. Tentar Login do Administrador (retorna token de sessão, não trafega/guarda senha)
+        const { data: token, error } = await supabase.rpc("login_admin_session", { p_senha: senha });
         if (error) throw error;
-        if (ok) {
+        if (token) {
           clearRecord("admin");
-          setAdminSenha(senha);
+          setAdminToken(token);
           setRole("ADMIN");
           setScreen("admin_dashboard");
         } else {
@@ -241,8 +241,16 @@ export default function Login() {
           }
         }
       }
-    } catch {
-      setErro(t("login.connError"));
+    } catch (e: any) {
+      // Bloqueio aplicado pelo servidor (rate limit autoritativo): 'rate_limited:<segundos>'
+      const m = String(e?.message ?? "").match(/rate_limited:(\d+)/);
+      if (m) {
+        const secs = parseInt(m[1], 10);
+        setBloqueioSeg(secs);
+        setErro(t("login.lockout", { min: Math.ceil(secs / 60) }));
+      } else {
+        setErro(t("login.connError"));
+      }
     } finally {
       setCarregando(false);
     }

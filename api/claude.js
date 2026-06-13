@@ -40,8 +40,14 @@ export default async function handler(req, res) {
     return;
   }
 
+  // Fail-closed: sem segredo configurado o endpoint NÃO deve aceitar requests.
+  // (Evita que uma má configuração de ambiente deixe o proxy Anthropic aberto.)
   const proxySecret = process.env.CLAUDE_PROXY_SECRET;
-  if (proxySecret && req.headers["x-proxy-secret"] !== proxySecret) {
+  if (!proxySecret) {
+    res.status(500).json({ error: "CLAUDE_PROXY_SECRET not configured on server" });
+    return;
+  }
+  if (req.headers["x-proxy-secret"] !== proxySecret) {
     res.status(403).json({ error: "Forbidden" });
     return;
   }

@@ -9,7 +9,7 @@ import { AdminDashboardData } from "../types";
 
 export default function AdminDashboard() {
   const { t, i18n } = useTranslation();
-  const { adminSenha, logout, lang, setActiveEventId, setActiveEventNome, setRole, setScreen } = useApp();
+  const { adminToken, logout, lang, setActiveEventId, setActiveEventNome, setRole, setScreen } = useApp();
   const qc = useQueryClient();
 
   // Estados de criação de evento
@@ -35,16 +35,16 @@ export default function AdminDashboard() {
 
   // 1. Query para buscar os dados do dashboard
   const { data: eventos = [], isLoading, error: queryErr } = useQuery<AdminDashboardData[]>({
-    queryKey: ["admin_dashboard", adminSenha],
+    queryKey: ["admin_dashboard", adminToken],
     queryFn: async () => {
-      if (!adminSenha) return [];
+      if (!adminToken) return [];
       const { data, error } = await supabase.rpc("get_admin_dashboard_data", {
-        p_admin_senha: adminSenha,
+        p_admin_token: adminToken,
       });
       if (error) throw error;
       return data ?? [];
     },
-    enabled: !!adminSenha,
+    enabled: !!adminToken,
   });
 
   // 2. Mutation para criar evento
@@ -55,10 +55,10 @@ export default function AdminDashboard() {
       if (!nome.trim() || !facLogin.trim() || !facSenha.trim()) {
         throw new Error("empty_fields");
       }
-      if (!adminSenha) throw new Error("no_admin_pass");
+      if (!adminToken) throw new Error("no_admin_pass");
 
       const { data, error } = await supabase.rpc("create_event", {
-        p_admin_senha: adminSenha,
+        p_admin_token: adminToken,
         p_nome: nome.trim(),
         p_fac_login: facLogin.trim(),
         p_fac_senha: facSenha,
@@ -93,9 +93,9 @@ export default function AdminDashboard() {
   // 3. Mutation para excluir evento
   const deleteEventMutation = useMutation({
     mutationFn: async (eventId: string) => {
-      if (!adminSenha) throw new Error("no_admin_pass");
+      if (!adminToken) throw new Error("no_admin_pass");
       const { error } = await supabase.rpc("delete_event", {
-        p_admin_senha: adminSenha,
+        p_admin_token: adminToken,
         p_event_id: eventId,
       });
       if (error) throw error;
@@ -120,10 +120,10 @@ export default function AdminDashboard() {
       if (!editNome.trim() || !editFacLogin.trim()) {
         throw new Error("empty_fields");
       }
-      if (!adminSenha) throw new Error("no_admin_pass");
+      if (!adminToken) throw new Error("no_admin_pass");
 
       const { error } = await supabase.rpc("update_event", {
-        p_admin_senha: adminSenha,
+        p_admin_token: adminToken,
         p_event_id: editingEvent.event_id,
         p_nome: editNome.trim(),
         p_fac_login: editFacLogin.trim(),
