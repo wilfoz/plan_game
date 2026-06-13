@@ -33,4 +33,4 @@ testsprite_tests
 # Agente e especificações
 .claude/
 .specs/
-
+supabase/*
