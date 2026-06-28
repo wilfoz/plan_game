@@ -33,4 +33,6 @@ testsprite_tests
 # Agente e especificações
 .claude/
 .specs/
-supabase/*
+
+# Supabase: migrations e config.toml SÃO versionados.
+# O estado local/segredos é ignorado por supabase/.gitignore (.temp, .branches, .env*).
