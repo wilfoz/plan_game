@@ -18,6 +18,7 @@ export default function AdminDashboard() {
   const [facSenha, setFacSenha] = useState("");
   const [erro, setErro] = useState("");
   const [sucesso, setSucesso] = useState("");
+  const [segurancaAplicavel, setSegurancaAplicavel] = useState(true);
 
   // Estados de edição de evento ativo
   const [editingEvent, setEditingEvent] = useState<AdminDashboardData | null>(null);
@@ -25,6 +26,7 @@ export default function AdminDashboard() {
   const [editFacLogin, setEditFacLogin] = useState("");
   const [editFacSenha, setEditFacSenha] = useState("");
   const [editCotacao, setEditCotacao] = useState(5.0);
+  const [editSegurancaAplicavel, setEditSegurancaAplicavel] = useState(true);
   const [activeCatalogTab, setActiveCatalogTab] = useState<"mo" | "eq" | "ativ" | "req">("mo");
   const [selectedAtivFilter, setSelectedAtivFilter] = useState("a1");
 
@@ -62,6 +64,7 @@ export default function AdminDashboard() {
         p_nome: nome.trim(),
         p_fac_login: facLogin.trim(),
         p_fac_senha: facSenha,
+        p_seguranca_aplicavel: segurancaAplicavel,
       });
 
       if (error) {
@@ -76,6 +79,7 @@ export default function AdminDashboard() {
       setNome("");
       setFacLogin("");
       setFacSenha("");
+      setSegurancaAplicavel(true);
       setSucesso(t("common.save"));
       qc.invalidateQueries({ queryKey: ["admin_dashboard"] });
     },
@@ -129,6 +133,7 @@ export default function AdminDashboard() {
         p_fac_login: editFacLogin.trim(),
         p_fac_senha: editFacSenha.trim() || null,
         p_cotacao_dolar: Number(editCotacao) || 5.0,
+        p_seguranca_aplicavel: editSegurancaAplicavel,
       });
 
       if (error) throw error;
@@ -142,6 +147,7 @@ export default function AdminDashboard() {
           event_nome: editNome.trim(),
           facilitador_login: editFacLogin.trim(),
           cotacao_dolar: Number(editCotacao) || 5.0,
+          seguranca_aplicavel: editSegurancaAplicavel,
         } : null);
       }
     },
@@ -574,7 +580,21 @@ export default function AdminDashboard() {
                 />
               </div>
 
-              <div style={{ display: "flex", alignItems: "flex-end", flex: "1 1 100px" }}>
+              <div style={{ flex: "1 1 200px", display: "flex", alignItems: "center", height: 38, marginTop: 16 }}>
+                <input
+                  type="checkbox"
+                  id="seguranca-ap-edit"
+                  checked={editSegurancaAplicavel}
+                  onChange={e => setEditSegurancaAplicavel(e.target.checked)}
+                  disabled={updateEventMutation.isPending}
+                  style={{ cursor: "pointer", marginRight: 8 }}
+                />
+                <label htmlFor="seguranca-ap-edit" style={{ fontSize: 12, color: C.txt2, cursor: "pointer", userSelect: "none" }}>
+                  Aplicar Requisitos de Segurança
+                </label>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "flex-end", flex: "1 1 120px" }}>
                 <button
                   onClick={() => updateEventMutation.mutate()}
                   disabled={updateEventMutation.isPending}
@@ -958,6 +978,20 @@ export default function AdminDashboard() {
                   />
                 </div>
 
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input
+                    type="checkbox"
+                    id="seguranca-ap-create"
+                    checked={segurancaAplicavel}
+                    onChange={e => setSegurancaAplicavel(e.target.checked)}
+                    disabled={createEventMutation.isPending}
+                    style={{ cursor: "pointer" }}
+                  />
+                  <label htmlFor="seguranca-ap-create" style={{ fontSize: 12, color: C.txt2, cursor: "pointer", userSelect: "none" }}>
+                    Aplicar Requisitos de Segurança
+                  </label>
+                </div>
+
                 {erro && (
                   <div style={{
                     padding: "8px 12px", borderRadius: 4,
@@ -1091,6 +1125,17 @@ export default function AdminDashboard() {
                               Cambio: R$ {Number(evt.cotacao_dolar).toFixed(2)}
                             </span>
                           )}
+                          <span style={{
+                            background: evt.seguranca_aplicavel !== false ? C.greenL + "12" : C.yellow + "12",
+                            color: evt.seguranca_aplicavel !== false ? C.greenL : C.yellow,
+                            fontSize: 9,
+                            fontWeight: 700,
+                            padding: "2px 6px",
+                            borderRadius: 3,
+                            border: `1px solid ${evt.seguranca_aplicavel !== false ? C.greenL : C.yellow}22`
+                          }}>
+                            {evt.seguranca_aplicavel !== false ? "🛡️ Segurança Ativa" : "⚠️ Sem Requisitos"}
+                          </span>
                         </div>
                       </div>
 
@@ -1102,6 +1147,7 @@ export default function AdminDashboard() {
                             setEditFacLogin(evt.facilitador_login);
                             setEditFacSenha("");
                             setEditCotacao(evt.cotacao_dolar ?? 5.0);
+                            setEditSegurancaAplicavel(evt.seguranca_aplicavel !== false);
                             setErro("");
                             setSucesso("");
                           }}

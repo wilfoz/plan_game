@@ -85,7 +85,8 @@ export default function Ranking() {
   const { t } = useTranslation();
   const { 
     lt, buildRank, gc, realtimeConnected, role, activeSessionId, calcA, volumesPrev, lang,
-    moCatalog, eqCatalog, atividadesCatalog, formatCurrency, translateRequisito
+    moCatalog, eqCatalog, atividadesCatalog, formatCurrency, translateRequisito,
+    segurancaAplicavel
   } = useApp();
   const rank = buildRank();
   const medals = ["🥇", "🥈", "🥉"];
@@ -279,7 +280,7 @@ export default function Ranking() {
               <TH ch={t("ranking.tableHeaders.duration")} right />
               <TH ch={t("ranking.tableHeaders.sCost")} right />
               <TH ch={t("ranking.tableHeaders.sDur")} right />
-              <TH ch={t("ranking.tableHeaders.sSeg")} right />
+              {segurancaAplicavel && <TH ch={t("ranking.tableHeaders.sSeg")} right />}
               <TH ch={t("ranking.tableHeaders.score")} right accent />
               <TH ch={t("ranking.tableHeaders.status")} />
             </tr></thead>
@@ -303,7 +304,7 @@ export default function Ranking() {
                     <td style={{ padding: "9px", textAlign: "right", fontSize: 11, color: C.blueL }}>{+g.dm.toFixed(2)}m</td>
                     <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sC} label="CUSTO" /></td>
                     <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sD} label="DUR." /></td>
-                    <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sS} label="SEG." col={isOut ? C.redL : C.greenL} /></td>
+                    {segurancaAplicavel && <td style={{ padding: "8px 9px", textAlign: "center" }}><ScoreRing v={g.sS} label="SEG." col={isOut ? C.redL : C.greenL} /></td>}
                     <td style={{ padding: "10px 9px", textAlign: "right", fontSize: 22, fontWeight: 700, color: isOut ? C.redL : sc(g.total || 0) }}>
                       {isOut ? "—" : g.total}
                     </td>

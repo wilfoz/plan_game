@@ -28,7 +28,14 @@ function LoadingBar({ visible }: { visible: boolean }) {
 }
 
 function AppInner() {
-  const { screen, isLoading } = useApp();
+  const { screen, setScreen, isLoading, segurancaAplicavel } = useApp();
+
+  React.useEffect(() => {
+    if (screen === "requisitos" && !segurancaAplicavel) {
+      setScreen("config");
+    }
+  }, [screen, segurancaAplicavel, setScreen]);
+
   if (screen === "admin_dashboard") return <><LoadingBar visible={isLoading} /><AdminDashboard /></>;
   if (screen === "session-manager") return <><LoadingBar visible={isLoading} /><SessionManager /></>;
   if (screen === "login") return <Login />;
@@ -41,7 +48,7 @@ function AppInner() {
       {screen === "grupos" && <Equipes />}
       {screen === "atividades" && <Atividades />}
       {screen === "equipe-base" && <EquipeBase />}
-      {screen === "requisitos" && <Requisitos />}
+      {screen === "requisitos" && segurancaAplicavel && <Requisitos />}
       {screen === "composicao" && <Composicao />}
       {screen === "cronograma" && <Cronograma />}
       {screen === "ranking" && <Ranking />}

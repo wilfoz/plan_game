@@ -22,7 +22,8 @@ export default function Header() {
     adminToken,
     setActiveEventId,
     setActiveEventNome,
-    userSessions
+    userSessions,
+    segurancaAplicavel
   } = useApp();
 
   const [menuAberto, setMenuAberto] = useState(false);
@@ -51,7 +52,7 @@ export default function Header() {
     ["grupos", t("header.nav.groups")],
     ["atividades", t("header.nav.activities")],
     ["equipe-base", t("header.nav.baseTeam")],
-    ["requisitos", t("header.nav.requirements")],
+    ...(segurancaAplicavel ? [["requisitos", t("header.nav.requirements")]] : []),
     ["composicao", t("header.nav.compositions")],
     ["cronograma", t("header.nav.gantt")],
     ["ranking", t("header.nav.ranking")]

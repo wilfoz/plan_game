@@ -37,6 +37,7 @@ export default function Composicao() {
     convertCurrency,
     reconvertCurrency,
     translateRequisito,
+    segurancaAplicavel,
   } = useApp();
 
   const currentLang = (lang === "es" ? "es" : "pt") as "pt" | "es";
@@ -595,78 +596,80 @@ export default function Composicao() {
           </Card>
 
           {/* REQUISITOS DE SEGURANÇA */}
-          <Card mb={24}>
-            <Hdr2 col={C.greenL} ch={`${t("composition.reqTitle")} — ${aObj.desc[currentLang].slice(0, 28)}`} />
-            {comp.moRows.length > 0 && (
-              <div style={{ padding: "6px 12px", background: C.surf2, borderBottom: `1px solid ${C.border}`, fontSize: 10, color: C.txt2 }}>
-                <strong>{t("composition.cargosContratados")}:</strong> {comp.moRows.map(r => `${translateCargo(r.cargo)} (${r.qtd})`).join(", ")}
-              </div>
-            )}
-            <div className="table-responsive">
-              <table style={S.tbl}>
-                <thead><tr>
-                  <TH ch={t("composition.reqCols.category")} w={140} />
-                  <TH ch={t("composition.reqCols.desc")} />
-                  <TH ch="" w={30} />
-                </tr></thead>
-                <tbody>
-                  {addedReqs.length === 0 && (
-                    <tr><td colSpan={3} style={{ padding: "12px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
-                      {reqsAtiv.length === 0
-                        ? t("composition.reqEmptyFacilitator")
-                        : t("composition.reqEmpty")}
-                    </td></tr>
-                  )}
-                  {addedReqs.map((req) => {
-                    const displayDesc = translateRequisito(req.desc);
-                    const displayCategory = translateCategoria(req.categoria);
-                    return (
-                      <tr key={req._id} style={S.trOn(C.greenL)}>
-                        <td style={{ padding: "4px 9px" }}>
-                          <Tag text={displayCategory} col={REQ_CAT_COLORS[req.categoria]} />
-                        </td>
-                        <td style={{ padding: "4px 9px", fontSize: 10, color: C.txt }}>
-                          {displayDesc || "(sem descrição)"}
-                        </td>
-                        <td style={{ padding: "3px 6px", textAlign: "center" }}>
-                          <BtnDel onClick={() => toggleReq(gIdx, aObj.id, req._id)} />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            {reqsAtiv.length > 0 && (
-              <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8, alignItems: "center" }}>
-                <div style={{ flex: 1 }}>
-                  <Sel
-                    v=""
-                    onChange={e => { if (e.target.value) toggleReq(gIdx, aObj.id, e.target.value); }}
-                    opts={availReqOpts}
-                    placeholder={availReqOpts.length === 0 ? t("composition.reqSelectAll") : t("composition.reqSelectPlaceholder")}
-                  />
+          {segurancaAplicavel && (
+            <Card mb={24}>
+              <Hdr2 col={C.greenL} ch={`${t("composition.reqTitle")} — ${aObj.desc[currentLang].slice(0, 28)}`} />
+              {comp.moRows.length > 0 && (
+                <div style={{ padding: "6px 12px", background: C.surf2, borderBottom: `1px solid ${C.border}`, fontSize: 10, color: C.txt2 }}>
+                  <strong>{t("composition.cargosContratados")}:</strong> {comp.moRows.map(r => `${translateCargo(r.cargo)} (${r.qtd})`).join(", ")}
                 </div>
-                {availReqOpts.length > 0 && (
-                  <button
-                    onClick={() => addAllReqs(gIdx, aObj.id)}
-                    style={{
-                      fontSize: 10, fontWeight: 700, padding: "5px 10px",
-                      borderRadius: 4, border: `1px solid ${C.greenL}55`,
-                      background: C.greenL + "15", color: C.greenL,
-                      cursor: "pointer", whiteSpace: "nowrap",
-                    }}
-                    title={t("composition.reqMarkAllTitle")}
-                  >
-                    {t("composition.reqMarkAllButton")}
-                  </button>
-                )}
-                <span style={{ fontSize: 10, color: C.txt3, whiteSpace: "nowrap" }}>
-                  {addedReqs.length}/{reqsAtiv.length}
-                </span>
+              )}
+              <div className="table-responsive">
+                <table style={S.tbl}>
+                  <thead><tr>
+                    <TH ch={t("composition.reqCols.category")} w={140} />
+                    <TH ch={t("composition.reqCols.desc")} />
+                    <TH ch="" w={30} />
+                  </tr></thead>
+                  <tbody>
+                    {addedReqs.length === 0 && (
+                      <tr><td colSpan={3} style={{ padding: "12px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
+                        {reqsAtiv.length === 0
+                          ? t("composition.reqEmptyFacilitator")
+                          : t("composition.reqEmpty")}
+                      </td></tr>
+                    )}
+                    {addedReqs.map((req) => {
+                      const displayDesc = translateRequisito(req.desc);
+                      const displayCategory = translateCategoria(req.categoria);
+                      return (
+                        <tr key={req._id} style={S.trOn(C.greenL)}>
+                          <td style={{ padding: "4px 9px" }}>
+                            <Tag text={displayCategory} col={REQ_CAT_COLORS[req.categoria]} />
+                          </td>
+                          <td style={{ padding: "4px 9px", fontSize: 10, color: C.txt }}>
+                            {displayDesc || "(sem descrição)"}
+                          </td>
+                          <td style={{ padding: "3px 6px", textAlign: "center" }}>
+                            <BtnDel onClick={() => toggleReq(gIdx, aObj.id, req._id)} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </Card>
+              {reqsAtiv.length > 0 && (
+                <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8, alignItems: "center" }}>
+                  <div style={{ flex: 1 }}>
+                    <Sel
+                      v=""
+                      onChange={e => { if (e.target.value) toggleReq(gIdx, aObj.id, e.target.value); }}
+                      opts={availReqOpts}
+                      placeholder={availReqOpts.length === 0 ? t("composition.reqSelectAll") : t("composition.reqSelectPlaceholder")}
+                    />
+                  </div>
+                  {availReqOpts.length > 0 && (
+                    <button
+                      onClick={() => addAllReqs(gIdx, aObj.id)}
+                      style={{
+                        fontSize: 10, fontWeight: 700, padding: "5px 10px",
+                        borderRadius: 4, border: `1px solid ${C.greenL}55`,
+                        background: C.greenL + "15", color: C.greenL,
+                        cursor: "pointer", whiteSpace: "nowrap",
+                      }}
+                      title={t("composition.reqMarkAllTitle")}
+                    >
+                      {t("composition.reqMarkAllButton")}
+                    </button>
+                  )}
+                  <span style={{ fontSize: 10, color: C.txt3, whiteSpace: "nowrap" }}>
+                    {addedReqs.length}/{reqsAtiv.length}
+                  </span>
+                </div>
+              )}
+            </Card>
+          )}
         </div>
 
         {/* DIREITA — RESUMO */}

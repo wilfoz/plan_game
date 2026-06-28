@@ -122,6 +122,7 @@ export interface Evento {
   created_at: string;
   total_sessions?: number;
   total_groups?: number;
+  seguranca_aplicavel?: boolean;
 }
 
 export interface AdminDashboardData {
@@ -132,4 +133,5 @@ export interface AdminDashboardData {
   total_sessions: number;
   total_groups: number;
   cotacao_dolar?: number;
+  seguranca_aplicavel?: boolean;
 }

@@ -117,6 +117,7 @@ interface AppContextType {
   userSessions: any[];
   setUserSessions: (s: any[]) => void;
   cotacaoDolar: number;
+  segurancaAplicavel: boolean;
   moCatalog: typeof MO_CAT;
   eqCatalog: typeof EQ_CAT;
   atividadesCatalog: typeof ATIVS;
@@ -162,7 +163,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!activeEventId) return null;
       const { data, error } = await supabase
         .from("events")
-        .select("cotacao_dolar")
+        .select("cotacao_dolar, seguranca_aplicavel")
         .eq("id", activeEventId)
         .single();
       if (error) throw error;
@@ -171,6 +172,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     enabled: !!activeEventId,
   });
   const cotacaoDolar = eventData?.cotacao_dolar ?? 5.0;
+  const segurancaAplicavel = eventData?.seguranca_aplicavel ?? true;
 
   const { data: dbMoCat } = useQuery({
     queryKey: ["event_mo_cat", activeEventId],
@@ -672,7 +674,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ── Calculations ─────────────────────────────────────────────────────────
   const calcA      = (comp: Comp, esc: number) => calcABase(comp, esc);
-  const calcSeg    = (gi: number) => calcSegBase(requisitos, (aId) => gc(gi, aId));
+  const calcSeg    = (gi: number) => {
+    if (!segurancaAplicavel) {
+      return { score: 100, desq: false, reprovado: false, missing: [] };
+    }
+    return calcSegBase(requisitos, (aId) => gc(gi, aId));
+  };
   const calcEfGrupo = (gi: number) => calcEficienciaGeral((aId) => gc(gi, aId), equipesBase, kpisBase);
 
   const PENALTY: Record<string, number> = { risco: 1.2, pior: 1.4 };
@@ -693,7 +700,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const pen = PENALTY[ef.porAtiv[a.id]?.impactoPrazo ?? ""] ?? 1.0;
         return s + c.total * (c.durMeses > 0 ? c.durMeses * pen * c.fatorMobilizacao : 0);
       }, 0);
-      const penSeg = calcNaoAplicPenaltyBase(requisitos, (aId) => gc(i, aId));
+      const penSeg = segurancaAplicavel
+        ? calcNaoAplicPenaltyBase(requisitos, (aId) => gc(i, aId))
+        : { count: 0, fator: 1.0, pct: 0, detalhes: [] };
       const ct = ctBase * penSeg.fator;
       let dm;
       if (duracaoSomada) {
@@ -770,6 +779,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       lang,
       userSessions, setUserSessions,
       cotacaoDolar,
+      segurancaAplicavel,
       moCatalog,
       eqCatalog,
       atividadesCatalog,
