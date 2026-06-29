@@ -134,7 +134,7 @@ export default function Header() {
           </button>
         )}
 
-        {adminToken && (
+        {adminToken && role !== "G" && (
           <button
             style={{ ...S.nb(false), marginLeft: 8, borderColor: C.gold, color: C.gold }}
             onClick={irParaPainelAdmin}
@@ -272,7 +272,7 @@ export default function Header() {
               </button>
             )}
 
-            {adminToken && (
+            {adminToken && role !== "G" && (
               <button
                 style={{
                   ...S.nb(false),

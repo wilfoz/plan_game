@@ -755,11 +755,6 @@ export default function Composicao() {
                     <div style={{ fontSize: 10, fontWeight: 700, color: "#991B1B", letterSpacing: 1 }}>
                       {t("composition.warningRequiredMissing")}
                     </div>
-                    {(ef.obrigatorioAusente || []).map(o => (
-                      <div key={o.label} style={{ fontSize: 9, color: "#991B1B", padding: "2px 0 2px 8px", borderLeft: "2px solid #EF4444", marginTop: 4, lineHeight: 1.4 }}>
-                        {t("composition.warningRequiredMissingDetail", { label: o.tipo === "mo" ? translateCargo(o.label) : translateEquip(o.label) })}
-                      </div>
-                    ))}
                   </div>
                 </div>
               )}
@@ -771,6 +766,9 @@ export default function Composicao() {
                     <div style={{ fontSize: 10, fontWeight: 700, color: "#B45309", letterSpacing: 2, marginBottom: 6 }}>
                       {t("composition.warningKpiCoherenceTitle")}
                     </div>
+                    {/* Grupos veem apenas o título do alerta; detalhes ficam restritos ao facilitador */}
+                    {role !== "G" && (
+                    <>
                     {ef.varKpiPct != null && ef.varKpiPct > 200 && (
                       <div style={{ fontSize: 9, color: "#991B1B", padding: "4px 8px", borderLeft: "3px solid #EF4444", background: "rgba(254, 242, 242, 0.9)", border: "1px solid #FCA5A5", borderRadius: "0 4px 4px 0", marginBottom: 6, lineHeight: 1.4, fontWeight: 700 }}>
                         {t("composition.warningKpiExorbitant")}
@@ -781,12 +779,7 @@ export default function Composicao() {
                         {t("composition.warningKpiBase", { kpiGrupo: ef.kpiGrupo, kpiBase: ef.kpiBase, sign: ef.varKpiPct > 0 ? "+" : "", pct: ef.varKpiPct })}
                       </div>
                     )}
-                    {role === "G" && (ef.subAlocacao || []).map(s => (
-                      <div key={s.cargo} style={{ fontSize: 9, color: "#B45309", padding: "4px 8px", borderLeft: "3px solid #F59E0B", background: "rgba(254, 243, 199, 0.2)", borderRadius: "0 4px 4px 0", marginBottom: 6, lineHeight: 1.4 }}>
-                        {t("composition.warningSuballocDetail", { cargo: translateCargo(s.cargo), coefGrupo: s.coefGrupo, minCoef: s.minCoef, minVarPct: s.minVarPct })}
-                      </div>
-                    ))}
-                    {role !== "G" && (ef.subAlocacao || []).map(s => (
+                    {(ef.subAlocacao || []).map(s => (
                       <div key={s.cargo} style={{ fontSize: 9, color: "#991B1B", padding: "4px 8px", borderLeft: "3px solid #EF4444", background: "rgba(254, 226, 226, 0.2)", borderRadius: "0 4px 4px 0", marginBottom: 6, lineHeight: 1.4 }}>
                         {t("composition.warningSuballocDetail", { cargo: translateCargo(s.cargo), coefGrupo: s.coefGrupo, minCoef: s.minCoef, minVarPct: s.minVarPct })}
                       </div>
@@ -795,16 +788,16 @@ export default function Composicao() {
                       let msg = "";
                       switch (iss.tipo) {
                         case "sem_equipamento":
-                          msg = t("composition.coherenceMessages.sem_equipamento", { nOp: iss.nOp, cargo: translateCargo(iss.cargo), eqNomes: iss.eqNomes.map(translateEquip).join(" / "), eqEsperado: iss.eqEsperado });
+                          msg = t("composition.coherenceMessages.sem_equipamento", { nOp: iss.nOp, cargo: translateCargo(iss.cargo || ""), eqNomes: (iss.eqNomes || []).map(translateEquip).join(" / "), eqEsperado: iss.eqEsperado });
                            break;
                         case "sem_operador":
-                          msg = t("composition.coherenceMessages.sem_operador", { nEq: iss.nEq, eqNomes: translateEquip(iss.eqNomes[0]), cargo: translateCargo(iss.cargo), opEsperado: iss.opEsperado });
+                          msg = t("composition.coherenceMessages.sem_operador", { nEq: iss.nEq, eqNomes: translateEquip((iss.eqNomes || [])[0] || ""), cargo: translateCargo(iss.cargo || ""), opEsperado: iss.opEsperado });
                           break;
                         case "eq_insuficiente":
-                          msg = t("composition.coherenceMessages.eq_insuficiente", { nOp: iss.nOp, cargo: translateCargo(iss.cargo), nEq: iss.nEq, eqNomes: translateEquip(iss.eqNomes[0]), eqEsperado: iss.eqEsperado });
+                          msg = t("composition.coherenceMessages.eq_insuficiente", { nOp: iss.nOp, cargo: translateCargo(iss.cargo || ""), nEq: iss.nEq, eqNomes: translateEquip((iss.eqNomes || [])[0] || ""), eqEsperado: iss.eqEsperado });
                           break;
                         case "eq_ocioso":
-                          msg = t("composition.coherenceMessages.eq_ocioso", { nEq: iss.nEq, eqNomes: translateEquip(iss.eqNomes[0]), ociosos: iss.nEq - iss.eqEsperado, nOp: iss.nOp, cargo: translateCargo(iss.cargo) });
+                          msg = t("composition.coherenceMessages.eq_ocioso", { nEq: iss.nEq, eqNomes: translateEquip((iss.eqNomes || [])[0] || ""), ociosos: (iss.nEq || 0) - (iss.eqEsperado || 0), nOp: iss.nOp, cargo: translateCargo(iss.cargo || "") });
                           break;
                         case "impar_puller_freio":
                           msg = t("composition.coherenceMessages.impar_puller_freio", { nOp: iss.nOp });
@@ -820,6 +813,8 @@ export default function Composicao() {
                         </div>
                       );
                     })}
+                    </>
+                    )}
                   </div>
                 </div>
               )}

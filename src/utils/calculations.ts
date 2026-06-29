@@ -1,4 +1,4 @@
-import { ATIVS, BASE_COMPOSITIONS } from "../constants/catalogs";
+import { ATIVS, BASE_COMPOSITIONS, MO_CAT, EQ_CAT } from "../constants/catalogs";
 import { Comp, MoRow, EqRow, Requisito, AtividadeItem } from "../types";
 
 export const DIAS_MES = 22;
@@ -73,6 +73,7 @@ export interface SubAlocItem {
 
 export interface ObrigatorioAusenteItem {
   tipo: "mo" | "eq";
+  label: string;
   moCatId?: string;
   eqCatId?: string;
 }
@@ -150,7 +151,7 @@ export const calcEficiencia = (
       const grupoQtd  = grupoRows.reduce((s, r) => s + (r.qtd || 0), 0);
 
       if (refRow.obrigatorio && grupoQtd < 1) {
-        obrigatorioAusente.push({ tipo: "mo", moCatId: refRow.catId });
+        obrigatorioAusente.push({ tipo: "mo", label: refRow.cargo, moCatId: refRow.catId });
         return;
       }
 
@@ -177,7 +178,7 @@ export const calcEficiencia = (
     baseComp.eqRows.filter((r: any) => r.obrigatorio).forEach((refRow: any) => {
       const grupoRow = comp.eqRows.find(r => r.catId === refRow.catId);
       if (!grupoRow || grupoRow.qtd < 1)
-        obrigatorioAusente.push({ tipo: "eq", eqCatId: refRow.catId });
+        obrigatorioAusente.push({ tipo: "eq", label: refRow.nome, eqCatId: refRow.catId });
     });
   }
 
@@ -328,8 +329,10 @@ const CARGOS_TRANSPORTE_PROPRIO = ["mo10"];
 export interface CoerenciaIssue {
   tipo: "sem_equipamento" | "sem_operador" | "eq_insuficiente" | "eq_ocioso" | "impar_puller_freio" | "transporte_insuficiente";
   moCatId?: string;
+  cargo?: string;
   nOp?: number;
   eqCatIds?: string[];
+  eqNomes?: string[];
   eqEsperado?: number;
   nEq?: number;
   opEsperado?: number;
@@ -345,6 +348,8 @@ export function calcCoerencia(moRows: MoRow[], eqRows: EqRow[]): { issues: Coere
   const issues: CoerenciaIssue[] = [];
   const qtdOp = (moCatId: string) => moRows.filter(r => r.catId === moCatId).reduce((s, r) => s + (r.qtd || 0), 0);
   const qtdEq = (eqCatIds: string[]) => eqRows.filter(r => eqCatIds.includes(r.catId)).reduce((s, r) => s + (r.qtd || 0), 0);
+  const cargoNome = (moCatId: string) => MO_CAT.find(m => m.id === moCatId)?.cargo.pt || moCatId;
+  const eqNomesPt = (eqCatIds: string[]) => eqCatIds.map(id => EQ_CAT.find(e => e.id === id)?.nome.pt || id);
 
   for (const reg of COERENCIA_REGRAS) {
     const nOp = qtdOp(reg.moCatId);
@@ -359,14 +364,14 @@ export function calcCoerencia(moRows: MoRow[], eqRows: EqRow[]): { issues: Coere
     const opEsperado = nEq * reg.opPorEq;
 
     if (nOp > 0 && nEq === 0) {
-      issues.push({ tipo: "sem_equipamento", moCatId: reg.moCatId, nOp, eqCatIds: reg.eqCatIds, eqEsperado });
+      issues.push({ tipo: "sem_equipamento", moCatId: reg.moCatId, cargo: cargoNome(reg.moCatId), nOp, eqCatIds: reg.eqCatIds, eqNomes: eqNomesPt(reg.eqCatIds), eqEsperado });
     } else if (nOp === 0 && nEq > 0) {
-      issues.push({ tipo: "sem_operador", moCatId: reg.moCatId, nEq, eqCatIds: displayEqIds, opEsperado });
+      issues.push({ tipo: "sem_operador", moCatId: reg.moCatId, cargo: cargoNome(reg.moCatId), nEq, eqCatIds: displayEqIds, eqNomes: eqNomesPt(displayEqIds), opEsperado });
     } else {
       if (nEq < eqEsperado)
-        issues.push({ tipo: "eq_insuficiente", moCatId: reg.moCatId, nOp, nEq, eqCatIds: displayEqIds, eqEsperado });
+        issues.push({ tipo: "eq_insuficiente", moCatId: reg.moCatId, cargo: cargoNome(reg.moCatId), nOp, nEq, eqCatIds: displayEqIds, eqNomes: eqNomesPt(displayEqIds), eqEsperado });
       else if (nEq > eqEsperado)
-        issues.push({ tipo: "eq_ocioso", moCatId: reg.moCatId, nOp, nEq, eqCatIds: displayEqIds, eqEsperado });
+        issues.push({ tipo: "eq_ocioso", moCatId: reg.moCatId, cargo: cargoNome(reg.moCatId), nOp, nEq, eqCatIds: displayEqIds, eqNomes: eqNomesPt(displayEqIds), eqEsperado });
       if (reg.opPorEq === 2 && nOp % 2 !== 0)
         issues.push({ tipo: "impar_puller_freio", nOp });
     }

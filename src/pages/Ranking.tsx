@@ -264,7 +264,7 @@ export default function Ranking() {
           ].map(([ic, l, col]) => (
             <span key={l as string} style={{ fontSize: 11, color: col as string }}>{ic} {l} <strong>50%</strong></span>
           ))}
-          <span style={{ fontSize: 11, color: C.greenL }}>{t("ranking.medalsLegend.safety")}</span>
+          {segurancaAplicavel && <span style={{ fontSize: 11, color: C.greenL }}>{t("ranking.medalsLegend.safety")}</span>}
         </div>
       </div>
 
@@ -560,39 +560,41 @@ export default function Ranking() {
                         ))}
                         {coerenciaRank.map((iss, i) => {
                           let msg = "";
-                          switch (iss.type) {
-                            case "sem_equipamento": 
+                          const cargoNome = translateCargo(iss.cargo || "");
+                          const equipNome = translateEquip((iss.eqNomes || [])[0] || "");
+                          switch (iss.tipo) {
+                            case "sem_equipamento":
                               msg = currentLang === "es"
-                                ? `${translateCargo(iss.cargo)} (${iss.qtd}) sin equipo correspondiente`
-                                : `${iss.cargo} (${iss.qtd}) sem equipamento correspondente`;
+                                ? `${cargoNome} (${iss.nOp}) sin equipo correspondiente`
+                                : `${cargoNome} (${iss.nOp}) sem equipamento correspondente`;
                               break;
-                            case "sem_operador": 
+                            case "sem_operador":
                               msg = currentLang === "es"
-                                ? `${translateEquip(iss.equip || "")} (${iss.qtd}) sin operador/conductor correspondiente`
-                                : `${iss.equip} (${iss.qtd}) sem operador/motorista correspondente`;
+                                ? `${equipNome} (${iss.nEq}) sin operador/conductor correspondiente`
+                                : `${equipNome} (${iss.nEq}) sem operador/motorista correspondente`;
                               break;
-                            case "eq_insuficiente": 
+                            case "eq_insuficiente":
                               msg = currentLang === "es"
-                                ? `${translateEquip(iss.equip || "")} — quantidade insuficiente para os operadores`
-                                : `${iss.equip} — quantidade insuficiente para os operadores`;
+                                ? `${equipNome} — quantidade insuficiente para os operadores`
+                                : `${equipNome} — quantidade insuficiente para os operadores`;
                               break;
-                            case "eq_ocioso": 
+                            case "eq_ocioso":
                               msg = currentLang === "es"
-                                ? `${translateEquip(iss.equip || "")} (${iss.qtd}) en exceso — sin operadores suficientes`
-                                : `${iss.equip} (${iss.qtd}) em excesso — sem operadores suficientes`;
+                                ? `${equipNome} (${iss.nEq}) en exceso — sin operadores suficientes`
+                                : `${equipNome} (${iss.nEq}) em excesso — sem operadores suficientes`;
                               break;
-                            case "impar_puller_freio": 
+                            case "impar_puller_freio":
                               msg = currentLang === "es"
                                 ? `Puller y Freno deben ser en cantidad igual`
                                 : `Puller e Freio devem ser em quantidade igual`;
                               break;
-                            case "transporte_insuficiente": 
+                            case "transporte_insuficiente":
                               msg = currentLang === "es"
                                 ? `Transporte insuficiente para el equipo`
                                 : `Transporte insuficiente para a equipe`;
                               break;
-                            default: 
-                              msg = iss.type;
+                            default:
+                              msg = iss.tipo || "";
                           }
                           return (
                             <div key={`coer_${i}`} style={{ fontSize: 9, color: C.txt2, padding: "3px 0 3px 8px", borderLeft: `2px solid ${C.txt3}`, marginBottom: 4, lineHeight: 1.5 }}>
@@ -797,7 +799,7 @@ export default function Ranking() {
       )}
 
       {/* DEBRIEFING DE SEGURANÇA */}
-      {rank.some(g => g.desq) && (
+      {segurancaAplicavel && rank.some(g => g.desq) && (
         <Card b={C.redL + "44"}>
           <Hdr2 col={C.redL} ch={t("ranking.debriefingSafetyTitle")} />
           <div style={{ padding: 14 }}>
