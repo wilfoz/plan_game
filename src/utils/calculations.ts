@@ -6,6 +6,7 @@ export const DIAS_MES = 22;
 export interface CalcAResult {
   custoMo: number;
   custoEq: number;
+  custoInsumo: number;
   total: number;
   durDias: number;
   durTotalDias: number;
@@ -24,6 +25,8 @@ export const calcA = (comp: Comp, esc: number): CalcAResult => {
   const moT = (r: MoRow) => r.sal * r.qtd;
   const custoMo = comp.moRows.reduce((s, r) => s + moT(r), 0);
   const custoEq = comp.eqRows.reduce((s, r) => s + (r.loc * r.qtd), 0);
+  // Insumo/ferramental: custo único (fixo), não entra no recorrente mensal (total).
+  const custoInsumo = (comp.insumoRows ?? []).reduce((s, r) => s + (r.custo * r.qtd), 0);
   const total = custoMo + custoEq;
 
   const durDias = comp.kpi && esc && comp.equipes ? esc / (comp.equipes * comp.kpi) : 0;
@@ -47,7 +50,7 @@ export const calcA = (comp: Comp, esc: number): CalcAResult => {
     : null;
 
   return {
-    custoMo, custoEq, total,
+    custoMo, custoEq, custoInsumo, total,
     durDias: Math.ceil(durDias),
     durTotalDias: Math.ceil(durDias),
     dur: durMeses,

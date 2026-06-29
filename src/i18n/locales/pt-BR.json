@@ -49,6 +49,7 @@
     "connError": "Erro de conexão. Tente novamente.",
     "selectSession": "SELECIONE A SESSÃO",
     "registeredSessions": "{{user}} está cadastrado em {{count}} sessões.",
+    "eventLabel": "Jornada: {{event}}",
     "sessionEnter": "ENTRAR →",
     "lockoutTimer": "Bloqueado por muitas tentativas. Aguarde {{min}} min."
   },
@@ -122,6 +123,7 @@
     "title": "Configuração dos Grupos de Trabalho",
     "titleShort": "👥 GRUPOS PARTICIPANTES",
     "addGroup": "➕ Adicionar Grupo",
+    "duplicateName": "Já existe um grupo com esse nome nesta sessão.",
     "empty": "Nenhum grupo cadastrado. Adicione um para permitir acesso.",
     "cols": {
       "name": "Nome do Grupo",
@@ -227,6 +229,8 @@
       "salary": "SALÁRIO/MÊS",
       "total": "TOTAL/MÊS"
     },
+    "ruleObrigatorio": "Quando marcado, este recurso é OBRIGATÓRIO: deve estar presente na composição de cada grupo, senão o grupo recebe alerta. Ao marcar, a \"Var. Mín %\" é desabilitada (as duas regras se excluem).",
+    "ruleVarMin": "Variação mínima permitida do coeficiente (Hh/und) do grupo em relação à base. É armazenada como valor negativo (ex.: -25 = até 25% abaixo da base). Se o coeficiente do grupo ficar abaixo desse limite, dispara um alerta de sub-alocação.",
     "moEmpty": "Nenhum cargo adicionado. Use o seletor abaixo para adicionar.",
     "moTotal": "TOTAL MO — {{count}} profissionais",
     "warningRequiredMissing": "⚠️ RECURSO OBRIGATÓRIO NÃO INCLUÍDO NA EQUIPE",
@@ -248,6 +252,16 @@
     "eqTotal": "TOTAL EQUIPAMENTOS — {{count}} itens",
     "eqWarningRequiredMissingDetail": "❌ {{label}} — equipamento obrigatório não adicionado",
     "eqSelectPlaceholder": "+ Selecione um equipamento para adicionar...",
+    "insumoTitle": "🧰 FERRAMENTAL / INSUMOS",
+    "insumoCols": {
+      "name": "ITEM",
+      "qtd": "QTD",
+      "cost": "CUSTO UNIT.",
+      "total": "TOTAL"
+    },
+    "insumoEmpty": "Nenhum insumo adicionado (opcional). Custo único, não afeta prazo nem coeficientes.",
+    "insumoTotal": "TOTAL INSUMOS — {{count}} itens",
+    "insumoSelectPlaceholder": "+ Selecione um insumo/ferramental para adicionar...",
     "reqTitle": "🛡️ REQUISITOS DE SEGURANÇA",
     "reqCols": {
       "category": "CATEGORIA",

@@ -19,7 +19,7 @@ export default function Atividades() {
   const currentLang = (lang === "es" ? "es" : "pt") as "pt" | "es";
 
   const ativDurs = ATIVS.map(a => {
-    const comp = { kpi: kpisBase[a.id] || 0, equipes: 1, moRows: [], eqRows: [] };
+    const comp = { kpi: kpisBase[a.id] || 0, equipes: 1, moRows: [], eqRows: [], insumoRows: [], reqIds: [], mesInicia: 0 };
     return { id: a.id, dur: calcA(comp, volumesPrev[a.id] || 0).dur, mes: mesIniciaBase[a.id] || 0 };
   });
 

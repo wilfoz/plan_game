@@ -88,7 +88,11 @@ export default function Ranking() {
     moCatalog, eqCatalog, atividadesCatalog, formatCurrency, translateRequisito,
     segurancaAplicavel
   } = useApp();
-  const rank = buildRank();
+  // Etapas avaliadas separadamente: "M" (Montagem) e "L" (Lançamento).
+  const [stage, setStage] = useState<"M" | "L">("M");
+  const rank = buildRank(stage);
+  const stageIds = new Set(atividadesCatalog.filter((a: any) => a.grp === stage).map((a: any) => a.id));
+  const stageAtivs = atividadesCatalog.filter((a: any) => a.grp === stage);
   const medals = ["🥇", "🥈", "🥉"];
 
   const currentLang = (lang === "es" ? "es" : "pt") as "pt" | "es";
@@ -268,6 +272,25 @@ export default function Ranking() {
         </div>
       </div>
 
+      {/* Abas de etapa: Montagem × Lançamento (avaliadas separadamente) */}
+      <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 14 }}>
+        {([["M", t("activities.groups.M")], ["L", t("activities.groups.L")]] as const).map(([g, label]) => (
+          <button
+            key={g}
+            onClick={() => setStage(g)}
+            style={{
+              padding: "8px 22px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit",
+              fontSize: 12, fontWeight: 700, letterSpacing: 1,
+              background: stage === g ? (g === "M" ? C.blueL + "22" : C.greenL + "22") : "transparent",
+              border: `1px solid ${stage === g ? (g === "M" ? C.blueL : C.greenL) : C.border2}`,
+              color: stage === g ? (g === "M" ? C.blueL : C.greenL) : C.txt3,
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <Card>
         <Hdr2 ch={t("ranking.title").toUpperCase()} />
         <div className="table-responsive">
@@ -297,7 +320,7 @@ export default function Ranking() {
                     </td>
                     <td style={{ padding: "10px 9px" }}>
                       <div style={{ fontSize: 12, fontWeight: 700 }}>{g.nome}</div>
-                      <Semaforo gi={g.gi} gc={gc} lang={currentLang} atividadesCatalog={atividadesCatalog} />
+                      <Semaforo gi={g.gi} gc={gc} lang={currentLang} atividadesCatalog={stageAtivs} />
                     </td>
                     <TD ch={g.resp || "—"} muted />
                     <td style={{ padding: "9px", textAlign: "right", fontSize: 11, color: C.yellow }}>{formatCurrency(g.ct)}</td>
@@ -418,7 +441,7 @@ export default function Ranking() {
             {rank.map(g => {
               if (!g.ef) return null;
               const { porAtiv, varMoMedia, varEqMedia } = g.ef;
-              const ativsComComp = Object.entries(porAtiv).filter(([, e]) => (e as any).temBase && (e as any).temGrupo);
+              const ativsComComp = Object.entries(porAtiv).filter(([aId, e]) => stageIds.has(aId) && (e as any).temBase && (e as any).temGrupo);
               if (ativsComComp.length === 0) return null;
 
               const mediaCol = varColor(varMoMedia);
@@ -531,11 +554,12 @@ export default function Ranking() {
                   {/* ── ALERTAS DE INCOMPATIBILIDADE ── */}
                   {(() => {
                     const alertasKpi = Object.entries(porAtiv)
-                      .filter(([, e]) => (e as any).varKpiPct != null && (e as any).varKpiPct > 40)
+                      .filter(([aId, e]) => stageIds.has(aId) && (e as any).varKpiPct != null && (e as any).varKpiPct > 40)
                       .map(([aId, e]) => ({ aId, atv: atividadesCatalog.find(a => a.id === aId), e: e as any }));
                     const alertasSub = Object.entries(porAtiv)
+                      .filter(([aId]) => stageIds.has(aId))
                       .flatMap(([aId, e]) => ((e as any).subAlocacao ?? []).map((s: any) => ({ ...s, aId, atv: atividadesCatalog.find(a => a.id === aId) })));
-                    const coerenciaRank = Object.keys(porAtiv).flatMap(aId => {
+                    const coerenciaRank = Object.keys(porAtiv).filter(aId => stageIds.has(aId)).flatMap(aId => {
                       const comp = gc(g.gi, aId);
                       const atv = atividadesCatalog.find(a => a.id === aId);
                       if (!atv) return [];

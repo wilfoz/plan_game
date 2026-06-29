@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { ATIVS } from "../constants/catalogs";
 import { Comp, GrupoComps, Grupo } from "../types";
 
-const mkComp = (): Comp => ({ moRows: [], eqRows: [], reqIds: [], kpi: 0, equipes: 1, mesInicia: 0 });
+const mkComp = (): Comp => ({ moRows: [], eqRows: [], insumoRows: [], reqIds: [], kpi: 0, equipes: 1, mesInicia: 0 });
 
 function buildComps(rows: any[], grupos: Grupo[]): GrupoComps[] {
   return grupos.map(g => {
@@ -18,6 +18,7 @@ function buildComps(rows: any[], grupos: Grupo[]): GrupoComps[] {
         mesInicia: row.mes_inicia    ?? 0,
         moRows:    row.mo_rows       ?? [],
         eqRows:    row.eq_rows       ?? [],
+        insumoRows: row.insumo_rows  ?? [],
         reqIds:    (row.req_ids ?? []).map(String),
       }];
     }));
@@ -57,6 +58,7 @@ export function useGrupoComps(sessionId: string | null, grupos: Grupo[]) {
           mes_inicia:   comp.mesInicia ?? 0,
           mo_rows:      comp.moRows   ?? [],
           eq_rows:      comp.eqRows   ?? [],
+          insumo_rows:  comp.insumoRows ?? [],
           req_ids:      comp.reqIds   ?? [],
           updated_at:   new Date().toISOString(),
         }, { onConflict: "grupo_id,atividade_id" });

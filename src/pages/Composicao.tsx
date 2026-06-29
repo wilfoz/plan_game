@@ -24,6 +24,7 @@ export default function Composicao() {
     gc, calcA, volumesPrev, comentariosAtiv,
     moAdd, moDel, moUpd,
     eqAdd, eqDel, eqUpd,
+    insAdd, insDel, insUpd,
     uKpi, uEq, uMesInicia,
     requisitos, toggleReq, addAllReqs,
     equipesBase, kpisBase, mesIniciaBase,
@@ -32,6 +33,7 @@ export default function Composicao() {
     lang,
     moCatalog,
     eqCatalog,
+    insumoCatalog,
     atividadesCatalog,
     formatCurrency,
     convertCurrency,
@@ -76,6 +78,10 @@ export default function Composicao() {
     return eqCatalog.find(e => e.nome.pt === eqName)?.nome[currentLang] || eqName;
   };
 
+  const translateInsumo = (nome: string) => {
+    return insumoCatalog.find(i => i.nome.pt === nome)?.nome[currentLang] || nome;
+  };
+
   const translateCategoria = (catName: string) => {
     return CAT_TRANSLATIONS[catName] || catName;
   };
@@ -93,7 +99,7 @@ export default function Composicao() {
     const kpiEff = hasRes ? (raw.kpi > 0 ? raw.kpi : kpisBase[a.id] || 0) : 0;
     const eqEff = travaEquipes ? 1 : (raw.equipes || 1);
     const c = calcA({ ...raw, kpi: kpiEff, equipes: eqEff }, volumesPrev[a.id] || 0);
-    return s + c.total * (c.durMeses > 0 ? c.durMeses * c.fatorMobilizacao : 0);
+    return s + c.total * (c.durMeses > 0 ? c.durMeses * c.fatorMobilizacao : 0) + (c.custoInsumo || 0);
   }, 0);
 
   const reqsAtiv = requisitos.filter(r => r.aId === aObj.id);
@@ -104,10 +110,16 @@ export default function Composicao() {
     label: r.cargo[currentLang] 
   }));
 
-  const eqOpts = eqCatalog.map(r => ({ 
-    id: r.id, 
-    label: r.nome[currentLang] 
+  const eqOpts = eqCatalog.map(r => ({
+    id: r.id,
+    label: r.nome[currentLang]
   }));
+
+  const insumoOpts = insumoCatalog.map(r => ({
+    id: r.id,
+    label: r.nome[currentLang]
+  }));
+  const custoInsumoTotal = (comp.insumoRows ?? []).reduce((s, r) => s + r.custo * r.qtd, 0);
 
   const addedReqIds = (comp.reqIds || []).map(String);
   const addedReqs = reqsAtiv.filter(r => addedReqIds.includes(String(r._id)));
@@ -305,7 +317,7 @@ export default function Composicao() {
                       <tr key={r._id} style={S.trOn(C.blueL)}>
                         <td style={{ padding: "4px 9px", fontSize: 11, fontWeight: 600, color: C.txt }}>
                           {displayCargoName}
-                          {role !== "G" && subAlocacaoMap[r.cargo] && (
+                          {subAlocacaoMap[r.cargo] && (
                             <span style={{ fontSize: 8, fontWeight: 700, color: C.yellow, background: C.yellow + "18", border: `1px solid ${C.yellow}44`, borderRadius: 2, padding: "0 4px", marginLeft: 6 }}>⚠️ SUB</span>
                           )}
                         </td>
@@ -371,7 +383,7 @@ export default function Composicao() {
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${C.border}`, paddingBottom: 6 }}>
                         <span style={{ fontSize: 11, fontWeight: 700, color: C.txt }}>
                           {displayCargoName}
-                          {role !== "G" && subAlocacaoMap[r.cargo] && (
+                          {subAlocacaoMap[r.cargo] && (
                             <span style={{ fontSize: 8, fontWeight: 700, color: C.yellow, background: C.yellow + "18", border: `1px solid ${C.yellow}44`, borderRadius: 2, padding: "0 4px", marginLeft: 6 }}>⚠️ SUB</span>
                           )}
                         </span>
@@ -407,21 +419,13 @@ export default function Composicao() {
               )}
             </div>
             {(ef.obrigatorioAusente || []).filter(o => o.tipo === "mo").length > 0 && (
-              role === "G" ? (
-                <div style={{ padding: "10px 14px", background: C.redL + "15", borderTop: `2px solid ${C.redL}` }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.redL, letterSpacing: 1 }}>
-                    {t("composition.warningRequiredMissing")}
+              <div style={{ padding: "6px 12px", background: C.redL + "0D", borderTop: `1px solid ${C.redL}33` }}>
+                {(ef.obrigatorioAusente || []).filter(o => o.tipo === "mo").map(o => (
+                  <div key={o.label} style={{ fontSize: 10, color: C.redL, padding: "2px 0" }}>
+                    {t("composition.warningRequiredMissingDetail", { label: translateCargo(o.label) })}
                   </div>
-                </div>
-              ) : (
-                <div style={{ padding: "6px 12px", background: C.redL + "0D", borderTop: `1px solid ${C.redL}33` }}>
-                  {(ef.obrigatorioAusente || []).filter(o => o.tipo === "mo").map(o => (
-                    <div key={o.label} style={{ fontSize: 10, color: C.redL, padding: "2px 0" }}>
-                      {t("composition.warningRequiredMissingDetail", { label: translateCargo(o.label) })}
-                    </div>
-                  ))}
-                </div>
-              )
+                ))}
+              </div>
             )}
             <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8, alignItems: "center" }}>
               <div style={{ flex: 1 }}>
@@ -567,21 +571,13 @@ export default function Composicao() {
               )}
             </div>
             {(ef.obrigatorioAusente || []).filter(o => o.tipo === "eq").length > 0 && (
-              role === "G" ? (
-                <div style={{ padding: "10px 14px", background: C.redL + "15", borderTop: `2px solid ${C.redL}` }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.redL, letterSpacing: 1 }}>
-                    {t("composition.warningRequiredMissing")}
+              <div style={{ padding: "6px 12px", background: C.redL + "0D", borderTop: `1px solid ${C.redL}33` }}>
+                {(ef.obrigatorioAusente || []).filter(o => o.tipo === "eq").map(o => (
+                  <div key={o.label} style={{ fontSize: 10, color: C.redL, padding: "2px 0" }}>
+                    {t("composition.eqWarningRequiredMissingDetail", { label: translateEquip(o.label) })}
                   </div>
-                </div>
-              ) : (
-                <div style={{ padding: "6px 12px", background: C.redL + "0D", borderTop: `1px solid ${C.redL}33` }}>
-                  {(ef.obrigatorioAusente || []).filter(o => o.tipo === "eq").map(o => (
-                    <div key={o.label} style={{ fontSize: 10, color: C.redL, padding: "2px 0" }}>
-                      {t("composition.eqWarningRequiredMissingDetail", { label: translateEquip(o.label) })}
-                    </div>
-                  ))}
-                </div>
-              )
+                ))}
+              </div>
             )}
             <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8, alignItems: "center" }}>
               <div style={{ flex: 1 }}>
@@ -590,6 +586,67 @@ export default function Composicao() {
                   onChange={e => { if (e.target.value) eqAdd(gIdx, aObj.id, e.target.value); }}
                   opts={eqOpts}
                   placeholder={t("composition.eqSelectPlaceholder")}
+                />
+              </div>
+            </div>
+          </Card>
+
+          {/* FERRAMENTAL / INSUMOS (custo único — opcional) */}
+          <Card mb={24}>
+            <Hdr2 col={C.goldL} ch={`${t("composition.insumoTitle")} — ${aObj.desc[currentLang].slice(0, 28)}`} />
+            <div className="table-responsive">
+              <table style={S.tbl}>
+                <thead><tr>
+                  <TH ch={t("composition.insumoCols.name")} />
+                  <TH ch={t("composition.insumoCols.qtd")} right w={60} />
+                  <TH ch={t("composition.insumoCols.cost")} right w={120} />
+                  <TH ch={t("composition.insumoCols.total")} right w={120} accent />
+                  <TH ch="" w={30} />
+                </tr></thead>
+                <tbody>
+                  {(comp.insumoRows ?? []).length === 0 && (
+                    <tr><td colSpan={5} style={{ padding: "12px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
+                      {t("composition.insumoEmpty")}
+                    </td></tr>
+                  )}
+                  {(comp.insumoRows ?? []).map((r) => (
+                    <tr key={r._id} style={S.trOn(C.goldL)}>
+                      <td style={{ padding: "4px 9px", fontSize: 11, fontWeight: 600, color: C.txt }}>{translateInsumo(r.nome)}</td>
+                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
+                        <LocalNumInp v={r.qtd} onSave={v => insUpd(gIdx, aObj.id, r._id, "qtd", v)} w={50} />
+                      </td>
+                      <td style={{ padding: "3px 7px", textAlign: "right" }}>
+                        <LocalNumInp v={convertCurrency(r.custo)} onSave={v => insUpd(gIdx, aObj.id, r._id, "custo", reconvertCurrency(v))} w={100} />
+                      </td>
+                      <td style={{ padding: "4px 9px", textAlign: "right", fontWeight: 700, color: C.goldL, fontSize: 11 }}>
+                        {formatCurrency(r.custo * r.qtd)}
+                      </td>
+                      <td style={{ padding: "3px 6px", textAlign: "center" }}>
+                        <BtnDel onClick={() => insDel(gIdx, aObj.id, r._id)} />
+                      </td>
+                    </tr>
+                  ))}
+                  {(comp.insumoRows ?? []).length > 0 && (
+                    <tr style={S.totRow}>
+                      <td colSpan={3} style={{ padding: "5px 9px", fontSize: 11, fontWeight: 700, color: C.goldL }}>
+                        {t("composition.insumoTotal", { count: (comp.insumoRows ?? []).length })}
+                      </td>
+                      <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 12, fontWeight: 700, color: C.goldL }}>
+                        {formatCurrency(custoInsumoTotal)}
+                      </td>
+                      <td />
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8, alignItems: "center" }}>
+              <div style={{ flex: 1 }}>
+                <Sel
+                  v=""
+                  onChange={e => { if (e.target.value) insAdd(gIdx, aObj.id, e.target.value); }}
+                  opts={insumoOpts}
+                  placeholder={t("composition.insumoSelectPlaceholder")}
                 />
               </div>
             </div>
@@ -731,8 +788,8 @@ export default function Composicao() {
                 </tbody>
               </table>
 
-              {/* Alertas de sub-alocação — facilitador */}
-              {role !== "G" && ef.temSubAlocacao && (
+              {/* Alertas de sub-alocação — facilitador e grupos */}
+              {ef.temSubAlocacao && (
                 <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, marginBottom: 12 }}>
                   <div style={{ fontSize: 9, color: "#991B1B", letterSpacing: 3, marginBottom: 6, fontWeight: 700 }}>{t("composition.alertsTitle")}</div>
                   {(ef.obrigatorioAusente || []).map(o => (
@@ -748,17 +805,6 @@ export default function Composicao() {
                 </div>
               )}
               
-              {/* Alerta para o grupo — recursos obrigatórios ausentes */}
-              {role === "G" && (ef.obrigatorioAusente || []).length > 0 && (
-                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, marginBottom: 12 }}>
-                  <div style={{ padding: "10px 12px", borderRadius: 4, background: "rgba(254, 226, 226, 0.4)", border: "1px solid #FCA5A5" }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#991B1B", letterSpacing: 1 }}>
-                      {t("composition.warningRequiredMissing")}
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Alerta de incompatibilidade KPI/Coeficientes/Coerência — todos os papéis */}
               {((ef.varKpiPct != null && ef.varKpiPct > 40) || (ef.subAlocacao || []).length > 0 || coer.issues.length > 0) && (
                 <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, marginBottom: 12 }}>
@@ -766,8 +812,7 @@ export default function Composicao() {
                     <div style={{ fontSize: 10, fontWeight: 700, color: "#B45309", letterSpacing: 2, marginBottom: 6 }}>
                       {t("composition.warningKpiCoherenceTitle")}
                     </div>
-                    {/* Grupos veem apenas o título do alerta; detalhes ficam restritos ao facilitador */}
-                    {role !== "G" && (
+                    {/* Detalhes visíveis para facilitador e grupos */}
                     <>
                     {ef.varKpiPct != null && ef.varKpiPct > 200 && (
                       <div style={{ fontSize: 9, color: "#991B1B", padding: "4px 8px", borderLeft: "3px solid #EF4444", background: "rgba(254, 242, 242, 0.9)", border: "1px solid #FCA5A5", borderRadius: "0 4px 4px 0", marginBottom: 6, lineHeight: 1.4, fontWeight: 700 }}>
@@ -814,7 +859,6 @@ export default function Composicao() {
                       );
                     })}
                     </>
-                    )}
                   </div>
                 </div>
               )}

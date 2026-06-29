@@ -15,6 +15,12 @@ export interface EqCatItem {
   loc: number;
 }
 
+export interface InsumoCatItem {
+  id: string;
+  nome: MultilingualText;
+  custo: number;
+}
+
 export interface EpcCatItem {
   id: string;
   desc: MultilingualText;
@@ -54,9 +60,19 @@ export interface EqRow {
   obrigatorio?: boolean;
 }
 
+// Ferramental/Insumo: recurso de custo único (fixo). Não tem horas/coeficiente.
+export interface InsumoRow {
+  _id: string;
+  catId: string;
+  nome: string;
+  custo: number;
+  qtd: number;
+}
+
 export interface Comp {
   moRows: MoRow[];
   eqRows: EqRow[];
+  insumoRows: InsumoRow[];
   reqIds: string[];
   kpi: number;
   equipes: number;
@@ -94,6 +110,7 @@ export interface Grupo {
   senha?: string;
   ordem: number;
   session_id?: string;
+  event_id?: string;
 }
 
 export interface Requisito {

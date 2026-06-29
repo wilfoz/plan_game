@@ -1,4 +1,4 @@
-import { MoCatItem, EqCatItem, EpcCatItem, AtividadeItem } from "../types";
+import { MoCatItem, EqCatItem, InsumoCatItem, EpcCatItem, AtividadeItem } from "../types";
 
 export const MO_CAT: MoCatItem[] = [
   { id: "mo1", cargo: { pt: "AJUDANTE", es: "AYUDANTE" }, sal: 2500 },
@@ -40,6 +40,15 @@ export const EQ_CAT: EqCatItem[] = [
   { id: "eq18", nome: { pt: "ESCAVADEIRA HIDRÁULICA", es: "EXCAVADORA HIDRÁULICA" }, loc: 25000 },
   { id: "eq19", nome: { pt: "TRATOR DE ESTEIRA", es: "TRACTOR DE ORUGAS" }, loc: 40000 },
   { id: "eq20", nome: { pt: "PÁ CARREGADEIRA", es: "PALA CARGADORA" }, loc: 25000 },
+];
+
+// Ferramental/Insumo — custo único (fixo). Catálogo padrão (sobrescrito por evento).
+export const INSUMO_CAT: InsumoCatItem[] = [
+  { id: "ins1", nome: { pt: "CABO CONDUTOR (BOBINA)", es: "CABLE CONDUCTOR (BOBINA)" }, custo: 50000 },
+  { id: "ins2", nome: { pt: "CABO OPGW (BOBINA)", es: "CABLE OPGW (BOBINA)" }, custo: 35000 },
+  { id: "ins3", nome: { pt: "CADEIA DE ISOLADORES", es: "CADENA DE AISLADORES" }, custo: 1800 },
+  { id: "ins4", nome: { pt: "GRAMPO DE ANCORAGEM", es: "GRAPA DE ANCLAJE" }, custo: 450 },
+  { id: "ins5", nome: { pt: "EMENDA PREFORMADA", es: "EMPALME PREFORMADO" }, custo: 900 },
 ];
 
 export const EPC_CAT: EpcCatItem[] = [

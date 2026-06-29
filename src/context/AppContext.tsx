@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { ATIVS, MO_CAT, EQ_CAT, BASE_COMPOSITIONS, BASE_REQUIREMENTS, REQ_TRANSLATIONS } from "../constants/catalogs";
+import { ATIVS, MO_CAT, EQ_CAT, INSUMO_CAT, BASE_COMPOSITIONS, BASE_REQUIREMENTS, REQ_TRANSLATIONS } from "../constants/catalogs";
 import { uid } from "../utils/formatters";
 import { supabase } from "../lib/supabase";
 import {
@@ -24,7 +24,7 @@ import { useEpiCargo } from "../hooks/useEpiCargo";
 import { useRealtimeComps } from "../hooks/useRealtimeComps";
 import { Comp, GrupoComps, Grupo, LtConfig, Session, Requisito } from "../types";
 
-const mkComp = (): Comp => ({ moRows: [], eqRows: [], reqIds: [], kpi: 0, equipes: 1, mesInicia: 0 });
+const mkComp = (): Comp => ({ moRows: [], eqRows: [], insumoRows: [], reqIds: [], kpi: 0, equipes: 1, mesInicia: 0 });
 const mkGrupoComps = (): GrupoComps => Object.fromEntries(ATIVS.map(a => [a.id, mkComp()]));
 const mkEquipesBase = () => Object.fromEntries(ATIVS.map(a => [a.id, { moRows: [], eqRows: [] }]));
 const EMPTY_LT: LtConfig = { nome: "", tensao: "500kV", ext: 0, circ: "simples", cabFase: 4, pararaios: 2, opgw: 1, travaEquipes: false };
@@ -92,6 +92,9 @@ interface AppContextType {
   eqAdd: (gi: number, aId: string, catId: string) => void;
   eqDel: (gi: number, aId: string, _id: string) => void;
   eqUpd: (gi: number, aId: string, _id: string, k: string, v: any) => void;
+  insAdd: (gi: number, aId: string, catId: string) => void;
+  insDel: (gi: number, aId: string, _id: string) => void;
+  insUpd: (gi: number, aId: string, _id: string, k: string, v: any) => void;
   uKpi: (gi: number, aId: string, v: any) => void;
   uEq: (gi: number, aId: string, v: any) => void;
   uMesInicia: (gi: number, aId: string, v: any) => void;
@@ -110,7 +113,7 @@ interface AppContextType {
   calcA: (comp: Comp, esc: number) => CalcAResult;
   calcSeg: (gi: number) => CalcSegResult;
   calcEfGrupo: (gi: number) => CalcEficienciaGeralResult;
-  buildRank: () => any[];
+  buildRank: (grp?: "M" | "L") => any[];
   isLoading: boolean;
   realtimeConnected: boolean;
   lang: "pt" | "es";
@@ -120,6 +123,7 @@ interface AppContextType {
   segurancaAplicavel: boolean;
   moCatalog: typeof MO_CAT;
   eqCatalog: typeof EQ_CAT;
+  insumoCatalog: typeof INSUMO_CAT;
   atividadesCatalog: typeof ATIVS;
   requisitosBaseCatalog: typeof BASE_REQUIREMENTS;
   formatCurrency: (v: number) => string;
@@ -216,6 +220,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }))
     : EQ_CAT;
 
+  const { data: dbInsumoCat } = useQuery({
+    queryKey: ["event_insumo_cat", activeEventId],
+    queryFn: async () => {
+      if (!activeEventId) return null;
+      const { data, error } = await supabase
+        .from("event_insumo_cat")
+        .select("*")
+        .eq("event_id", activeEventId);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!activeEventId,
+  });
+  const insumoCatalog = dbInsumoCat
+    ? dbInsumoCat.map((i: any) => ({
+        id: i.id,
+        nome: { pt: i.nome_pt, es: i.nome_es },
+        custo: Number(i.custo),
+      }))
+    : INSUMO_CAT;
+
   const { data: dbAtividades } = useQuery({
     queryKey: ["event_atividades", activeEventId],
     queryFn: async () => {
@@ -293,7 +318,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const ltHook       = useLtConfig(activeSessionId);
   const ativHook     = useAtividadesConfig(activeSessionId);
   const ebHook       = useEquipeBase(activeSessionId);
-  const gruposHook   = useGrupos(activeSessionId);
+  const gruposHook   = useGrupos(activeSessionId, activeEventId);
   const reqHook      = useRequisitos(activeSessionId);
   const epiHook      = useEpiCargo(activeSessionId);
 
@@ -482,7 +507,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ── Grupos (React Query source of truth) ─────────────────────────────────
   const addGrupo = () => {
-    const nome = `Grupo ${String.fromCharCode(65 + grupos.length)}`;
+    // Escolhe o próximo nome "Grupo X" ainda não usado nesta sessão, evitando
+    // colisão com o índice único (session_id, upper(nome)) — ex.: após excluir
+    // um grupo do meio, o nome baseado só na contagem repetiria um existente.
+    const usados = new Set(grupos.map(g => g.nome.trim().toUpperCase()));
+    let nome = "";
+    for (let i = 0; i < 26; i++) {
+      const cand = `Grupo ${String.fromCharCode(65 + i)}`;
+      if (!usados.has(cand.toUpperCase())) { nome = cand; break; }
+    }
+    if (!nome) nome = `Grupo ${grupos.length + 1}`;
     gruposHook.add.mutate({ nome, resp: "", senha: "", ordem: grupos.length });
   };
 
@@ -668,6 +702,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ...c, eqRows: c.eqRows.map(r => r._id === _id ? { ...r, [k]: +v || 0 } : r)
   }));
 
+  // Ferramental/Insumo (custo único): grupo seleciona do catálogo do evento.
+  const insAdd = (gi: number, aId: string, catId: string) => {
+    const cat = insumoCatalog.find(r => r.id === catId);
+    if (!cat) return;
+    updateComp(gi, aId, c => ({
+      ...c,
+      insumoRows: [...(c.insumoRows ?? []), { _id: uid(), catId, nome: cat.nome.pt, custo: cat.custo, qtd: 1 }]
+    }));
+  };
+  const insDel = (gi: number, aId: string, _id: string) => updateComp(gi, aId, c => ({ ...c, insumoRows: (c.insumoRows ?? []).filter(r => r._id !== _id) }));
+  const insUpd = (gi: number, aId: string, _id: string, k: string, v: any) => updateComp(gi, aId, c => ({
+    ...c, insumoRows: (c.insumoRows ?? []).map(r => r._id === _id ? { ...r, [k]: +v || 0 } : r)
+  }));
+
   const uKpi      = (gi: number, aId: string, v: any) => updateComp(gi, aId, c => ({ ...c, kpi: +v || 0 }));
   const uEq       = (gi: number, aId: string, v: any) => updateComp(gi, aId, c => ({ ...c, equipes: Math.max(1, +v || 1) }));
   const uMesInicia = (gi: number, aId: string, v: any) => updateComp(gi, aId, c => ({ ...c, mesInicia: +v || 0 }));
@@ -684,7 +732,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const PENALTY: Record<string, number> = { risco: 1.2, pior: 1.4 };
 
-  const buildRank = () => {
+  // grp opcional ("M" = Montagem, "L" = Lançamento) restringe o ranking à etapa.
+  // Custo, prazo, desqualificação por atividade vazia e segurança passam a
+  // considerar apenas as atividades da etapa (rankings independentes por etapa).
+  const buildRank = (grp?: "M" | "L") => {
+    const ativs = grp ? ATIVS.filter(a => a.grp === grp) : ATIVS;
+    const ativIds = new Set(ativs.map(a => a.id));
+    const reqsScoped = requisitos.filter(r => ativIds.has(r.aId));
+
     const getCompEff = (i: number, aId: string) => {
       const comp = gc(i, aId);
       const hasRes = comp.moRows.length > 0 || comp.eqRows.length > 0 || comp.kpi > 0;
@@ -695,24 +750,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const res = grupos.map((g, i) => {
       const ef = calcEfGrupo(i);
-      const ctBase = ATIVS.reduce((s, a) => {
+      const ctBase = ativs.reduce((s, a) => {
         const c  = calcA(getCompEff(i, a.id), volumesPrev[a.id] || 0);
         const pen = PENALTY[ef.porAtiv[a.id]?.impactoPrazo ?? ""] ?? 1.0;
-        return s + c.total * (c.durMeses > 0 ? c.durMeses * pen * c.fatorMobilizacao : 0);
+        // Recorrente (× duração) + insumo de custo único (fixo).
+        return s + c.total * (c.durMeses > 0 ? c.durMeses * pen * c.fatorMobilizacao : 0) + (c.custoInsumo || 0);
       }, 0);
       const penSeg = segurancaAplicavel
-        ? calcNaoAplicPenaltyBase(requisitos, (aId) => gc(i, aId))
+        ? calcNaoAplicPenaltyBase(reqsScoped, (aId) => gc(i, aId))
         : { count: 0, fator: 1.0, pct: 0, detalhes: [] };
       const ct = ctBase * penSeg.fator;
       let dm;
       if (duracaoSomada) {
-        dm = ATIVS.reduce((s, a) => {
+        dm = ativs.reduce((s, a) => {
           const c   = calcA(getCompEff(i, a.id), volumesPrev[a.id] || 0);
           const pen = PENALTY[ef.porAtiv[a.id]?.impactoPrazo ?? ""] ?? 1.0;
           return s + c.dur * pen;
         }, 0);
       } else {
-        const pts = ATIVS.map(a => {
+        const pts = ativs.map(a => {
           const compEff = getCompEff(i, a.id);
           const c   = calcA(compEff, volumesPrev[a.id] || 0);
           if (c.dur <= 0) return null;
@@ -724,8 +780,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ? Math.max(...pts.map(x => x.e)) - Math.min(...pts.map(x => x.s)) + 1
           : 0;
       }
-      const seg = calcSeg(i);
-      const atvsVazias = ATIVS.filter(a => {
+      const seg = !segurancaAplicavel
+        ? { score: 100, desq: false, reprovado: false, missing: [] as any[] }
+        : calcSegBase(reqsScoped, (aId) => gc(i, aId));
+      const atvsVazias = ativs.filter(a => {
         const comp = gc(i, a.id);
         return !(comp.moRows?.length > 0 || comp.eqRows?.length > 0 || comp.kpi > 0);
       }).map(a => a.id);
@@ -769,6 +827,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       comps, gc, updateComp, toggleReq, addAllReqs,
       moAdd, moDel, moUpd,
       eqAdd, eqDel, eqUpd,
+      insAdd, insDel, insUpd,
       uKpi, uEq, uMesInicia,
       equipesBase,
       eqBaseAddMo, eqBaseDelMo, eqBaseUpdMo,
@@ -782,6 +841,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       segurancaAplicavel,
       moCatalog,
       eqCatalog,
+      insumoCatalog,
       atividadesCatalog,
       requisitosBaseCatalog,
       formatCurrency,

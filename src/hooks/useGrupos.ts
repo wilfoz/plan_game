@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
 import { Grupo } from "../types";
 
-export function useGrupos(sessionId: string | null) {
+export function useGrupos(sessionId: string | null, eventId: string | null = null) {
   const qc = useQueryClient();
   const key = ["grupos", sessionId];
 
@@ -13,7 +13,7 @@ export function useGrupos(sessionId: string | null) {
       if (!sessionId) return [];
       const { data, error } = await supabase
         .from("grupos")
-        .select("id, session_id, nome, resp, ordem")
+        .select("id, session_id, event_id, nome, resp, ordem")
         .eq("session_id", sessionId)
         .order("ordem", { ascending: true });
       if (error) throw error;
@@ -23,6 +23,7 @@ export function useGrupos(sessionId: string | null) {
         resp: g.resp ?? "",
         ordem: g.ordem ?? 0,
         session_id: g.session_id,
+        event_id: g.event_id ?? undefined,
       }));
     },
   });
@@ -46,9 +47,19 @@ export function useGrupos(sessionId: string | null) {
       ordem?: number;
     }) => {
       if (!sessionId) return "";
+      // event_id: usa o evento ativo; se ausente, deriva do evento da sessão.
+      let evId = eventId;
+      if (!evId) {
+        const { data: sess } = await supabase
+          .from("sessions")
+          .select("event_id")
+          .eq("id", sessionId)
+          .single();
+        evId = sess?.event_id ?? null;
+      }
       const { data, error } = await supabase
         .from("grupos")
-        .insert({ session_id: sessionId, nome, resp, senha: "", ordem })
+        .insert({ session_id: sessionId, event_id: evId, nome, resp, senha: "", ordem })
         .select("id")
         .single();
       if (error) throw error;

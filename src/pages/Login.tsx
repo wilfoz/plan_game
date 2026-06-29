@@ -92,8 +92,16 @@ export default function Login() {
     setActiveSessionId(s.session_id);
     setGIdx(s.grupo_idx);
     setRole("G");
+    // O grupo pertence ao evento (jornada) da sessão escolhida.
+    setActiveEventId(s.event_id ?? null);
+    setActiveEventNome(s.event_nome ?? "");
 
-    const others = allSessoes.filter(x => x.session_id !== s.session_id);
+    // Isolamento por evento: a partir daqui o grupo só enxerga/troca entre as
+    // sessões do PRÓPRIO evento, nunca de outra jornada (mesmo com nome igual).
+    const sameEvent = (allSessoes ?? []).filter(x => x.event_id === s.event_id);
+    setUserSessions(sameEvent);
+
+    const others = sameEvent.filter(x => x.session_id !== s.session_id);
     if (others.length > 0) {
       try {
         // 1. Verifica se o grupo já tem recursos na sessão atual
@@ -304,7 +312,14 @@ export default function Login() {
                   onMouseEnter={e => e.currentTarget.style.borderColor = C.gold}
                   onMouseLeave={e => e.currentTarget.style.borderColor = C.border2}
                 >
-                  <span>{s.session_nome}</span>
+                  <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <span>{s.session_nome}</span>
+                    {s.event_nome && (
+                      <span style={{ fontSize: 9, color: C.txt3, letterSpacing: 1, fontWeight: 400 }}>
+                        {t("login.eventLabel", { event: s.event_nome })}
+                      </span>
+                    )}
+                  </span>
                   <span style={{ fontSize: 10, color: C.gold, letterSpacing: 1 }}>{t("login.sessionEnter")}</span>
                 </button>
               ))}

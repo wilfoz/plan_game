@@ -29,7 +29,7 @@ export default function CopiarComposicao() {
     try {
       const { data: sourceComps, error } = await supabase
         .from("grupo_comps")
-        .select("atividade_id, mo_rows, eq_rows, kpi, equipes")
+        .select("atividade_id, mo_rows, eq_rows, insumo_rows, kpi, equipes")
         .eq("grupo_id", opt.grupo_id);
 
       if (error) throw error;
@@ -45,6 +45,7 @@ export default function CopiarComposicao() {
           ...cur,
           moRows:  row.mo_rows  ?? [],
           eqRows:  row.eq_rows  ?? [],
+          insumoRows: row.insumo_rows ?? [],
           kpi:     row.kpi      ?? cur.kpi,
           equipes: row.equipes  ?? cur.equipes,
         }));

@@ -49,6 +49,7 @@
     "connError": "Error de conexión. Intente de nuevo.",
     "selectSession": "SELECCIONE LA SESIÓN",
     "registeredSessions": "{{user}} está registrado en {{count}} sesiones.",
+    "eventLabel": "Jornada: {{event}}",
     "sessionEnter": "ENTRAR →",
     "lockoutTimer": "Bloqueado por demasiados intentos. Espere {{min}} min."
   },
@@ -122,6 +123,7 @@
     "title": "Configuración de los Grupos de Trabajo",
     "titleShort": "👥 GRUPOS PARTICIPANTES",
     "addGroup": "➕ Agregar Grupo",
+    "duplicateName": "Ya existe un grupo con ese nombre en esta sesión.",
     "empty": "Ningún grupo registrado. Agregue uno para permitir el acceso.",
     "cols": {
       "name": "Nombre del Grupo",
@@ -227,6 +229,8 @@
       "salary": "SALARIO/MES",
       "total": "TOTAL/MES"
     },
+    "ruleObrigatorio": "Cuando está marcado, este recurso es OBLIGATORIO: debe estar presente en la composición de cada grupo, de lo contrario el grupo recibe una alerta. Al marcarlo, la \"Var. Mín %\" se deshabilita (ambas reglas se excluyen).",
+    "ruleVarMin": "Variación mínima permitida del coeficiente (Hh/und) del grupo respecto a la base. Se almacena como valor negativo (ej.: -25 = hasta 25% por debajo de la base). Si el coeficiente del grupo queda por debajo de ese límite, se dispara una alerta de subasignación.",
     "moEmpty": "Ningún cargo agregado. Use el selector de abajo para agregar.",
     "moTotal": "TOTAL MO — {{count}} profesionales",
     "warningRequiredMissing": "⚠️ RECURSO OBLIGATORIO NO INCLUIDO EN EL EQUIPO",
@@ -248,6 +252,16 @@
     "eqTotal": "TOTAL EQUIPOS — {{count}} ítems",
     "eqWarningRequiredMissingDetail": "❌ {{label}} — equipo obligatorio no agregado",
     "eqSelectPlaceholder": "+ Seleccione un equipo para agregar...",
+    "insumoTitle": "🧰 HERRAMENTAL / INSUMOS",
+    "insumoCols": {
+      "name": "ÍTEM",
+      "qtd": "CANT",
+      "cost": "COSTO UNIT.",
+      "total": "TOTAL"
+    },
+    "insumoEmpty": "Ningún insumo agregado (opcional). Costo único, no afecta plazo ni coeficientes.",
+    "insumoTotal": "TOTAL INSUMOS — {{count}} ítems",
+    "insumoSelectPlaceholder": "+ Seleccione un insumo/herramental para agregar...",
     "reqTitle": "🛡️ REQUISITOS DE SEGURIDAD",
     "reqCols": {
       "category": "CATEGORÍA",

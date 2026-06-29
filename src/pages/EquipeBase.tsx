@@ -120,26 +120,28 @@ function AtivBlock({ a, base, kpi, vol }: AtivBlockProps) {
             </div>
             <table style={S.tbl}>
               <thead><tr>
+                <TH ch="#" right w={30} />
                 <TH ch={t("composition.moCols.cargo")} w={200} />
                 <TH ch={t("composition.moCols.qtd")} right w={60} />
                 <TH ch={t("composition.moCols.hours")} right w={80} />
                 <TH ch={t("composition.moCols.hoursTotal")} right w={90} />
                 <TH ch={t("composition.moCols.coef", { und: activityUnit })} right w={120} accent />
                 <TH ch={t("composition.moCols.salary")} right w={110} />
-                <TH ch="Obrig.?" center w={60} />
-                <TH ch="Var. Mín %" right w={80} />
+                <TH ch="Obrig.?" center w={60} tip={t("composition.ruleObrigatorio")} />
+                <TH ch="Var. Mín %" right w={80} tip={t("composition.ruleVarMin")} />
                 <TH ch="" w={30} />
               </tr></thead>
               <tbody>
                 {moRows.length === 0 && (
-                  <tr><td colSpan={9} style={{ padding: "10px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
+                  <tr><td colSpan={10} style={{ padding: "10px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
                     {t("baseTeam.noLaborDefined")}
                   </td></tr>
                 )}
-                {moRows.map(r => {
+                {moRows.map((r, i) => {
                   const ht = r.qtd * (r.horasDia ?? 8.5);
                   return (
                     <tr key={r._id} style={S.trOn(C.blueL)}>
+                      <td style={{ padding: "4px 9px", textAlign: "right", fontSize: 11, color: C.txt3 }}>{i + 1}</td>
                       <td style={{ padding: "4px 9px", fontSize: 11, fontWeight: 600, color: C.txt }}>{translateCargo(r.cargo)}</td>
                       <td style={{ padding: "3px 7px", textAlign: "right" }}>
                         <LocalNumInp v={r.qtd} onSave={v => eqBaseUpdMo(a.id, r._id, "qtd", v)} w={50} />
@@ -197,7 +199,7 @@ function AtivBlock({ a, base, kpi, vol }: AtivBlockProps) {
                 })}
                 {moRows.length > 0 && somaHh != null && (
                   <tr style={S.totRow}>
-                    <td colSpan={4} style={{ padding: "5px 9px", fontSize: 11, fontWeight: 700, color: C.goldL }}>
+                    <td colSpan={5} style={{ padding: "5px 9px", fontSize: 11, fontWeight: 700, color: C.goldL }}>
                       {t("baseTeam.totalMo", { count: moRows.reduce((s, r) => s + r.qtd, 0) })}
                     </td>
                     <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 12, fontWeight: 700, color: C.goldL }}>
@@ -230,25 +232,27 @@ function AtivBlock({ a, base, kpi, vol }: AtivBlockProps) {
             </div>
             <table style={S.tbl}>
               <thead><tr>
+                <TH ch="#" right w={30} />
                 <TH ch={t("composition.eqCols.name")} w={240} />
                 <TH ch={t("composition.eqCols.qtd")} right w={60} />
                 <TH ch={t("composition.eqCols.hours")} right w={80} />
                 <TH ch={t("composition.eqCols.hoursTotal")} right w={90} />
                 <TH ch={t("composition.eqCols.coef", { und: activityUnit })} right w={120} accent />
                 <TH ch={t("composition.eqCols.rent")} right w={110} />
-                <TH ch="Obrig.?" center w={60} />
+                <TH ch="Obrig.?" center w={60} tip={t("composition.ruleObrigatorio")} />
                 <TH ch="" w={30} />
               </tr></thead>
               <tbody>
                 {eqRows.length === 0 && (
-                  <tr><td colSpan={8} style={{ padding: "10px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
+                  <tr><td colSpan={9} style={{ padding: "10px 9px", color: C.txt3, fontSize: 11, fontStyle: "italic", textAlign: "center" }}>
                     {t("baseTeam.noEqDefined")}
                   </td></tr>
                 )}
-                {eqRows.map(r => {
+                {eqRows.map((r, i) => {
                   const ht = r.qtd * (r.horasDia ?? 8.5);
                   return (
                     <tr key={r._id} style={S.trOn(C.yellow)}>
+                      <td style={{ padding: "4px 9px", textAlign: "right", fontSize: 11, color: C.txt3 }}>{i + 1}</td>
                       <td style={{ padding: "4px 9px", fontSize: 11, fontWeight: 600, color: C.txt }}>{translateEquip(r.nome)}</td>
                       <td style={{ padding: "3px 7px", textAlign: "right" }}>
                         <LocalNumInp v={r.qtd} onSave={v => eqBaseUpdEq(a.id, r._id, "qtd", v)} w={50} />
@@ -284,7 +288,7 @@ function AtivBlock({ a, base, kpi, vol }: AtivBlockProps) {
                 })}
                 {eqRows.length > 0 && somaCh != null && somaCh > 0 && (
                   <tr style={S.totRow}>
-                    <td colSpan={4} style={{ padding: "5px 9px", fontSize: 11, fontWeight: 700, color: C.goldL }}>
+                    <td colSpan={5} style={{ padding: "5px 9px", fontSize: 11, fontWeight: 700, color: C.goldL }}>
                       {t("baseTeam.totalEq", { count: eqRows.reduce((s, r) => s + r.qtd, 0) })}
                     </td>
                     <td style={{ padding: "5px 9px", textAlign: "right", fontSize: 12, fontWeight: 700, color: C.goldL }}>
