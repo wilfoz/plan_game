@@ -4,6 +4,13 @@
 > **o que é o jogo**, **como ele se encaixa no código que já existe** e **de onde vêm os assets**,
 > antes de escrever a primeira linha de `<Canvas>`.
 
+> **Decisões tomadas** (07/10/2026 — ver [wilfoz/plan_game#2](https://github.com/wilfoz/plan_game/issues/2)):
+> **(1) Público-alvo: desktop.** Sem celular e sem tablet.
+> **(2) O 3D não entra no Ranking.** A pontuação permanece exatamente como é hoje.
+>
+> As duas respostas estão aplicadas ao longo do documento. O resumo do que elas mudam
+> está em [§10](#10-o-que-as-decisões-de-escopo-mudaram).
+
 ---
 
 ## 1. Diagnóstico: o que a sessão dos grupos é hoje
@@ -81,11 +88,26 @@ Risco: exige modelo de eventos, replanejamento, novo modelo de dados, nova lógi
 
 ### Recomendação
 
-**A → B → C, em fases, com A entregue e usado numa sessão real antes de começar B.**
+**A → B, em fases, com A entregue e usado numa sessão real antes de começar B. C fica em aberto.**
 
 O erro clássico aqui é começar pelo C porque é o mais empolgante. A fase A já captura a maior
 parte do valor pedagógico com uma fração do risco, e ela constrói toda a infraestrutura
 (assets, pipeline, performance, integração com o `AppContext`) que B e C vão precisar de qualquer forma.
+
+**Com as decisões de escopo, o cálculo das três mudou:**
+
+- **A ficou mais forte.** Desktop permite **split view** — tabela e canteiro lado a lado, na
+  mesma tela (§3.7). O grupo vê o número e a consequência no mesmo olhar, que é precisamente
+  o problema #1 do diagnóstico. Em celular isso teria que ser abas, e metade do efeito morreria.
+- **B foi destravada.** O risco declarado de B era drag-and-drop em tela pequena e
+  acessibilidade de toque. Desktop-only elimina os dois: mouse, hover, cursor preciso,
+  menu de contexto, atalhos de teclado. B passa de "médio risco" a extensão natural de A.
+- **C perdeu o incentivo.** Sem entrar no Ranking, replanejar diante de uma chuva no mês 3
+  não tem consequência competitiva — o grupo pode simplesmente ignorar o evento.
+  C deixa de ser "fase competitiva" e vira **ferramenta de debriefing do facilitador**:
+  roda-se a simulação *depois* da composição, em plenária, para discutir por que o plano do
+  grupo X aguenta um imprevisto e o do grupo Y não. Isso continua sendo valioso, mas é um
+  objetivo diferente e muito menos urgente. **Recomendação: não planejar C agora.**
 
 ---
 
@@ -216,16 +238,39 @@ Three.js + drei adicionam ~600–800 KB gzip. **Nenhum facilitador deve pagar is
 Login.** Com `manualChunks` no `vite.config.ts`, separar `three` em chunk próprio e deixar
 o cache do navegador trabalhar entre sessões.
 
-### 3.7 Híbrido 3D + DOM
+### 3.7 Híbrido 3D + DOM, em split view
 
-Não tente colocar números dentro do 3D. Texto 3D é caro, feio em tela pequena e não é
-acessível nem traduzível de forma confortável. Use:
+Não tente colocar números dentro do 3D. Texto 3D é caro, pesado de traduzir e ruim de ler. Use:
 
 - **3D** → canteiro, atores, máquinas, torres, cabos, progresso, alertas espaciais
-- **DOM** (overlay com os estilos de `src/styles.ts` e a paleta `C`) → custo, duração,
+- **DOM** (com os estilos de `src/styles.ts` e a paleta `C`) → custo, duração,
   coeficientes Hh/Ch, KPI, tabelas
 - **`<Html>` do drei** → só para o rótulo que precisa seguir um objeto (ex.: badge "⚠ sem operador"
   grudado no guindaste), com `occlude` e `distanceFactor`
+
+**Layout (decidido por ser desktop):** não é uma tela nova que substitui a `Composicao`, é uma
+divisão da tela que ela já tem. A tabela de MO/equipamento/insumo fica à esquerda, o canteiro
+à direita, ambos visíveis ao mesmo tempo:
+
+```
+┌─────────────────────────────┬───────────────────────────┐
+│  tabela MO / EQ / insumo    │                           │
+│  KPI · equipes · mês        │     <Canvas> canteiro     │
+│  requisitos de segurança    │                           │
+│  (edição — fonte da verdade)│  (consequência imediata)  │
+└─────────────────────────────┴───────────────────────────┘
+│  barra de resumo: custo · duração · coef Hh/Ch · alertas │
+└──────────────────────────────────────────────────────────┘
+```
+
+Isso é o que faz a fase A valer a pena: **a edição e a consequência no mesmo olhar.**
+Em tela de celular seria obrigatoriamente em abas, e o efeito se perderia.
+
+Consequências de interação que só existem porque é desktop, e que devem ser usadas:
+**hover** (passar o mouse no guindaste mostra operador alocado e coeficiente, sem poluir a cena
+com badges permanentes), **cursor de precisão** (slots pequenos como a cabine são alvos válidos),
+e **teclado** — `Composicao.tsx` já tem `ArrowLeft`/`ArrowRight` para navegar entre as abas de
+atividade, e esse atalho **tem que continuar funcionando** com o canvas em foco.
 
 A paleta já existe e deve ser respeitada: `C.gold #F37C02` (destaque), `C.blueL #004F86`
 (grupo M — montagem), `C.greenL #10B981` (grupo L — lançamento), `C.redL`/`C.yellow` (alertas).
@@ -270,11 +315,15 @@ e `calcSeg`, progresso de `monthlyVolumes()`. Assets reais substituindo gray-box
 
 ### Fase 2 — Composição via 3D (se a fase 1 provar valor)
 
-Drag-and-drop da bandeja para slots. Tabela mantida como modo avançado.
+Drag-and-drop da bandeja para os slots, com `Outline` marcando destino válido. A tabela
+continua sendo a fonte da verdade e permanece visível no split view — o 3D só dispara
+`moAdd`/`eqAdd`/`moDel`. Destravada por ser desktop.
 
-### Fase 3 — Simulação temporal e eventos
+### Fase 3 — Simulação temporal e eventos — **não planejar agora**
 
-Play/pause no Cronograma, eventos do facilitador, replanejamento.
+Play/pause no Cronograma, eventos do facilitador, replanejamento. Como o 3D não pontua,
+esta fase perdeu o incentivo que a justificava (§2) e passa a ser ferramenta de debriefing.
+Só entra em pauta se o facilitador pedir explicitamente, depois de A e B rodando.
 
 ### Disciplina de processo
 
@@ -351,18 +400,26 @@ auditoria de licença é chata depois e trivial se feita na hora.
 
 ---
 
-## 7. Performance: orçamento proposto
+## 7. Performance: orçamento revisado para desktop
 
-Alvo: 60 fps no laptop do facilitador, ≥30 fps em celular de 2 anos.
+**O alvo não é "desktop", é notebook corporativo com GPU integrada** (Intel Iris Xe / UHD) a
+1080p. Essa é a máquina real do facilitador e do participante numa sala de treinamento — não
+a workstation do dev. Celular saiu do escopo, mas isso afrouxa o orçamento, não o elimina.
 
-| Métrica | Orçamento |
-|---|---|
-| Triângulos em tela | ≤ 150k |
-| Draw calls | ≤ 60 (instanciar trabalhadores e torres é obrigatório) |
-| Total de GLB baixado | ≤ 8 MB (Draco/meshopt) |
-| Texturas | KTX2/Basis, ≤ 1024² |
-| Luzes com sombra | 1 (direcional) + ambiente de HDRI |
-| Chunk JS do 3D | lazy, fora do bundle inicial |
+| Métrica | Antes (incluía celular) | **Agora (desktop)** |
+|---|---|---|
+| Triângulos em tela | ≤ 150k | **≤ 500k** |
+| Draw calls | ≤ 60 | **≤ 150** |
+| Total de GLB baixado | ≤ 8 MB | **≤ 25 MB** |
+| Texturas | KTX2, ≤ 1024² | **KTX2, ≤ 2048²** |
+| Luzes com sombra | 1 direcional | **1 direcional + HDRI** (sombra suave liberada) |
+| Postprocessing | nenhum | **`Outline` (fase B) + `N8AO` opcional** |
+| Chunk JS do 3D | lazy | **lazy — inalterado** |
+
+O que **não** muda com desktop: `<Instances>` para trabalhadores e perfis de torre continua
+obrigatório (é o que mantém draw calls baixos, e GPU integrada sofre com draw calls antes de
+sofrer com triângulos), e a torre continua procedural — 500k triângulos acabam rápido se cada
+torre treliçada custar 200k.
 
 Pipeline de asset (uma vez por modelo, versionado em script npm):
 
@@ -378,11 +435,16 @@ npx gltfjsx out.glb --types --transform
 Truques que mais rendem neste caso específico:
 - `<Instances>` para trabalhadores e perfis de torre (dezenas de cópias, 1 draw call)
 - `<Detailed>` (LOD) nas torres ao longo do corredor
-- `<AdaptiveDpr>` + `<PerformanceMonitor>` para degradar resolução no celular em vez de travar
-- `frameloop="demand"` quando a cena está estática (composição parada = não renderizar!) —
-  isso sozinho resolve bateria e aquecimento em celular
-- **Postprocessing: provavelmente não.** Bloom/SSAO custam caro e não comunicam nada aqui.
-  Se entrar, só `SMAA` ou nada.
+- `<PerformanceMonitor>` continua valendo (GPU integrada varia muito entre máquinas);
+  `<AdaptiveDpr>` fica **opcional** — era para celular
+- `frameloop="demand"` **continua valendo**, e por dois motivos que sobrevivem ao desktop:
+  notebook em bateria numa sala de treinamento, e o fato de que a cena fica literalmente
+  parada a maior parte do tempo (o grupo está discutindo, não mexendo)
+- **Postprocessing: revisado para desktop.** `Outline` passa a valer a pena na fase B — é a
+  affordance de seleção do drag-and-drop (objeto sob o cursor / slot válido de destino), e
+  substitui bem truques de troca de material. `N8AO` (ambient occlusion) é defensável porque
+  **ajuda a ler a profundidade da treliça da torre**, que é geometria confusa sem oclusão.
+  Bloom e depth-of-field continuam fora: custam caro e não comunicam nada neste domínio.
 
 ---
 
@@ -391,9 +453,12 @@ Truques que mais rendem neste caso específico:
 | Risco | Mitigação |
 |---|---|
 | Esforço de arte vira o projeto inteiro | gray-box primeiro; 1 personagem + variações; torre procedural |
-| Celular dos participantes não aguenta | orçamento §7 medido desde a fase 0; `frameloop="demand"`; LOD |
+| ~~Celular dos participantes não aguenta~~ | **fora de escopo** — público-alvo é desktop |
+| Notebook corporativo com GPU integrada engasga | orçamento §7 medido desde a fase 0; `<Instances>`; `frameloop="demand"`; LOD; testar em máquina sem GPU dedicada |
+| Orçamento afrouxado vira desculpa para não otimizar | o teto de draw calls (≤150) é o que GPU integrada realmente sente; medir em PR, não no fim |
 | 3D vira enfeite e não ensina nada | cada elemento visual **tem** que mapear uma regra de `calculations.ts`; se não mapeia, não entra |
 | Duas formas de editar o mesmo estado = bugs | o 3D só dispara ações do `AppContext`; nunca escreve direto no Supabase |
+| Fase C construída sem ter quem a use | não planejar agora — sem pontuação, é debriefing opcional (§2) |
 | Bundle inicial degrada o app atual | `React.lazy` + `manualChunks`; medir com `vite build --report` |
 | Licença de asset em material comercial | `docs/ASSETS.md` preenchido no momento do download |
 | Wifi ruim no evento | assets e HDRI self-hospedados; `useGLTF.preload` na tela anterior |
@@ -403,9 +468,9 @@ Truques que mais rendem neste caso específico:
 
 ## 9. Perguntas abertas (para decidir antes de codar)
 
-1. **O 3D substitui ou acompanha a tabela de composição?** (recomendação: acompanha, na fase A)
-2. **Qual o dispositivo-alvo real dos participantes?** Notebook, tablet ou celular? Isso muda
-   o orçamento de performance e a viabilidade de drag-and-drop.
+1. **O 3D substitui ou acompanha a tabela de composição?** (recomendação: acompanha, em split
+   view — §3.7; pendente de confirmação)
+2. ~~**Qual o dispositivo-alvo real dos participantes?**~~ ✅ **Desktop.**
 3. **Estilo visual:** low-poly estilizado (coerente, barato, CC0 abundante) ou realista
    (caro, pesado, e cobra consistência que CC0 não dá)? Recomendação forte: **low-poly estilizado**.
 4. **O jogo é competitivo em tempo real** (grupos vendo o canteiro um do outro, aproveitando o
@@ -413,5 +478,51 @@ Truques que mais rendem neste caso específico:
 5. **A sessão tem tempo para isso?** Se a dinâmica de grupo dura 90 min, quanto é composição e
    quanto é exploração 3D? O 3D não pode roubar o tempo da discussão técnica — ele existe para
    qualificá-la.
-6. **Entra no Ranking?** Ex.: bônus por canteiro sem alertas de coerência. Mexer na pontuação
-   muda a dinâmica pedagógica — decisão do facilitador, não do dev.
+6. ~~**Entra no Ranking?**~~ ✅ **Não entra.** `Ranking.tsx`, `calcSeg` e `calcNaoAplicPenalty`
+   ficam intocados.
+
+### Ainda em aberto, e agora mais fáceis de responder
+
+7. **O canteiro é por atividade ou um canteiro único?** O split view favorece **por atividade**
+   (acompanha a aba `aTab` que já existe), mas o corredor de LT inteiro (`lt.ext` km, derivado
+   de `monthlyVolumes()`) é mais impressionante na plenária. Possível: aba por atividade na
+   composição + visão geral do corredor no Cronograma.
+8. **O canteiro é opcional por evento?** Como não pontua, dá para ligar/desligar por evento sem
+   afetar a comparação entre grupos — útil para sessão curta. O padrão `segurancaAplicavel`
+   (flag no evento, checada em `App.tsx`) é o molde pronto para isso.
+
+---
+
+## 10. O que as decisões de escopo mudaram
+
+Registro do efeito das duas respostas, para não reabrir discussão já fechada.
+
+### Público-alvo: desktop
+
+| Área | Efeito |
+|---|---|
+| Layout | **Split view** (tabela + canteiro simultâneos, §3.7) — o maior ganho isolado das duas decisões |
+| Fase B | **Destravada.** Mouse e hover eliminam o risco que a adiava |
+| Orçamento | Afrouxado ~3× (§7), mas alvo passa a ser **notebook com GPU integrada**, não workstation |
+| Interação | Hover para detalhe, cursor preciso para slots pequenos, teclado preservado |
+| Postprocessing | `Outline` entra (seleção na fase B); `N8AO` opcional para ler a treliça |
+| `<AdaptiveDpr>` | Vira opcional |
+| `frameloop="demand"` | **Continua** — bateria e cena estática na maior parte do tempo |
+
+### O 3D não entra no Ranking
+
+| Área | Efeito |
+|---|---|
+| Arquitetura | "O 3D é projeção, não estado" deixa de ser recomendação e vira **invariante**. Sem pontuação, não há por que validar estado de cena no servidor nem defender contra manipulação |
+| Banco | **Zero migração nas fases A e B.** Nenhuma coluna de pontuação, nada em `Ranking.tsx`, `calcSeg` ou `calcNaoAplicPenalty` |
+| Fase C | **Perdeu o incentivo** (§2). Vira debriefing do facilitador; sai do plano |
+| Adoção | O 3D fica **descartável sem efeito colateral** — facilitador que não abrir a tela tem a mesma sessão de hoje. Isso permite liberar por evento (pergunta 8) e torna o rollout quase sem risco |
+| Pedagogia | Os alertas de coerência podem ser mostrados com todo o detalhe, sem o receio de "entregar pontos" |
+
+### O que **não** mudou
+
+Gray-box antes de arte; torre procedural; 16 cargos com 1 modelo rigado; camada pura
+`buildCanteiro()`; `React.lazy` + `manualChunks`; assets self-hospedados (wifi de evento não
+melhora por ser desktop); `docs/ASSETS.md` no momento do download; Rapier continua fora;
+e a regra que vale mais que todas: **todo elemento visual mapeia uma regra de
+`calculations.ts`, ou não entra.**
