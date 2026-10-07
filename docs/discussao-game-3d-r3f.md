@@ -1,0 +1,417 @@
+# Discussão: transformar a sessão dos grupos em um game interativo (React Three Fiber)
+
+> Documento de discussão — não é uma especificação fechada. O objetivo é alinhar
+> **o que é o jogo**, **como ele se encaixa no código que já existe** e **de onde vêm os assets**,
+> antes de escrever a primeira linha de `<Canvas>`.
+
+---
+
+## 1. Diagnóstico: o que a sessão dos grupos é hoje
+
+A sessão dos grupos hoje é uma planilha muito bem feita. O fluxo real é:
+
+| Tela | Arquivo | O que o grupo faz |
+|---|---|---|
+| Grupos | `src/pages/Equipes.tsx` | nomeia equipes, define senha |
+| Composição | `src/pages/Composicao.tsx` (902 linhas) | para cada uma das 7 atividades: adiciona linhas de MO, equipamento, insumo, define KPI, nº de equipes, mês de início, marca requisitos de segurança |
+| Cronograma | `src/pages/Cronograma.tsx` | vê o Gantt resultante e o custo |
+| Ranking | `src/pages/Ranking.tsx` (904 linhas) | compara-se com os outros grupos |
+
+O motor de regras já existe e é **bom** — está em `src/utils/calculations.ts`:
+
+- `calcA()` — custo mensal, duração (`esc / (equipes × kpi)`), coeficientes Hh/Ch, fator de mobilização (+20% por equipe adicional)
+- `calcEficiencia()` — compara o grupo com a equipe base do facilitador; devolve `subAlocacao` e `obrigatorioAusente`
+- `calcCoerencia()` — **já é mecânica de jogo**: regras operador↔equipamento (`mo4`↔`eq1` guindaste 1:1, `mo6`↔`eq2` puller/freio 2:1, …) e capacidade de transporte (`CAPACIDADE_TRANSPORTE`)
+- `calcSeg()` — desqualifica quem não marcou todos os requisitos aplicáveis
+- `monthlyVolumes()` — volume produzido mês a mês
+
+### Onde dói
+
+1. **A decisão é abstrata.** "Coloquei 8 montadores e 1 guindaste" não tem consequência visível. O grupo erra sem entender por quê.
+2. **O erro só aparece no fim.** A coerência vira um aviso de texto; a falta de transporte vira uma linha amarela no Ranking.
+3. **O engajamento depende do facilitador.** Quem não é da área de LT não enxerga a obra atrás dos números.
+4. **Não há tempo.** O cronograma é um Gantt estático. A sensação de "a obra está andando / está atrasando" não existe.
+
+O 3D não é enfeite: ele é a forma de **tornar a consequência imediata e legível**.
+
+---
+
+## 2. A pergunta central: que jogo é esse?
+
+Três conceitos possíveis. Eles não são excludentes, mas o esforço é muito diferente.
+
+### Conceito A — "Canteiro Vivo" (visualizador reativo) — *baixo risco*
+
+O 3D é uma **segunda representação do mesmo estado**. O grupo continua editando a tabela;
+ao lado (ou acima) há uma cena 3D que reage em tempo real:
+
+- adiciona 1 `GUINDASTE` → um guindaste aparece no canteiro
+- adiciona 8 `MONTADOR` → 8 bonecos aparecem na torre
+- `calcCoerencia` devolve `sem_operador` → o guindaste fica **parado, cinza, com ícone vermelho**
+- `transporte_insuficiente` com déficit 6 → 6 bonecos ficam **no portão do canteiro, esperando ônibus**
+- requisito de segurança não marcado → trabalhador **sem capacete**, aura vermelha
+
+**Zero mudança de regra de negócio.** `gc(gIdx, aId)` entra, cena sai. É uma função pura
+`Comp → cena`. Dá para entregar em semanas e já resolve os problemas 1, 2 e 3.
+
+### Conceito B — "Monte a Equipe no Canteiro" (composição via 3D) — *médio risco*
+
+Inverte o input: o grupo **arrasta** recursos de uma bandeja lateral para o canteiro.
+Soltar um `OPERADOR DE GUINDASTE` na cabine do guindaste chama `moAdd(gIdx, aTab, "mo4")`.
+A tabela continua existindo (como "modo avançado" / auditoria), mas não é mais o caminho principal.
+
+Ganho: a mecânica operador↔equipamento deixa de ser regra escrita e passa a ser **affordance** —
+o slot da cabine existe, está vazio, pisca. Ninguém precisa ler `COERENCIA_REGRAS`.
+
+Risco: drag-and-drop 3D em telas de celular, acessibilidade, e a tabela viraria fonte secundária
+de verdade (duas formas de editar o mesmo estado = bug novo garantido). Mitigação: a tabela
+permanece a **única** fonte; o 3D só dispara as mesmas ações do contexto.
+
+### Conceito C — "Simulação de Obra" (tempo + eventos) — *alto risco*
+
+O Cronograma vira um **play/pause**. O mês avança, as torres sobem usando `monthlyVolumes()`,
+o cabo é lançado vão por vão, e o facilitador injeta eventos: *chuva no mês 3*, *guindaste quebrado*,
+*embargo ambiental no trecho 12–18*. O grupo reage realocando equipes.
+
+Ganho: é aqui que vira **jogo** de verdade, com decisão sob incerteza — o que é o objetivo
+pedagógico real de um planejamento de LT.
+
+Risco: exige modelo de eventos, replanejamento, novo modelo de dados, nova lógica de pontuação.
+É um produto novo, não uma tela nova.
+
+### Recomendação
+
+**A → B → C, em fases, com A entregue e usado numa sessão real antes de começar B.**
+
+O erro clássico aqui é começar pelo C porque é o mais empolgante. A fase A já captura a maior
+parte do valor pedagógico com uma fração do risco, e ela constrói toda a infraestrutura
+(assets, pipeline, performance, integração com o `AppContext`) que B e C vão precisar de qualquer forma.
+
+---
+
+## 3. Arquitetura técnica
+
+### 3.1 Princípio: o 3D é uma projeção do estado, não um estado paralelo
+
+```
+Supabase (grupo_comps)
+   ↓  useGrupoComps / useRealtimeComps
+AppContext  ──── comps[gIdx][aId]: Comp ────┐
+   ↓                                        │
+Composicao.tsx (tabela)              Canteiro3D.tsx (cena)
+   ↓ moAdd/eqAdd/uKpi …                     ↓ mesmas ações
+   └──────────── upsertDebounced ───────────┘
+```
+
+Regra dura: **a cena 3D não tem estado próprio de domínio.** Ela pode ter estado de
+apresentação (câmera, animação em curso, hover), nunca de negócio. Nada de `useState` com
+quantidade de montadores dentro do `<Canvas>`.
+
+Isso também significa que o `useRealtimeComps` já existente dá **multiplayer de graça**:
+quando o facilitador muda algo, o canteiro de todos os grupos atualiza.
+
+### 3.2 Camada de derivação (a parte mais importante do projeto)
+
+Entre `Comp` e a cena entra um módulo puro, **testável sem WebGL**:
+
+```ts
+// src/game/scene/buildCanteiro.ts
+export interface SceneSpec {
+  terreno:   { tipo: "pátio" | "corredor"; extKm: number };
+  torres:    TorreSpec[];     // derivado de lt.ext + volumesPrev[aId]
+  cabos:     CaboSpec[];      // derivado de lt.cabFase, circ, pararaios, opgw
+  atores:    AtorSpec[];      // 1 por unidade de MoRow.qtd  → { moCatId, pos, anim, slot? }
+  maquinas:  MaquinaSpec[];   // 1 por unidade de EqRow.qtd   → { eqCatId, pos, estado }
+  alertas:   AlertaSpec[];    // ← calcCoerencia().issues + calcEficiencia().obrigatorioAusente
+  progresso: number;          // 0..1, de monthlyVolumes()
+}
+
+export function buildCanteiro(
+  comp: Comp, atividade: AtividadeItem, lt: LtConfig,
+  volumePrev: number, coer: CoerenciaIssue[], ef: CalcEficienciaResult
+): SceneSpec
+```
+
+Ganhos: testes rápidos em Playwright/Vitest sobre objetos, não sobre pixels; a cena é
+"burra" (renderiza `SceneSpec`); e trocar o visual não toca em regra.
+
+### 3.3 Mapa de catálogo → asset
+
+Um único registro declarativo, uma entrada por `id` dos catálogos existentes:
+
+```ts
+// src/game/assets/registry.ts
+export const EQ_ASSETS: Record<string, AssetDef> = {
+  eq1:  { url: "/models/guindaste.glb",  escala: 1,    slots: { cabine: [0, 2.1, 0.4] }, anim: ["idle","icar"] },
+  eq2:  { url: "/models/puller.glb",     escala: 1,    slots: { cabine: [0, 1.4, 0] } },
+  eq6:  { url: "/models/pickup_4x4.glb", escala: 1,    assentos: 5 },  // = CAPACIDADE_TRANSPORTE.eq6
+  // … 20 equipamentos
+};
+export const MO_ASSETS: Record<string, AssetDef> = {
+  mo1:  { url: "/models/worker.glb", cor: "#FBBF24", epi: ["capacete","colete"] },
+  // … 16 cargos, todos reusando o MESMO glb de personagem, variando cor/EPI
+};
+```
+
+Detalhe que economiza 90% do esforço de arte: **16 cargos ≠ 16 modelos.** Um personagem
+rigado + variação de cor de uniforme + 3–4 acessórios de EPI (capacete, cinto paraquedista,
+perneira, máscara de solda) cobre tudo e já comunica o requisito de segurança visualmente.
+O mesmo vale para `CAPACIDADE_TRANSPORTE`: a capacidade do veículo é um número no registry,
+não geometria.
+
+### 3.4 Torres de LT: o caso especial (não baixe esse modelo)
+
+Torre de transmissão é estrutura treliçada. Um modelo realista baixado tem facilmente
+200k–2M triângulos — e a cena precisa de **dezenas delas**. Caminho recomendado, em ordem:
+
+1. **Procedural em código.** Uma torre autoportante é tronco-piramidal com montantes e
+   diagonais — gerável com `<Instances>` do drei a partir de ~6 primitivas (perfis L) e um
+   parâmetro de altura/base. Funciona para `a1`–`a4` com níveis de montagem parcial
+   (banzo → tronco → mísula → cabeça), que é **exatamente** o que a animação de progresso precisa.
+2. **Geometry Nodes no Blender** se quiser mais fidelidade, exportando LODs 0/1/2.
+3. **Impostor** (billboard com textura alpha) para torres a mais de ~300 m na câmera.
+
+Cabos: `CatmullRomCurve3` / catenária aproximada + `TubeGeometry` com poucos segmentos
+radiais (3–4 bastam — ninguém olha a seção do cabo), derivando a quantidade de
+`lt.cabFase * 3 * fator + lt.pararaios * fator + lt.opgw * fator` (já calculado em
+`AppContext.tsx:407`).
+
+### 3.5 Stack e versões (verificadas no registry npm em 07/10/2026)
+
+O projeto está em **React 19.2.5 / Vite 8 / TypeScript 6**. Combinação compatível:
+
+| Pacote | Versão | Nota |
+|---|---|---|
+| `three` | `0.186.1` | |
+| `@react-three/fiber` | `9.8.1` | peer: `react >=19 <19.4` ✓ |
+| `@react-three/drei` | `10.7.9` | peer: `react ^19` ✓ |
+| `@react-three/postprocessing` | `3.1.3` | **opcional** — ver §7 |
+| `@react-three/rapier` | `2.2.0` | **provavelmente desnecessário** — ver abaixo |
+| `zustand` | `5.0.15` | só se precisar de estado de apresentação fora do React tree |
+
+⚠️ **Não usar R3F v10 / drei v11**: estão em alpha (migração para WebGPU). Fique no v9/v10 estáveis.
+
+**Sobre física:** a tentação de instalar Rapier é grande e quase sempre errada aqui.
+Não existe simulação física no domínio — nada cai, nada colide de forma significativa.
+Posicionamento é determinístico (`buildCanteiro`), animação é `useFrame` + interpolação.
+Rapier custaria ~600 KB de WASM para nada. Se depois aparecer "o guindaste tomba se a carga
+exceder a capacidade nominal" (que é um requisito de segurança real no catálogo!), isso é
+melhor como **regra + animação roteirizada** do que como física.
+
+**Do drei, o que realmente importa:** `useGLTF` (+ `preload`), `Instances`/`Merged`,
+`Environment`, `OrbitControls`/`MapControls`, `Html`, `Billboard`, `useAnimations`,
+`AdaptiveDpr`, `Detailed` (LOD), `Bvh`, `PerformanceMonitor`, `SoftShadows` (com parcimônia).
+
+### 3.6 Código: lazy-load obrigatório
+
+`src/App.tsx` é um switch de telas simples — perfeito para isolar o custo:
+
+```tsx
+const Canteiro3D = React.lazy(() => import("./game/Canteiro3D"));
+// …
+{screen === "canteiro" && <Suspense fallback={<LoadingBar visible />}><Canteiro3D /></Suspense>}
+```
+
+Three.js + drei adicionam ~600–800 KB gzip. **Nenhum facilitador deve pagar isso ao abrir o
+Login.** Com `manualChunks` no `vite.config.ts`, separar `three` em chunk próprio e deixar
+o cache do navegador trabalhar entre sessões.
+
+### 3.7 Híbrido 3D + DOM
+
+Não tente colocar números dentro do 3D. Texto 3D é caro, feio em tela pequena e não é
+acessível nem traduzível de forma confortável. Use:
+
+- **3D** → canteiro, atores, máquinas, torres, cabos, progresso, alertas espaciais
+- **DOM** (overlay com os estilos de `src/styles.ts` e a paleta `C`) → custo, duração,
+  coeficientes Hh/Ch, KPI, tabelas
+- **`<Html>` do drei** → só para o rótulo que precisa seguir um objeto (ex.: badge "⚠ sem operador"
+  grudado no guindaste), com `occlude` e `distanceFactor`
+
+A paleta já existe e deve ser respeitada: `C.gold #F37C02` (destaque), `C.blueL #004F86`
+(grupo M — montagem), `C.greenL #10B981` (grupo L — lançamento), `C.redL`/`C.yellow` (alertas).
+E **tudo** que for texto passa por `t()` — o app é PT/ES.
+
+---
+
+## 4. Modelo de dados: o que muda
+
+**Fase A (Canteiro Vivo): nada.** Zero migração. A cena é derivada de `grupo_comps`, que já tem
+`mo_rows`, `eq_rows`, `insumo_rows`, `req_ids`, `kpi`, `equipes`, `mes_inicia`.
+
+**Fase B (drag-and-drop):** talvez um campo opcional de layout (`pos` por linha) se a posição
+escolhida pelo grupo importar. Sugestão: **não persistir** — gerar posição deterministicamente
+a partir do `_id` da linha (hash → slot), para o canteiro ficar estável entre reloads sem
+inventar coluna nova.
+
+**Fase C (simulação):** aí sim há dado novo — eventos, estado por mês, replanejamentos.
+Tabela nova (`sim_eventos`, `sim_estado`), e provavelmente nova aba no Ranking.
+É a fase que justifica discussão de schema; as outras duas não.
+
+---
+
+## 5. Processo sugerido
+
+### Fase 0 — Vertical slice (1 atividade, 1 semana)
+
+Escolher **`a2` Montagem Mecanizada** como atividade-piloto. Motivos: tem guindaste
+(regra `mo4`↔`eq1` 1:1, visualmente óbvia), tem torre, tem transporte, e é a atividade
+de maior custo unitário — ou seja, é onde o erro do grupo dói mais.
+
+Entregar: canteiro com terreno, 1 torre procedural, 1 guindaste, N trabalhadores, alerta de
+coerência visual. Caixas cinzas (gray-box) no lugar dos modelos finais. **Rodar numa sessão real.**
+
+Se a fase 0 não convencer o facilitador em 5 minutos de uso, o conceito está errado e
+nenhum asset bonito vai salvar.
+
+### Fase 1 — Canteiro Vivo completo
+
+7 atividades, 16 cargos (1 modelo + variações), 20 equipamentos, alertas de `calcCoerencia`
+e `calcSeg`, progresso de `monthlyVolumes()`. Assets reais substituindo gray-box.
+
+### Fase 2 — Composição via 3D (se a fase 1 provar valor)
+
+Drag-and-drop da bandeja para slots. Tabela mantida como modo avançado.
+
+### Fase 3 — Simulação temporal e eventos
+
+Play/pause no Cronograma, eventos do facilitador, replanejamento.
+
+### Disciplina de processo
+
+- **Gray-box antes de arte.** Toda feature nasce com `<boxGeometry>`. Arte é a última etapa,
+  nunca a primeira. (O erro mais comum em projetos 3D é passar 3 semanas procurando o modelo
+  perfeito de guindaste antes de saber se o jogo funciona.)
+- **Orçamento de performance definido no dia 1** (§7), e medido em cada PR.
+- **Testar no pior dispositivo do público-alvo**, não no laptop do dev. Se a sessão tem
+  participantes no celular, o celular é o alvo.
+- **Rodar offline.** Treinamento presencial costuma ter wifi ruim ou nenhum.
+  Isso proíbe `<Environment preset="city">` (baixa HDRI de CDN externo em runtime) —
+  self-hospedar o `.hdr` em `/public`.
+- **Playwright + WebGL em CI é armadilha.** Manter os testes atuais sobre funções puras
+  (`buildCanteiro`, `calcCoerencia`); para a cena, no máximo um smoke test de "o canvas montou"
+  com flags de GPU (`--use-angle=swiftshader`), sem comparação de pixel.
+
+---
+
+## 6. Onde baixar os modelos 3D
+
+Licença importa: isso é material de treinamento corporativo — **uso comercial**.
+`CC0` é o que você quer; `CC-BY` exige creditar (uma tela de créditos resolve); evite
+`CC-BY-NC` e "free for personal use".
+
+### Primeira parada — CC0, estilo coerente, game-ready
+
+| Site | Licença | Formato | Serve para |
+|---|---|---|---|
+| [kenney.nl/assets](https://kenney.nl/assets) | CC0 | GLB, FBX, OBJ | kits "City"/"Vehicle"/"Platformer"; ótimo para gray-box bonito, veículos, props de canteiro |
+| [quaternius.com](https://quaternius.com/) | CC0 | GLB, FBX | packs modulares (natureza, veículos, construção); estilo consistente |
+| [kaylousberg.itch.io](https://kaylousberg.itch.io/) (KayKit) | CC0 | GLB, FBX | **personagens rigados com animações** (idle/walk/work) — resolve os 16 cargos |
+| [polyhaven.com](https://polyhaven.com/) | CC0 | HDR, EXR, GLB | **HDRIs** (iluminação do canteiro) e texturas PBR; alguns modelos |
+| [ambientcg.com](https://ambientcg.com/) | CC0 | PNG/EXR | texturas PBR de terra, cascalho, concreto, asfalto para o terreno |
+| [github.com/KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) | mistas (maioria permissiva) | GLTF/GLB | validar o pipeline de compressão/animação antes de ter asset próprio |
+
+### Acervos grandes — checar licença modelo a modelo
+
+| Site | Licença | Nota |
+|---|---|---|
+| [poly.pizza](https://poly.pizza/) | maioria CC-BY, parte CC0 | herdeiro do Google Poly; download GLB direto sem conta; tem caminhões, gruas, cones, trabalhadores |
+| [sketchfab.com](https://sketchfab.com/) (filtro *Downloadable* + CC0/CC-BY) | mistas | maior variedade; é onde há chance real de achar **torre de transmissão** e equipamento específico |
+| [opengameart.org](https://opengameart.org/) | CC0 / CC-BY / GPL | ex.: [3D House Construction Site (CC0)](https://opengameart.org/content/3d-house-construction-site-lowpoly-cc0) — 2 gruas, caminhões, contêineres |
+| [itch.io/game-assets/free/tag-3d](https://itch.io/game-assets/free/tag-3d) | varia | muitos packs CC0 de dev indie; ver cada página |
+| [free3d.com](https://free3d.com/) · [cgtrader.com](https://www.cgtrader.com/free-3d-models) | mistas, muitas "personal use" | ler a licença **sempre**; qualidade irregular |
+
+### Pago — quando precisa de equipamento específico de LT
+
+Puller/freio, caminhão munck, escavadeira com modelo real não existem em CC0 com boa qualidade.
+Vale comprar 1–2 peças-chave:
+
+- [superhivemarket.com](https://superhivemarket.com/) (ex-Blender Market) — ex. *Heavy Machinery Low-Poly Asset Pack* (~34 modelos, GLTF)
+- [cgtrader.com](https://www.cgtrader.com/) / [turbosquid.com](https://www.turbosquid.com/) — maior catálogo; filtrar por "low-poly" + "game-ready" + royalty-free
+- [hum3d.com](https://hum3d.com/) — veículos precisos (caro, high-poly, exige retopologia)
+
+### Fontes a evitar (ou usar com cuidado)
+
+- **GrabCAD / 3D ContentCentral** — CAD real de máquinas, mas STEP/IGES: milhões de triângulos,
+  sem UV, sem rig. Retopologia custa mais que modelar do zero. E os termos de uso são restritivos.
+- **SketchUp 3D Warehouse** — tem muitas torres de transmissão, mas geometria suja, escala
+  errática e licença nebulosa.
+- **Text-to-3D (Meshy, Tripo, Luma)** — útil só como **placeholder** na fase gray-box.
+  A malha sai ruim para animação e os termos de uso comercial variam; não planeje produção com isso.
+
+### Recomendação prática de sourcing
+
+1. Personagens: **1 modelo rigado do KayKit** (CC0) + variação de cor/EPI em código → cobre os 16 cargos.
+2. Veículos leves e props: **Kenney + Quaternius** (CC0, estilo coerente entre si).
+3. Equipamento pesado específico: **1 pack pago** (Superhive/CGTrader) — mais barato que o tempo de busca.
+4. Torres: **procedural** (§3.4). Não baixe.
+5. Ambiente: **HDRI do Poly Haven** + **texturas do ambientCG**, self-hospedados.
+
+Manter `docs/ASSETS.md` com origem, autor, licença e link de cada arquivo em `/public/models` —
+auditoria de licença é chata depois e trivial se feita na hora.
+
+---
+
+## 7. Performance: orçamento proposto
+
+Alvo: 60 fps no laptop do facilitador, ≥30 fps em celular de 2 anos.
+
+| Métrica | Orçamento |
+|---|---|
+| Triângulos em tela | ≤ 150k |
+| Draw calls | ≤ 60 (instanciar trabalhadores e torres é obrigatório) |
+| Total de GLB baixado | ≤ 8 MB (Draco/meshopt) |
+| Texturas | KTX2/Basis, ≤ 1024² |
+| Luzes com sombra | 1 (direcional) + ambiente de HDRI |
+| Chunk JS do 3D | lazy, fora do bundle inicial |
+
+Pipeline de asset (uma vez por modelo, versionado em script npm):
+
+```bash
+# 1. Blender: limpar, decimar, aplicar escala, nomear, exportar GLB
+# 2. comprimir
+npx @gltf-transform/cli optimize in.glb out.glb \
+    --compress meshopt --texture-compress ktx2 --texture-size 1024
+# 3. gerar componente tipado
+npx gltfjsx out.glb --types --transform
+```
+
+Truques que mais rendem neste caso específico:
+- `<Instances>` para trabalhadores e perfis de torre (dezenas de cópias, 1 draw call)
+- `<Detailed>` (LOD) nas torres ao longo do corredor
+- `<AdaptiveDpr>` + `<PerformanceMonitor>` para degradar resolução no celular em vez de travar
+- `frameloop="demand"` quando a cena está estática (composição parada = não renderizar!) —
+  isso sozinho resolve bateria e aquecimento em celular
+- **Postprocessing: provavelmente não.** Bloom/SSAO custam caro e não comunicam nada aqui.
+  Se entrar, só `SMAA` ou nada.
+
+---
+
+## 8. Riscos e como mitigar
+
+| Risco | Mitigação |
+|---|---|
+| Esforço de arte vira o projeto inteiro | gray-box primeiro; 1 personagem + variações; torre procedural |
+| Celular dos participantes não aguenta | orçamento §7 medido desde a fase 0; `frameloop="demand"`; LOD |
+| 3D vira enfeite e não ensina nada | cada elemento visual **tem** que mapear uma regra de `calculations.ts`; se não mapeia, não entra |
+| Duas formas de editar o mesmo estado = bugs | o 3D só dispara ações do `AppContext`; nunca escreve direto no Supabase |
+| Bundle inicial degrada o app atual | `React.lazy` + `manualChunks`; medir com `vite build --report` |
+| Licença de asset em material comercial | `docs/ASSETS.md` preenchido no momento do download |
+| Wifi ruim no evento | assets e HDRI self-hospedados; `useGLTF.preload` na tela anterior |
+| Testes Playwright quebrando por WebGL | lógica em funções puras; smoke test apenas |
+
+---
+
+## 9. Perguntas abertas (para decidir antes de codar)
+
+1. **O 3D substitui ou acompanha a tabela de composição?** (recomendação: acompanha, na fase A)
+2. **Qual o dispositivo-alvo real dos participantes?** Notebook, tablet ou celular? Isso muda
+   o orçamento de performance e a viabilidade de drag-and-drop.
+3. **Estilo visual:** low-poly estilizado (coerente, barato, CC0 abundante) ou realista
+   (caro, pesado, e cobra consistência que CC0 não dá)? Recomendação forte: **low-poly estilizado**.
+4. **O jogo é competitivo em tempo real** (grupos vendo o canteiro um do outro, aproveitando o
+   `useRealtimeComps`) ou cada grupo isolado até o Ranking?
+5. **A sessão tem tempo para isso?** Se a dinâmica de grupo dura 90 min, quanto é composição e
+   quanto é exploração 3D? O 3D não pode roubar o tempo da discussão técnica — ele existe para
+   qualificá-la.
+6. **Entra no Ranking?** Ex.: bônus por canteiro sem alertas de coerência. Mexer na pontuação
+   muda a dinâmica pedagógica — decisão do facilitador, não do dev.
