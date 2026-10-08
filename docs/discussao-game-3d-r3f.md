@@ -515,7 +515,7 @@ sprite lado a lado. Se 3D e sprite não casarem visualmente nesse teste, a dire�
 problema — e é melhor descobrir em meio dia do que depois de desenhar 16 cargos. É o item de
 maior risco técnico e o mais barato de testar.
 
-E **fixar a paleta antes de desenhar qualquer coisa** (§8.4): paleta trocada no meio obriga a
+E **fixar a paleta antes de desenhar qualquer coisa** (§8.5): paleta trocada no meio obriga a
 redesenhar tudo.
 
 Se a fase 0 não convencer o facilitador em 5 minutos de uso, o conceito está errado e
@@ -609,7 +609,87 @@ placeholder de gray-box.
   reduzir para 64 px e quantizar na paleta → sai um sprite perfeitamente coerente com o resto.
   É a saída se as máquinas também virarem sprite, e garante consistência que mão livre não dá.
 
-### 8.4 Recomendação prática de sourcing
+### 8.4 Avaliação dos packs de itch.io candidatos
+
+> Levantamento feito por busca, **sem abrir as páginas**: a política de rede deste ambiente
+> bloqueia `itch.io`. Tudo abaixo vem de resultados de busca que citam as páginas — **confirme o
+> texto da licença na página antes de pagar ou publicar.**
+
+#### A percepção que reenquadra a busca
+
+Quase todo pack de personagem em pixel art é vendido por **número de direções** (4 ou 8
+facings), e pack isométrico de 8 direções é a categoria mais rara e mais cara. **Nós não
+precisamos disso.** Na nossa arquitetura os personagens são *billboards diante de uma câmera
+fixa* (§4.2–4.3), e trabalhador em canteiro **fica parado operando**, não caminha em 8 direções
+— ele é um recurso de composição, não uma unidade de RTS. **Uma única direção basta**, duas no
+máximo. Isso abre enormemente o leque de packs utilizáveis e torna a opção de desenhar
+internamente mais realista ainda.
+
+#### Cenário, props e referência visual — **melhor achado**
+
+**[Cute SCKR](https://comshadow.itch.io/)** (`comshadow.itch.io`) — o conteúdo é o encaixe mais
+direto que existe para este projeto:
+
+| Pack | Conteúdo relevante | Preço |
+|---|---|---|
+| [Modern Construction Site Tileset](https://comshadow.itch.io/modern-construction-site-pixel-art-tileset-pack) | escavadeiras, guindastes, andaimes, materiais, maquinário pesado, instalações de obra, **placas de sinalização e barreiras de segurança** | US$ 3,99 |
+| [Construction Site Top-Down Tileset (DLC)](https://comshadow.itch.io/construction-site-topdown-pixel-art-tileset-dlc) | mesma família, **perspectiva top-down** — a mais próxima da isométrica | — |
+| [Tileset bundle](https://itch.io/s/181841/tileset-bundle) | 384 packs do autor | US$ 29,99 |
+
+Licença (texto verificado no pack irmão, mesmo template do autor): **uso pessoal e comercial
+liberado em projetos de jogo; proibido revender ou redistribuir como asset standalone;
+atribuição apreciada mas não obrigatória.** Compatível com o nosso caso.
+
+Duas ressalvas honestas:
+
+1. **É tileset 2D, e o nosso cenário é 3D (§4.2).** Não entra como cenário: entra como
+   **textura de solo, props em billboard, sinalização, barreiras** e — o uso mais valioso —
+   **referência visual e fonte de paleta** para modelar o cenário 3D e desenhar os sprites.
+   Quem esperar "comprei o cenário" vai se frustrar.
+2. A página do Modern Construction Site declara **"AI Assisted, Graphics"**. Para material de
+   treinamento corporativo isso pode ou não importar — é decisão de quem assina o material,
+   mas melhor saber antes.
+
+#### Personagens — nenhum acerto direto, e a licença decide
+
+| Pack | Encaixe técnico | Licença | Veredito |
+|---|---|---|---|
+| **[Kenney](https://kenney.nl/assets)** — *Tiny Town* (130 assets, 16×16), *Pixel Platformer Industrial Expansion* (110+), *New Platformer Pack* (440), *Toon Characters* | personagens genéricos, não-operários | **CC0** — sem atribuição, sem restrição, **derivar e redistribuir liberado** | ✅ **recomendado** |
+| **[LimeZu](https://limezu.itch.io/modernexteriors)** — *Modern Interiors / Exteriors* | 16×16 top-down, civis modernos; personagens ficam no *Interiors*; download ~222 MB | comercial OK, **crédito obrigatório com link**, sem redistribuição (~US$ 5) | 🟡 plano B |
+| **[Mana Seed Character Base](https://seliel-the-shaper.itch.io/character-base)** (Seliel the Shaper) | **tecnicamente perfeito**: sistema *paper doll* em camadas, roupas/cabelo/ferramentas em sheets de layout idêntico, trocáveis em runtime — é literalmente o nosso desenho de 16 cargos | US$ 19,98; demo grátis de uso comercial | ❌ **não usar** — ver abaixo |
+| **[RigelRiv — FREE Isometric Modern Character](https://gelgel.itch.io/isometric-modern-character)** | 7 personagens, **isométrico nativo, 1 direção**, idle de 2 quadros | "personal/commercial", name-your-price | 🟡 vale olhar — **1 direção é exatamente o que precisamos** |
+| **[crabcrabcrabs — isometric character](https://crabcrabcrabs.itch.io/isometric-character)** | 8 direções, genérico, **protótipo** (só movimento) | name-your-price, texto não confirmado | 🟡 imaturo |
+| **[Elthen — Dwarf Worker Sprites](https://elthen.itch.io/2d-pixel-art-dwarf-worker-sprites)** | conjunto de animação **ideal: Idle, Movement, Build, Carry** | a partir de US$ 3 | ❌ é um **anão** — visual errado para equipe de LT |
+| **[Free Game Assets](https://free-game-assets.itch.io/)** (*Free Industrial Zone Tileset* etc.) | tilesets industriais gratuitos | ⚠️ **é a conta itch.io da CraftPix** — vale a ressalva da §8.1, não é CC0 | 🟡 ler a licença do pack |
+
+#### ⚠️ Por que o Mana Seed está fora, apesar de ser o melhor encaixe
+
+O autor declara que **código gerado por IA no projeto proíbe o uso da arte dele** ("any
+AI-generated code in your game would prohibit the use of my art"), além de excluir web3/NFT.
+Este projeto tem `src/services/claudeAI.ts`, a função `api/claude.js`, usa Claude para as
+análises do Ranking **e é desenvolvido com assistência de IA**. Usar Mana Seed aqui seria
+violar a licença. Vale registrar porque é o pack que todo mundo recomenda para exatamente o
+nosso caso de uso, e o problema só aparece lendo os comentários do autor —
+a [licença](https://selieltheshaper.weebly.com/user-license.html) é o documento a ler se
+alguém quiser contestar.
+
+#### Conclusão
+
+1. **Comprar o Cute SCKR** (US$ 3,99, ou o bundle a US$ 29,99 se for querer mais cenário).
+   Melhor conteúdo disponível, licença compatível — usado como props, sinalização e
+   **referência de paleta**, não como cenário.
+2. **Personagens: Kenney CC0 como base, editado internamente.** Não por ser o mais bonito, mas
+   porque **CC0 é a única licença que permite derivar as 16 variações de cargo sem preocupação**
+   — e o plano da §4.1 sempre foi "1 base + paleta + overlay de EPI", ou seja, íamos editar de
+   todo jeito. Com câmera fixa e 1 direção, o trabalho é pequeno.
+3. **Não usar Mana Seed.**
+4. LimeZu como plano B se o Kenney não servir visualmente, aceitando a tela de créditos.
+
+Resposta à pergunta 12 da §11 ("quem desenha os sprites?"): com **1 direção**, base **CC0
+editável** e o Cute SCKR como referência de estilo, a resposta "nós mesmos" fica bem mais
+viável do que parecia.
+
+### 8.5 Recomendação prática de sourcing
 
 1. **Fixar a paleta primeiro** (Lospec + cores da marca). Antes de baixar qualquer coisa.
 2. **Pessoas:** 1 sprite base desenhado internamente (32×32, 4 quadros) + paleta por cargo +
@@ -707,10 +787,10 @@ Aseprite → PNG + JSON → `/public/sprites`.
 11. **Máquinas em 3D ou sprite?** Recomendo 3D, porque orientação (lança do guindaste, para
     onde o caminhão aponta) é informação que o grupo precisa ler. Mas o pipeline de
     render-para-sprite (§8.3) é saída legítima se a coerência visual incomodar.
-12. **Quem desenha os sprites?** É a pergunta de processo mais importante agora. O ganho inteiro
-    da §4.1 depende de existir alguém — não precisa ser artista — disposto a desenhar um
-    trabalhador de 32×32 com 4 quadros no Aseprite. Se não houver, o caminho é pack de itch.io
-    com paleta reconvertida, e a coerência cai um pouco.
+12. **Quem desenha os sprites?** 🟡 **Bem mais fácil depois da §8.4:** como a câmera é fixa,
+    **1 direção basta** (não 4 nem 8), a base do Kenney é CC0 e portanto editável sem
+    restrição, e o pack do Cute SCKR serve de referência de estilo. Ainda depende de alguém —
+    não precisa ser artista — aceitar a tarefa, mas o tamanho dela caiu bastante.
 
 ### Ainda em aberto das rodadas anteriores
 
