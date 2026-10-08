@@ -600,14 +600,106 @@ são sprites). Isso também encerra a preocupação de wifi do evento com HDRI.
 **Continuam fora:** GrabCAD e 3D Warehouse (CAD sujo, licença nebulosa); text-to-3D só como
 placeholder de gray-box.
 
-### 8.3 Ferramentas
+### 8.3 Ferramentas para "nós mesmos desenhamos"
 
-- **[Aseprite](https://www.aseprite.org/)** (~US$ 20) é o padrão de pixel art; **[LibreSprite](https://libresprite.github.io/)**
-  e **[Piskel](https://www.piskelapp.com/)** são alternativas livres. Exportam sprite sheet + JSON de frames direto.
-- **Blender** para o cenário low-poly, com export GLB.
-- **Pipeline alternativo que vale conhecer:** renderizar um modelo 3D no ângulo isométrico,
-  reduzir para 64 px e quantizar na paleta → sai um sprite perfeitamente coerente com o resto.
-  É a saída se as máquinas também virarem sprite, e garante consistência que mão livre não dá.
+A pergunta não é "qual editor de pixel art é melhor", é **qual ferramenta faz as 16 variações de
+cargo saírem de um desenho só, sem trabalho manual repetido**. Isso reduz a escolha a uma
+característica: **modo de cor indexada com paleta trocável**, mais CLI para automatizar.
+
+#### Editor — recomendação
+
+| Ferramenta | Licença / preço | Por que importa aqui |
+|---|---|---|
+| **[Aseprite](https://www.aseprite.org/)** ✅ | proprietária, ~US$ 15–20 (conferir no site); **compilável de graça** a partir do [código](https://github.com/aseprite/aseprite) para uso próprio | **cor indexada** + paletas salvas (o mecanismo das 16 variações), *tags* de animação, *onion skin*, **[CLI](https://www.aseprite.org/docs/cli/)** e **scripting em Lua** |
+| **[Pixelorama](https://pixelorama.org/)** ✅ alternativa livre | **MIT**, grátis | ativo e completo: paletas importáveis + **desenho restrito à paleta**, *onion skin*, tags, e **camadas de tilemap isométrico** — relevante para o nosso caso |
+| **[Piskel](https://www.piskelapp.com/)** · **[Lospec Pixel Editor](https://lospec.com/pixel-editor/)** | grátis, no navegador | para o **primeiro sprite descartável** da fase 0: abre e desenha, sem instalar nada |
+| ~~[LibreSprite](https://libresprite.github.io/)~~ | GPL, grátis | **rebaixo o que escrevi antes:** é o fork do Aseprite de 2016, sem scripting moderno e com workflow de cor indexada mais pobre. Prefira Pixelorama |
+
+Sobre a licença do Aseprite, que gera confusão: é proprietária desde a 1.1.8, mas **você pode
+compilar o código de graça para uso próprio** — o que a EULA proíbe é redistribuir o binário ou
+compilá-lo para revender. **A arte que você produz é sua e pode ser comercial**, em qualquer
+versão (oficial ou compilada). Conferir em `aseprite.org` antes de fechar, porque os preços
+divergem entre as fontes.
+
+#### O mecanismo das 16 variações — **testado**
+
+Não é promessa: rodei o teste. Em **cor indexada**, o sprite guarda *índices*, não cores.
+Trocar só a paleta gera o cargo novo e **os pixels não mudam**:
+
+```
+✅ 3 variantes de cargo geradas a partir de UM sprite
+✅ verificado: bytes de índice idênticos entre as 3 — só a paleta difere
+```
+
+A convenção de índices que faz isso funcionar — reservar um índice por "coisa que varia":
+
+| Índice | Papel | Varia por |
+|---|---|---|
+| 0 | transparente | — |
+| 1 | contorno (`C.txt`) | nunca |
+| 2–3 | **capacete / EPI** | requisito de segurança |
+| 4–5 | **uniforme** | **cargo** (`mo1`…`mo16`) |
+| 6 | pele | nunca |
+| 7 | metal, bota (`C.txt3`) | nunca |
+
+Desenha-se **um** trabalhador respeitando essa convenção; um script de ~20 linhas (Pillow ou Lua
+do Aseprite) emite os 16 cargos e monta o atlas. Tamanhos reais medidos no teste:
+
+| Arquivo | Tamanho |
+|---|---|
+| 1 variante 16×16 | **916 B** |
+| **atlas com os 16 cargos** (256×16) + JSON | **939 B + 804 B** |
+
+Ou seja: **o conjunto inteiro de personagens cabe em ~2 KB.** O orçamento de ≤ 3 MB da §9 é
+generoso por ordens de magnitude. Deixei o script do teste em
+`scratchpad/pxtest/` — se interessar, viro ele em `scripts/sprites.mjs` com npm script.
+
+Pelo CLI do Aseprite o mesmo se faz sem Python:
+
+```bash
+aseprite -b worker.aseprite \
+  --sheet public/sprites/workers.png \
+  --data  public/sprites/workers.json --format json-array
+```
+
+Isso torna o pipeline de arte um **npm script reproduzível e versionável**, não um arrastar de
+arquivos.
+
+#### Máquinas sem saber desenhar — render 3D → sprite, **também testado**
+
+Para guindaste, puller e caminhões — onde desenhar à mão é difícil e a orientação importa — dá
+para **renderizar o modelo 3D no ângulo isométrico e quantizar na paleta**. Com ImageMagick:
+
+```bash
+convert render.png -filter point -resize 64x64 \
+        -dither None -remap palette.png PNG8:sprite_maquina.png
+```
+
+Testado: um render de 512×512 com 173 cores saiu em **64×64, 203 bytes**, restrito à paleta do
+projeto. `-filter point` é o vizinho-mais-próximo (sem borrar) e `-dither None` evita o chuvisco
+que destrói pixel art. A vantagem é que **a coerência de estilo é automática** — mão livre não
+garante isso. E serve de atalho mesmo que as máquinas fiquem em 3D: o render quantizado vira
+referência para texturizar o modelo.
+
+#### Para quem não desenha — o que de fato reduz a dificuldade
+
+1. **Editar CC0 em vez de desenhar do zero.** Já é o plano (§8.4): partir do Kenney é
+   incomparavelmente mais fácil que a folha em branco.
+2. **Manter 32×32 ou menos.** Menos pixel é menos decisão. 16×16 (como no teste) já comunica.
+3. **1 direção.** Câmera fixa, trabalhador parado operando (§8.4).
+4. **Silhueta + cor do EPI são ~90% da informação.** Em 32 px ninguém vê rosto: o que lê é o
+   contorno e a cor do capacete/uniforme. Isso é exatamente o que o jogo precisa comunicar.
+5. **Camada de referência:** importar foto de eletricista de linha e traçar por cima em 32 px
+   (Aseprite e Pixelorama suportam camada de referência).
+
+#### Resto da cadeia
+
+- **[Blender](https://www.blender.org/)** (grátis) — cenário e máquinas low-poly, export GLB.
+- **[Tiled](https://www.mapeditor.org/)** (grátis, GPL) — se os props do Cute SCKR (§8.4) forem
+  usados como tileset, é o editor de mapa padrão.
+- **[Lospec Palette List](https://lospec.com/palette-list)** — ponto de partida da paleta, a ser
+  reconciliada com `src/constants/colors.ts`.
+- **ImageMagick** / **Pillow** — quantização e montagem de atlas em script.
 
 ### 8.4 Avaliação dos packs de itch.io candidatos
 
@@ -735,7 +827,11 @@ primeiro de forma quase absurda. Notebook corporativo deixa de ser risco.
 **O que saiu:** `<AdaptiveDpr>` (era para celular), `<Detailed>`/LOD (desnecessário nessa
 escala), pipeline de `gltf-transform` com Draco/KTX2 (assets pequenos demais para justificar).
 O pipeline de asset virou simplesmente: Blender → GLB flat-shaded → `/public/models`;
-Aseprite → PNG + JSON → `/public/sprites`.
+Aseprite (ou Pixelorama) → PNG indexado + JSON → `/public/sprites` (§8.3).
+
+Para calibrar a expectativa: no teste da §8.3, o **atlas com os 16 cargos deu 939 bytes**. O
+teto de 3 MB desta tabela é generoso por ordens de magnitude — o que vai pesar é o cenário 3D
+e, principalmente, o chunk JS do `three`.
 
 ---
 
@@ -787,10 +883,12 @@ Aseprite → PNG + JSON → `/public/sprites`.
 11. **Máquinas em 3D ou sprite?** Recomendo 3D, porque orientação (lança do guindaste, para
     onde o caminhão aponta) é informação que o grupo precisa ler. Mas o pipeline de
     render-para-sprite (§8.3) é saída legítima se a coerência visual incomodar.
-12. **Quem desenha os sprites?** 🟡 **Bem mais fácil depois da §8.4:** como a câmera é fixa,
-    **1 direção basta** (não 4 nem 8), a base do Kenney é CC0 e portanto editável sem
-    restrição, e o pack do Cute SCKR serve de referência de estilo. Ainda depende de alguém —
-    não precisa ser artista — aceitar a tarefa, mas o tamanho dela caiu bastante.
+12. **Quem desenha os sprites?** 🟢 **Praticamente resolvida (§8.3 + §8.4).** A tarefa real é
+    **um** trabalhador de 16–32 px, 1 direção, partindo de base CC0 editável, com o Cute SCKR
+    como referência de estilo. As 16 variações de cargo saem de **troca de paleta em cor
+    indexada** — técnica testada, com os pixels inalterados — e as máquinas saem de
+    **render 3D quantizado**, sem desenhar nada. Resta só alguém aceitar a tarefa; o tamanho
+    dela deixou de ser obstáculo.
 
 ### Ainda em aberto das rodadas anteriores
 
