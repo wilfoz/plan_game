@@ -4,12 +4,14 @@
 > **o que é o jogo**, **como ele se encaixa no código que já existe** e **de onde vêm os assets**,
 > antes de escrever a primeira linha de `<Canvas>`.
 
-> **Decisões tomadas** (07/10/2026 — ver [wilfoz/plan_game#2](https://github.com/wilfoz/plan_game/issues/2)):
+> **Decisões tomadas** (ver [wilfoz/plan_game#2](https://github.com/wilfoz/plan_game/issues/2)):
 > **(1) Público-alvo: desktop.** Sem celular e sem tablet.
 > **(2) O 3D não entra no Ranking.** A pontuação permanece exatamente como é hoje.
+> **(3) Cenários em 3D, personagens em pixel art, câmera isométrica.** → [§4](#4-direção-de-arte-isométrico-21--pixel-art)
+> **(4) Infra: Vercel + Supabase** (a que já existe). → [§5](#5-infraestrutura-vercel--supabase)
 >
-> As duas respostas estão aplicadas ao longo do documento. O resumo do que elas mudam
-> está em [§10](#10-o-que-as-decisões-de-escopo-mudaram).
+> As respostas estão aplicadas ao longo do documento. O resumo do que cada uma mudou
+> está em [§12](#12-o-que-as-decisões-de-escopo-mudaram).
 
 ---
 
@@ -169,15 +171,17 @@ export const EQ_ASSETS: Record<string, AssetDef> = {
   eq6:  { url: "/models/pickup_4x4.glb", escala: 1,    assentos: 5 },  // = CAPACIDADE_TRANSPORTE.eq6
   // … 20 equipamentos
 };
-export const MO_ASSETS: Record<string, AssetDef> = {
-  mo1:  { url: "/models/worker.glb", cor: "#FBBF24", epi: ["capacete","colete"] },
-  // … 16 cargos, todos reusando o MESMO glb de personagem, variando cor/EPI
+// Personagens são SPRITES (ver §4), não modelos — um atlas para todos os cargos
+export const MO_ASSETS: Record<string, SpriteDef> = {
+  mo1:  { atlas: "/sprites/workers.png", linha: 0, paleta: "ajudante",  epi: ["capacete","colete"] },
+  mo4:  { atlas: "/sprites/workers.png", linha: 0, paleta: "operador",  epi: ["capacete"] },
+  // … 16 cargos, todos na MESMA linha do atlas, variando paleta + overlay de EPI
 };
 ```
 
-Detalhe que economiza 90% do esforço de arte: **16 cargos ≠ 16 modelos.** Um personagem
-rigado + variação de cor de uniforme + 3–4 acessórios de EPI (capacete, cinto paraquedista,
-perneira, máscara de solda) cobre tudo e já comunica o requisito de segurança visualmente.
+Detalhe que economiza quase todo o esforço de arte: **16 cargos ≠ 16 assets.** Um sprite base
+de trabalhador + troca de paleta + 3–4 overlays de EPI (capacete, cinto paraquedista, perneira,
+máscara de solda) cobre tudo e já comunica o requisito de segurança visualmente.
 O mesmo vale para `CAPACIDADE_TRANSPORTE`: a capacidade do veículo é um número no registry,
 não geometria.
 
@@ -191,7 +195,13 @@ Torre de transmissão é estrutura treliçada. Um modelo realista baixado tem fa
    parâmetro de altura/base. Funciona para `a1`–`a4` com níveis de montagem parcial
    (banzo → tronco → mísula → cabeça), que é **exatamente** o que a animação de progresso precisa.
 2. **Geometry Nodes no Blender** se quiser mais fidelidade, exportando LODs 0/1/2.
-3. **Impostor** (billboard com textura alpha) para torres a mais de ~300 m na câmera.
+3. **Impostor** (billboard com textura alpha) para torres distantes no corredor.
+
+⚠️ **Ajuste obrigatório pela direção de arte (§4):** num framebuffer de ~640×360, um perfil de
+treliça com espessura realista ocupa menos de 1 pixel e **cintila ou desaparece**. A torre tem
+que ser **estilizada e "gorda"**: cada membro com espessura suficiente para render ≥ 2–3 px em
+tela. Treliça fiel aqui não é só caro, é *ilegível*. Isso empurra a geometria para caixas e
+perfis grossos — que é exatamente o que combina com pixel art, e mais barato ainda de gerar.
 
 Cabos: `CatmullRomCurve3` / catenária aproximada + `TubeGeometry` com poucos segmentos
 radiais (3–4 bastam — ninguém olha a seção do cabo), derivando a quantidade de
@@ -207,7 +217,7 @@ O projeto está em **React 19.2.5 / Vite 8 / TypeScript 6**. Combinação compat
 | `three` | `0.186.1` | |
 | `@react-three/fiber` | `9.8.1` | peer: `react >=19 <19.4` ✓ |
 | `@react-three/drei` | `10.7.9` | peer: `react ^19` ✓ |
-| `@react-three/postprocessing` | `3.1.3` | **opcional** — ver §7 |
+| ~~`@react-three/postprocessing`~~ | — | **não entra** — ver §9 |
 | `@react-three/rapier` | `2.2.0` | **provavelmente desnecessário** — ver abaixo |
 | `zustand` | `5.0.15` | só se precisar de estado de apresentação fora do React tree |
 
@@ -276,9 +286,203 @@ A paleta já existe e deve ser respeitada: `C.gold #F37C02` (destaque), `C.blueL
 (grupo M — montagem), `C.greenL #10B981` (grupo L — lançamento), `C.redL`/`C.yellow` (alertas).
 E **tudo** que for texto passa por `t()` — o app é PT/ES.
 
+**Divisão de trabalho com a vista isométrica:** ninguém conta 40 bonecos numa tela isométrica.
+Quem informa quantidade é a tabela à esquerda; o canteiro informa **relação** (quem opera o quê,
+quem está parado, quem não cabe no transporte). Por isso os trabalhadores devem ser dispostos
+em **formação legível — agrupados por cargo** — e não espalhados de forma realista. Realismo de
+disposição aqui destrói a informação.
+
 ---
 
-## 4. Modelo de dados: o que muda
+## 4. Direção de arte: isométrico 2:1 + pixel art
+
+**Decisão:** cenários em 3D, personagens em pixel art, câmera isométrica. Essa é a decisão de
+maior alcance tomada até aqui — ela muda custo de arte, performance, postprocessing e
+praticamente toda a seção de assets. E ela resolve, de graça, o maior risco do projeto.
+
+### 4.1 Por que isso é a melhor escolha e não só uma estética
+
+O risco nº 1 que eu havia levantado era **esforço de arte virar o projeto inteiro**, e o
+corolário era que misturar assets CC0 de autores diferentes em estilo realista fica feio.
+Pixel art desarma os dois:
+
+- **Pixel art perdoa inconsistência.** O que em 3D realista lê como "asset de outro autor",
+  em pixel art lê como estilo. Basta **uma paleta fixa compartilhada** para coisas de origens
+  diferentes conviverem.
+- **Um sprite de 32×32 com 4 quadros é viável internamente.** Isso é o desbloqueio real:
+  modelar, texturizar e riggar um personagem 3D é trabalho de semanas e de especialista;
+  desenhar um trabalhador em pixel é trabalho de um dia e de qualquer pessoa com paciência.
+  Os 16 cargos saem de **um** sprite base + troca de paleta + chapéu/EPI.
+- **A câmera fixa elimina metade dos problemas de 3D.** Sem rotação livre: só um lado de cada
+  modelo é visto, oclusão é previsível, sombra é estável, sprites nunca "giram errado".
+- **Performance deixa de ser assunto** (§9). Renderizar em framebuffer pequeno e ampliar é
+  ordens de magnitude mais barato que renderizar 1080p — o notebook corporativo com GPU
+  integrada deixa de ser restrição.
+
+### 4.2 O que é 3D e o que é sprite
+
+| Elemento | Técnica | Por quê |
+|---|---|---|
+| Terreno, pátio, corredor | **3D** (plano/heightfield, flat shading) | é o palco; precisa de profundidade |
+| Torres | **3D estilizado e "gordo"** (§3.4) | mostra montagem parcial em 4 estágios e sustenta o corredor em profundidade |
+| Cabos | **3D** (catenária + `TubeGeometry`) | geometria contínua que acompanha as torres |
+| Máquinas (guindaste, puller, caminhões) | **3D low-poly, flat shading** | **orientação importa** — lança do guindaste, alcance, para onde o caminhão aponta. É a informação espacial que o grupo precisa ler |
+| **Pessoas** | **Sprite pixel art** (billboard) | nunca precisam de orientação real; e é onde o custo de 3D explodiria |
+
+O que faz os dois conviverem não é disciplina de modelagem, é o **framebuffer de baixa
+resolução** (§4.4): o 3D é pixelado pelo próprio render, então sai no mesmo "material" visual
+que os sprites. Sem isso, 3D liso ao lado de sprite pixelado parece bug.
+
+### 4.3 A câmera: 2:1 dimétrico, não isométrico verdadeiro
+
+Para pixel art a projeção certa é **2:1 dimétrico**, não isometria verdadeira:
+
+| | Pitch | Resultado |
+|---|---|---|
+| Isométrico verdadeiro | `atan(1/√2)` ≈ **35,264°** | eixos igualmente encurtados, mas diagonais "sujas" em pixel |
+| **2:1 dimétrico** ✅ | **30°** | tile projeta 2:1; diagonal na tela fica em `atan(0.5)` ≈ 26,57° — a escadinha limpa de 2 px na horizontal por 1 na vertical que pixel art usa |
+
+Yaw de 45° nos dois casos. Com `OrthographicCamera` (sem perspectiva), olhando a origem:
+
+```tsx
+const d = 40;                                   // distância; não afeta escala em ortográfica
+const y = d * Math.SQRT2 * Math.tan(Math.PI / 6);  // = 0.8165·d  →  pitch de 30°
+// posição [d, y, d] com lookAt(0,0,0) dá yaw 45° + pitch 30°
+```
+
+Escala de zoom e `near`/`far` negativos (ex. `near: -1000`) para não ter que posicionar a
+câmera longe. **Sem `OrbitControls` livre:** rotação só em passos de 90° (4 ângulos), que é o
+que mantém os sprites corretos e a leitura estável.
+
+### 4.4 Pixel-perfect: onde implementações ingênuas falham
+
+Esta é a parte que dá errado silenciosamente. Checklist:
+
+1. **Resolução interna fixa + upscale inteiro.** Renderize em algo como **640×360** e amplie
+   para o container no maior múltiplo inteiro que couber (2×, 3×…), com letterbox nas sobras.
+   Isso garante **pixel quadrado**. O atalho `dpr={0.25}` + CSS `image-rendering: pixelated`
+   funciona, mas em container de tamanho arbitrário gera pixel retangular e escadinha irregular.
+2. **`antialias: false`** no `gl`. AA suaviza justamente a borda que deve ser dura.
+3. **`<Canvas flat>`** — e isso é o erro clássico: R3F aplica `ACESFilmicToneMapping` por
+   padrão, que **desloca todas as cores** e destrói a paleta. `flat` troca para `NoToneMapping`.
+   Vale testar também `linear` se as cores precisarem sair exatamente como autoradas.
+4. **Textura de sprite:** `magFilter = minFilter = THREE.NearestFilter`,
+   `generateMipmaps = false`, `colorSpace = THREE.SRGBColorSpace`. Sem isso o sprite vira borrão.
+5. **Sem postprocessing** (§3.5).
+6. **Iluminação:** 1 luz direcional + ambiente fraco, `flatShading: true`, materiais
+   Lambert/Toon. **Nada de PBR, nada de HDRI** — o que elimina a dependência de
+   `<Environment>` e, com ela, a preocupação de wifi do evento para HDRI.
+7. **Paleta única e explícita** para 3D e sprites, derivada das cores da marca
+   (`C.gold`, `C.blueL`, `C.greenL`). É o que faz tudo parecer uma coisa só.
+
+Sobre instancing: a contagem real de gente é pequena (a composição base de `a1` tem 17 pessoas;
+um grupo exagerado chega a ~50). Um atlas + `InstancedMesh` com offset de UV por instância dá
+1 draw call, mas **não é obrigatório nessa escala** — plano individual compartilhando material
+já resolve. Não otimize antes de medir.
+
+### 4.5 O risco novo que a isometria traz: oclusão
+
+Vista isométrica tem um problema próprio: **torre alta esconde o que está atrás dela.** Como
+a informação importante é justamente "quem está operando o quê", isso não é detalhe. Opções,
+em ordem de simplicidade:
+
+1. **Rotação em 4 passos de 90°** (teclas `Q`/`E`) — resolve quase tudo e é barato.
+2. **Fade do oclusor** quando há ator atrás (transparência por altura).
+3. Dispor os atores **à frente** dos volumes altos na formação legível (§3.7).
+
+Começar por (1) + (3). O (2) só se a sessão real mostrar que ainda incomoda.
+
+---
+
+## 5. Infraestrutura: Vercel + Supabase
+
+Confirmado que fica na infra atual. Isso **não** adiciona superfície de servidor: o 3D é 100%
+cliente, `api/claude.js` segue sendo a única função. Mas há dois achados concretos no
+`vercel.json` que mudam o plano.
+
+### 5.1 Achado 1 — o CSP atual já proíbe asset de CDN externo
+
+O `vercel.json` entrega:
+
+```
+connect-src 'self' https://*.supabase.co wss://*.supabase.co
+img-src     'self' data:
+script-src  'self'
+```
+
+`connect-src` restrito a `self` + Supabase significa que **buscar `.glb`, `.hdr` ou textura de
+qualquer CDN externo é bloqueado pelo navegador**, não só inadvisável. Em particular,
+`<Environment preset="city" />` do drei — que baixa HDRI do CDN da pmndrs em runtime — **seria
+bloqueado hoje**. A recomendação de self-hospedar assets, que eu havia feito por causa do wifi
+de evento, portanto **já é obrigatória pela política de segurança do projeto**. Bom: a decisão
+estava certa e o CSP a garante. (E com a direção de arte, HDRI sai de cena de todo jeito.)
+
+`img-src 'self' data:` cobre os PNGs de sprite servidos de `/public`. Sem mudança.
+
+### 5.2 Achado 2 — Draco/KTX2 exigiriam afrouxar o CSP (e dá para evitá-los)
+
+Se compressão de malha ou textura entrar, o CSP **precisa de duas concessões**:
+
+- **`'wasm-unsafe-eval'` em `script-src`** — sob CSP, WebAssembly é bloqueado sem essa palavra-chave
+  ([MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/script-src)).
+  Decoder Draco, transcoder KTX2 e Rapier são todos WASM.
+- **`worker-src 'self' blob:`** — `DRACOLoader` e `KTX2Loader` do three criam o worker a partir de
+  `URL.createObjectURL(new Blob(...))`; sem `worker-src`, o fallback é `default-src 'self'`, que
+  não cobre `blob:`
+  ([discussão three.js](https://discourse.threejs.org/t/how-to-set-content-security-policy-for-usegltfs/51398)).
+
+**E aqui está o prêmio da direção de arte:** com cenário low-poly flat-shaded e textura em
+pixel art, os assets são pequenos o bastante para **dispensar Draco e KTX2 por completo** —
+PNG de paleta reduzida comprime muito bem sozinho. **Recomendação: não mexer no CSP.** Manter
+`script-src 'self'` sem `wasm-unsafe-eval` é ganho de segurança real, não só conveniência.
+
+Se algum dia for inevitável, confirme no console do navegador antes de editar: a mensagem de
+erro nomeia a diretiva que bloqueou.
+
+### 5.3 Onde os assets moram
+
+**Em `/public`, servido pelo CDN da Vercel.** Não em Supabase Storage. Motivo: com pixel art o
+total fica na casa de **poucos MB**, versionado junto com o deploy, sem chamada extra, sem
+bucket para administrar, e já dentro do que o CSP permite (`'self'`).
+
+Supabase Storage só passa a fazer sentido se os assets virarem **por evento** (projetos de LT
+diferentes com cenário próprio). É especulação — não construir agora.
+
+Limites da Vercel que importam (conferir na [página oficial](https://vercel.com/docs/limits),
+que muda com o tempo): **upload de arquivos estáticos 100 MB no Hobby / 1 GB no Pro** e
+**transferência 100 GB / 1 TB**. Com poucos MB de asset, nenhum dos dois é assunto — mais um
+ponto para a direção de arte.
+
+### 5.4 Duas pendências concretas de configuração
+
+1. **Cache dos assets.** O Vite põe hash no nome dos arquivos que ele empacota, **mas não nos
+   que estão em `/public`** — esses mantêm o nome. Sem header, o CDN pode servir sprite velho.
+   Adicionar ao `vercel.json`:
+
+   ```json
+   {
+     "source": "/(sprites|models)/(.*)",
+     "headers": [
+       { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+     ]
+   }
+   ```
+
+   e versionar no nome do arquivo (`workers-v2.png`) quando a arte mudar.
+
+2. **`manualChunks` não existe hoje.** O `vite.config.ts` atual não tem bloco `build`. Separar
+   `three` em chunk próprio é o que viabiliza o `React.lazy` da §3.6 — sem isso o three pode
+   acabar no bundle do `Login`.
+
+### 5.5 O que não muda
+
+Supabase intocado: `grupo_comps` já guarda tudo que a cena precisa (§6), `useRealtimeComps`
+continua dando sincronização de graça, RLS e autenticação de grupo seguem como são. Nenhuma
+migração nas fases A e B. E, como o 3D não pontua, nada em `Ranking.tsx`.
+
+---
+
+## 6. Modelo de dados: o que muda
 
 **Fase A (Canteiro Vivo): nada.** Zero migração. A cena é derivada de `grupo_comps`, que já tem
 `mo_rows`, `eq_rows`, `insumo_rows`, `req_ids`, `kpi`, `equipes`, `mes_inicia`.
@@ -294,7 +498,7 @@ Tabela nova (`sim_eventos`, `sim_estado`), e provavelmente nova aba no Ranking.
 
 ---
 
-## 5. Processo sugerido
+## 7. Processo sugerido
 
 ### Fase 0 — Vertical slice (1 atividade, 1 semana)
 
@@ -305,13 +509,22 @@ de maior custo unitário — ou seja, é onde o erro do grupo dói mais.
 Entregar: canteiro com terreno, 1 torre procedural, 1 guindaste, N trabalhadores, alerta de
 coerência visual. Caixas cinzas (gray-box) no lugar dos modelos finais. **Rodar numa sessão real.**
 
+**Antes disso, um spike de meio dia: validar o pixel-perfect (§4.4).** Câmera ortográfica 2:1,
+framebuffer de ~640×360 com upscale inteiro, `<Canvas flat>`, `NearestFilter`, um cubo 3D e um
+sprite lado a lado. Se 3D e sprite não casarem visualmente nesse teste, a direção de arte tem
+problema — e é melhor descobrir em meio dia do que depois de desenhar 16 cargos. É o item de
+maior risco técnico e o mais barato de testar.
+
+E **fixar a paleta antes de desenhar qualquer coisa** (§8.4): paleta trocada no meio obriga a
+redesenhar tudo.
+
 Se a fase 0 não convencer o facilitador em 5 minutos de uso, o conceito está errado e
 nenhum asset bonito vai salvar.
 
 ### Fase 1 — Canteiro Vivo completo
 
-7 atividades, 16 cargos (1 modelo + variações), 20 equipamentos, alertas de `calcCoerencia`
-e `calcSeg`, progresso de `monthlyVolumes()`. Assets reais substituindo gray-box.
+7 atividades, 16 cargos (1 sprite base + paleta + overlay de EPI), 20 equipamentos, alertas de
+`calcCoerencia` e `calcSeg`, progresso de `monthlyVolumes()`. Assets reais substituindo gray-box.
 
 ### Fase 2 — Composição via 3D (se a fase 1 provar valor)
 
@@ -329,8 +542,9 @@ Só entra em pauta se o facilitador pedir explicitamente, depois de A e B rodand
 
 - **Gray-box antes de arte.** Toda feature nasce com `<boxGeometry>`. Arte é a última etapa,
   nunca a primeira. (O erro mais comum em projetos 3D é passar 3 semanas procurando o modelo
-  perfeito de guindaste antes de saber se o jogo funciona.)
-- **Orçamento de performance definido no dia 1** (§7), e medido em cada PR.
+  perfeito de guindaste antes de saber se o jogo funciona.) Com pixel art a arte ficou barata,
+  o que torna a tentação de começar por ela **maior**, não menor — a regra continua valendo.
+- **Orçamento de performance definido no dia 1** (§9), e medido em cada PR.
 - **Testar no pior dispositivo do público-alvo**, não no laptop do dev. Se a sessão tem
   participantes no celular, o celular é o alvo.
 - **Rodar offline.** Treinamento presencial costuma ter wifi ruim ou nenhum.
@@ -342,137 +556,139 @@ Só entra em pauta se o facilitador pedir explicitamente, depois de A e B rodand
 
 ---
 
-## 6. Onde baixar os modelos 3D
+## 8. Onde baixar os assets
 
-Licença importa: isso é material de treinamento corporativo — **uso comercial**.
-`CC0` é o que você quer; `CC-BY` exige creditar (uma tela de créditos resolve); evite
-`CC-BY-NC` e "free for personal use".
+A direção de arte (§4) parte a lista em duas: **sprites pixel art** para pessoas e **modelos
+low-poly** para cenário e máquinas. Licença importa — isto é material de treinamento
+corporativo, portanto **uso comercial**. `CC0` é o ideal; `CC-BY` serve com tela de créditos;
+evite `CC-BY-NC` e "free for personal use".
 
-### Primeira parada — CC0, estilo coerente, game-ready
+### 8.1 Pixel art — pessoas, ícones, overlays de EPI
 
-| Site | Licença | Formato | Serve para |
+| Fonte | Licença | Serve para |
+|---|---|---|
+| [itch.io/game-assets/tag-pixel-art](https://itch.io/game-assets/tag-pixel-art) | varia por pack (muitos CC0) | **o maior mercado de pixel art que existe**; buscar por *worker*, *construction*, *industrial*, *isometric* |
+| [kenney.nl/assets](https://kenney.nl/assets) | CC0 | packs 1-bit e pixel, ícones, UI — mesma casa dos modelos 3D, o que ajuda na coerência |
+| [opengameart.org](https://opengameart.org/) | CC0 / CC-BY / OGA-BY | catálogo antigo e forte em sprite; filtrar por licença na busca |
+| [lospec.com/palette-list](https://lospec.com/palette-list) | paletas livres | **a peça mais importante da coerência visual.** Escolher UMA paleta e derivá-la das cores da marca (`C.gold`, `C.blueL`, `C.greenL`) |
+| [LimeZu](https://limezu.itch.io/) (itch) | comercial, pago e barato | *Modern Interiors / Exteriors* — personagens modernos e props urbanos, enorme e muito consistente |
+| [0x72](https://0x72.itch.io/), [ansimuz](https://ansimuz.itch.io/), [Penzilla](https://penzilla.itch.io/) | varia (vários CC0) | artistas de pixel conhecidos, packs pequenos e limpos |
+
+⚠️ **CraftPix** aparece em toda busca e precisa de ressalva: os assets gratuitos **permitem uso
+comercial, mas proíbem revender ou redistribuir os arquivos originais**, e **não são CC0** —
+alguns packs exigem atribuição. Os termos citam a loja CraftPix mesmo quando o download veio do
+itch.io. Se usar, leia o arquivo de licença *dentro do pack* e guarde uma cópia com a data do
+download.
+
+### 8.2 Modelos 3D — terreno, torres, máquinas, props
+
+Os mesmos de sempre, e aqui o pixel art ajuda: com `flatShading` e framebuffer pequeno,
+low-poly CC0 fica indistinguível de arte feita sob medida.
+
+| Fonte | Licença | Serve para |
+|---|---|---|
+| [kenney.nl/assets](https://kenney.nl/assets) | CC0 | kits *City* / *Vehicle*; veículos leves e props de canteiro |
+| [quaternius.com](https://quaternius.com/) | CC0 | packs modulares (natureza, veículos, construção); estilo consistente |
+| [poly.pizza](https://poly.pizza/) | maioria CC-BY, parte CC0 | download GLB direto sem conta; tem caminhões, gruas, cones |
+| [sketchfab.com](https://sketchfab.com/) (filtro *Downloadable* + CC0/CC-BY) | mistas | maior variedade; onde há chance real de achar equipamento específico |
+| [superhivemarket.com](https://superhivemarket.com/) · [cgtrader.com](https://www.cgtrader.com/) | pago | 1 pack de maquinário pesado (puller/freio, munck) — mais barato que o tempo de procurar |
+
+**Saíram da lista** por causa da direção de arte: **Poly Haven** e **ambientCG** (HDRI e
+texturas PBR — não há PBR nem HDRI aqui, §4.4) e **KayKit** (personagens riggados 3D — agora
+são sprites). Isso também encerra a preocupação de wifi do evento com HDRI.
+
+**Continuam fora:** GrabCAD e 3D Warehouse (CAD sujo, licença nebulosa); text-to-3D só como
+placeholder de gray-box.
+
+### 8.3 Ferramentas
+
+- **[Aseprite](https://www.aseprite.org/)** (~US$ 20) é o padrão de pixel art; **[LibreSprite](https://libresprite.github.io/)**
+  e **[Piskel](https://www.piskelapp.com/)** são alternativas livres. Exportam sprite sheet + JSON de frames direto.
+- **Blender** para o cenário low-poly, com export GLB.
+- **Pipeline alternativo que vale conhecer:** renderizar um modelo 3D no ângulo isométrico,
+  reduzir para 64 px e quantizar na paleta → sai um sprite perfeitamente coerente com o resto.
+  É a saída se as máquinas também virarem sprite, e garante consistência que mão livre não dá.
+
+### 8.4 Recomendação prática de sourcing
+
+1. **Fixar a paleta primeiro** (Lospec + cores da marca). Antes de baixar qualquer coisa.
+2. **Pessoas:** 1 sprite base desenhado internamente (32×32, 4 quadros) + paleta por cargo +
+   overlay de EPI. Pack de itch.io só como referência ou atalho inicial.
+3. **Cenário e props:** Kenney + Quaternius (CC0, coerentes entre si), flat-shaded.
+4. **Maquinário pesado específico:** 1 pack pago.
+5. **Torres:** procedurais e "gordas" (§3.4).
+
+Manter `docs/ASSETS.md` com origem, autor, licença e link de cada arquivo — e, para packs de
+licença própria como CraftPix, a cópia do texto da licença com a data.
+
+---
+
+## 9. Performance: o assunto praticamente fechou
+
+Este orçamento mudou duas vezes: subiu quando o alvo virou desktop, e agora **deixa de ser
+restrição** por causa do framebuffer de baixa resolução (§4.4). Vale registrar a evolução para
+ninguém reabrir a discussão com o número errado:
+
+| Métrica | v1 (incluía celular) | v2 (desktop) | **v3 (pixel art, §4)** |
 |---|---|---|---|
-| [kenney.nl/assets](https://kenney.nl/assets) | CC0 | GLB, FBX, OBJ | kits "City"/"Vehicle"/"Platformer"; ótimo para gray-box bonito, veículos, props de canteiro |
-| [quaternius.com](https://quaternius.com/) | CC0 | GLB, FBX | packs modulares (natureza, veículos, construção); estilo consistente |
-| [kaylousberg.itch.io](https://kaylousberg.itch.io/) (KayKit) | CC0 | GLB, FBX | **personagens rigados com animações** (idle/walk/work) — resolve os 16 cargos |
-| [polyhaven.com](https://polyhaven.com/) | CC0 | HDR, EXR, GLB | **HDRIs** (iluminação do canteiro) e texturas PBR; alguns modelos |
-| [ambientcg.com](https://ambientcg.com/) | CC0 | PNG/EXR | texturas PBR de terra, cascalho, concreto, asfalto para o terreno |
-| [github.com/KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) | mistas (maioria permissiva) | GLTF/GLB | validar o pipeline de compressão/animação antes de ter asset próprio |
+| Resolução de render | nativa | nativa (1080p) | **~640×360, upscale inteiro** |
+| Fragmentos por frame | ~2 M | ~2 M | **~0,23 M (≈9× menos)** |
+| Triângulos em tela | ≤ 150k | ≤ 500k | **≤ 100k** (sem esforço — cenário é low-poly e torre é caixa) |
+| Draw calls | ≤ 60 | ≤ 150 | **≤ 60** |
+| Total de asset | ≤ 8 MB | ≤ 25 MB | **≤ 3 MB** (sprite PNG + GLB flat) |
+| Texturas | KTX2 ≤ 1024² | KTX2 ≤ 2048² | **PNG de paleta, ≤ 256²** |
+| Compressão | Draco + KTX2 | Draco + KTX2 | **nenhuma** → CSP intocado (§5.2) |
+| Postprocessing | nenhum | `Outline` + `N8AO` | **nenhum** |
 
-### Acervos grandes — checar licença modelo a modelo
+O gargalo de GPU integrada é **fragmento e draw call**, e o framebuffer pequeno resolve o
+primeiro de forma quase absurda. Notebook corporativo deixa de ser risco.
 
-| Site | Licença | Nota |
-|---|---|---|
-| [poly.pizza](https://poly.pizza/) | maioria CC-BY, parte CC0 | herdeiro do Google Poly; download GLB direto sem conta; tem caminhões, gruas, cones, trabalhadores |
-| [sketchfab.com](https://sketchfab.com/) (filtro *Downloadable* + CC0/CC-BY) | mistas | maior variedade; é onde há chance real de achar **torre de transmissão** e equipamento específico |
-| [opengameart.org](https://opengameart.org/) | CC0 / CC-BY / GPL | ex.: [3D House Construction Site (CC0)](https://opengameart.org/content/3d-house-construction-site-lowpoly-cc0) — 2 gruas, caminhões, contêineres |
-| [itch.io/game-assets/free/tag-3d](https://itch.io/game-assets/free/tag-3d) | varia | muitos packs CC0 de dev indie; ver cada página |
-| [free3d.com](https://free3d.com/) · [cgtrader.com](https://www.cgtrader.com/free-3d-models) | mistas, muitas "personal use" | ler a licença **sempre**; qualidade irregular |
+**O que continua valendo, apesar da folga:**
 
-### Pago — quando precisa de equipamento específico de LT
+- `frameloop="demand"` — a cena fica parada a maior parte do tempo (o grupo está discutindo),
+  e notebook em bateria numa sala de treinamento agradece.
+- `React.lazy` + `manualChunks` (§3.6, §5.4) — isso é sobre **bundle JS**, que o pixel art não
+  reduz: `three` continua custando ~600 KB gzip. Segue obrigatório.
+- `<Instances>` onde for trivial, mas **sem otimizar antes de medir** (§4.4).
+- Cache dos assets em `/public` via header (§5.4).
 
-Puller/freio, caminhão munck, escavadeira com modelo real não existem em CC0 com boa qualidade.
-Vale comprar 1–2 peças-chave:
-
-- [superhivemarket.com](https://superhivemarket.com/) (ex-Blender Market) — ex. *Heavy Machinery Low-Poly Asset Pack* (~34 modelos, GLTF)
-- [cgtrader.com](https://www.cgtrader.com/) / [turbosquid.com](https://www.turbosquid.com/) — maior catálogo; filtrar por "low-poly" + "game-ready" + royalty-free
-- [hum3d.com](https://hum3d.com/) — veículos precisos (caro, high-poly, exige retopologia)
-
-### Fontes a evitar (ou usar com cuidado)
-
-- **GrabCAD / 3D ContentCentral** — CAD real de máquinas, mas STEP/IGES: milhões de triângulos,
-  sem UV, sem rig. Retopologia custa mais que modelar do zero. E os termos de uso são restritivos.
-- **SketchUp 3D Warehouse** — tem muitas torres de transmissão, mas geometria suja, escala
-  errática e licença nebulosa.
-- **Text-to-3D (Meshy, Tripo, Luma)** — útil só como **placeholder** na fase gray-box.
-  A malha sai ruim para animação e os termos de uso comercial variam; não planeje produção com isso.
-
-### Recomendação prática de sourcing
-
-1. Personagens: **1 modelo rigado do KayKit** (CC0) + variação de cor/EPI em código → cobre os 16 cargos.
-2. Veículos leves e props: **Kenney + Quaternius** (CC0, estilo coerente entre si).
-3. Equipamento pesado específico: **1 pack pago** (Superhive/CGTrader) — mais barato que o tempo de busca.
-4. Torres: **procedural** (§3.4). Não baixe.
-5. Ambiente: **HDRI do Poly Haven** + **texturas do ambientCG**, self-hospedados.
-
-Manter `docs/ASSETS.md` com origem, autor, licença e link de cada arquivo em `/public/models` —
-auditoria de licença é chata depois e trivial se feita na hora.
+**O que saiu:** `<AdaptiveDpr>` (era para celular), `<Detailed>`/LOD (desnecessário nessa
+escala), pipeline de `gltf-transform` com Draco/KTX2 (assets pequenos demais para justificar).
+O pipeline de asset virou simplesmente: Blender → GLB flat-shaded → `/public/models`;
+Aseprite → PNG + JSON → `/public/sprites`.
 
 ---
 
-## 7. Performance: orçamento revisado para desktop
-
-**O alvo não é "desktop", é notebook corporativo com GPU integrada** (Intel Iris Xe / UHD) a
-1080p. Essa é a máquina real do facilitador e do participante numa sala de treinamento — não
-a workstation do dev. Celular saiu do escopo, mas isso afrouxa o orçamento, não o elimina.
-
-| Métrica | Antes (incluía celular) | **Agora (desktop)** |
-|---|---|---|
-| Triângulos em tela | ≤ 150k | **≤ 500k** |
-| Draw calls | ≤ 60 | **≤ 150** |
-| Total de GLB baixado | ≤ 8 MB | **≤ 25 MB** |
-| Texturas | KTX2, ≤ 1024² | **KTX2, ≤ 2048²** |
-| Luzes com sombra | 1 direcional | **1 direcional + HDRI** (sombra suave liberada) |
-| Postprocessing | nenhum | **`Outline` (fase B) + `N8AO` opcional** |
-| Chunk JS do 3D | lazy | **lazy — inalterado** |
-
-O que **não** muda com desktop: `<Instances>` para trabalhadores e perfis de torre continua
-obrigatório (é o que mantém draw calls baixos, e GPU integrada sofre com draw calls antes de
-sofrer com triângulos), e a torre continua procedural — 500k triângulos acabam rápido se cada
-torre treliçada custar 200k.
-
-Pipeline de asset (uma vez por modelo, versionado em script npm):
-
-```bash
-# 1. Blender: limpar, decimar, aplicar escala, nomear, exportar GLB
-# 2. comprimir
-npx @gltf-transform/cli optimize in.glb out.glb \
-    --compress meshopt --texture-compress ktx2 --texture-size 1024
-# 3. gerar componente tipado
-npx gltfjsx out.glb --types --transform
-```
-
-Truques que mais rendem neste caso específico:
-- `<Instances>` para trabalhadores e perfis de torre (dezenas de cópias, 1 draw call)
-- `<Detailed>` (LOD) nas torres ao longo do corredor
-- `<PerformanceMonitor>` continua valendo (GPU integrada varia muito entre máquinas);
-  `<AdaptiveDpr>` fica **opcional** — era para celular
-- `frameloop="demand"` **continua valendo**, e por dois motivos que sobrevivem ao desktop:
-  notebook em bateria numa sala de treinamento, e o fato de que a cena fica literalmente
-  parada a maior parte do tempo (o grupo está discutindo, não mexendo)
-- **Postprocessing: revisado para desktop.** `Outline` passa a valer a pena na fase B — é a
-  affordance de seleção do drag-and-drop (objeto sob o cursor / slot válido de destino), e
-  substitui bem truques de troca de material. `N8AO` (ambient occlusion) é defensável porque
-  **ajuda a ler a profundidade da treliça da torre**, que é geometria confusa sem oclusão.
-  Bloom e depth-of-field continuam fora: custam caro e não comunicam nada neste domínio.
-
----
-
-## 8. Riscos e como mitigar
+## 10. Riscos e como mitigar
 
 | Risco | Mitigação |
 |---|---|
-| Esforço de arte vira o projeto inteiro | gray-box primeiro; 1 personagem + variações; torre procedural |
+| Esforço de arte vira o projeto inteiro | **muito reduzido pelo pixel art (§4.1)**: 1 sprite base + paleta; gray-box primeiro; torre procedural |
+| Setup de pixel-perfect errado (tone mapping, filtro, escala) | spike de meio dia na fase 0; checklist da §4.4 — `<Canvas flat>` é o erro silencioso mais comum |
+| Treliça fina desaparece/cintila em 640×360 | torre estilizada com membros ≥ 2–3 px em tela (§3.4) |
+| Oclusão isométrica esconde quem opera o quê | rotação em 4 passos (`Q`/`E`) + formação legível (§4.5) |
+| Licença de pack pixel mal entendida (CraftPix e afins) | `docs/ASSETS.md` com cópia da licença e data do download (§8.1) |
+| CSP bloquear loader se Draco/KTX2 entrarem | não usar nenhum dos dois — assets pequenos demais para justificar (§5.2) |
 | ~~Celular dos participantes não aguenta~~ | **fora de escopo** — público-alvo é desktop |
-| Notebook corporativo com GPU integrada engasga | orçamento §7 medido desde a fase 0; `<Instances>`; `frameloop="demand"`; LOD; testar em máquina sem GPU dedicada |
+| Notebook corporativo com GPU integrada engasga | **em grande parte resolvido pelo framebuffer pequeno (§4.4)**; orçamento §9 medido desde a fase 0; `frameloop="demand"`; testar em máquina sem GPU dedicada |
 | Orçamento afrouxado vira desculpa para não otimizar | o teto de draw calls (≤150) é o que GPU integrada realmente sente; medir em PR, não no fim |
 | 3D vira enfeite e não ensina nada | cada elemento visual **tem** que mapear uma regra de `calculations.ts`; se não mapeia, não entra |
 | Duas formas de editar o mesmo estado = bugs | o 3D só dispara ações do `AppContext`; nunca escreve direto no Supabase |
 | Fase C construída sem ter quem a use | não planejar agora — sem pontuação, é debriefing opcional (§2) |
 | Bundle inicial degrada o app atual | `React.lazy` + `manualChunks`; medir com `vite build --report` |
 | Licença de asset em material comercial | `docs/ASSETS.md` preenchido no momento do download |
-| Wifi ruim no evento | assets e HDRI self-hospedados; `useGLTF.preload` na tela anterior |
+| Wifi ruim no evento | assets self-hospedados em `/public` — **já obrigatório pelo CSP** (§5.1); HDRI deixou de existir (§4.4); `useGLTF.preload` na tela anterior |
 | Testes Playwright quebrando por WebGL | lógica em funções puras; smoke test apenas |
 
 ---
 
-## 9. Perguntas abertas (para decidir antes de codar)
+## 11. Perguntas abertas (para decidir antes de codar)
 
 1. **O 3D substitui ou acompanha a tabela de composição?** (recomendação: acompanha, em split
    view — §3.7; pendente de confirmação)
 2. ~~**Qual o dispositivo-alvo real dos participantes?**~~ ✅ **Desktop.**
-3. **Estilo visual:** low-poly estilizado (coerente, barato, CC0 abundante) ou realista
-   (caro, pesado, e cobra consistência que CC0 não dá)? Recomendação forte: **low-poly estilizado**.
+3. ~~**Estilo visual: low-poly estilizado ou realista?**~~ ✅ **Resolvido, e melhor do que eu
+   havia proposto:** cenário low-poly 3D + personagens em pixel art, câmera isométrica (§4).
 4. **O jogo é competitivo em tempo real** (grupos vendo o canteiro um do outro, aproveitando o
    `useRealtimeComps`) ou cada grupo isolado até o Ranking?
 5. **A sessão tem tempo para isso?** Se a dinâmica de grupo dura 90 min, quanto é composição e
@@ -481,7 +697,22 @@ Truques que mais rendem neste caso específico:
 6. ~~**Entra no Ranking?**~~ ✅ **Não entra.** `Ranking.tsx`, `calcSeg` e `calcNaoAplicPenalty`
    ficam intocados.
 
-### Ainda em aberto, e agora mais fáceis de responder
+### Novas, criadas pela direção de arte
+
+9. **Qual a resolução interna exata?** `640×360` é um bom ponto de partida, mas depende da
+   largura que o canvas terá no split view (§3.7) — o upscale tem que ser inteiro para o pixel
+   sair quadrado. Decidir junto com o layout, não antes.
+10. **Rotação em 4 passos resolve a oclusão?** (§4.5) Se não, entra fade de oclusor — mais
+    trabalho, e melhor saber antes de modelar as torres.
+11. **Máquinas em 3D ou sprite?** Recomendo 3D, porque orientação (lança do guindaste, para
+    onde o caminhão aponta) é informação que o grupo precisa ler. Mas o pipeline de
+    render-para-sprite (§8.3) é saída legítima se a coerência visual incomodar.
+12. **Quem desenha os sprites?** É a pergunta de processo mais importante agora. O ganho inteiro
+    da §4.1 depende de existir alguém — não precisa ser artista — disposto a desenhar um
+    trabalhador de 32×32 com 4 quadros no Aseprite. Se não houver, o caminho é pack de itch.io
+    com paleta reconvertida, e a coerência cai um pouco.
+
+### Ainda em aberto das rodadas anteriores
 
 7. **O canteiro é por atividade ou um canteiro único?** O split view favorece **por atividade**
    (acompanha a aba `aTab` que já existe), mas o corredor de LT inteiro (`lt.ext` km, derivado
@@ -493,7 +724,7 @@ Truques que mais rendem neste caso específico:
 
 ---
 
-## 10. O que as decisões de escopo mudaram
+## 12. O que as decisões de escopo mudaram
 
 Registro do efeito das duas respostas, para não reabrir discussão já fechada.
 
@@ -503,7 +734,7 @@ Registro do efeito das duas respostas, para não reabrir discussão já fechada.
 |---|---|
 | Layout | **Split view** (tabela + canteiro simultâneos, §3.7) — o maior ganho isolado das duas decisões |
 | Fase B | **Destravada.** Mouse e hover eliminam o risco que a adiava |
-| Orçamento | Afrouxado ~3× (§7), mas alvo passa a ser **notebook com GPU integrada**, não workstation |
+| Orçamento | Afrouxado ~3×, mas alvo passa a ser **notebook com GPU integrada**, não workstation — depois revisto de novo pela direção de arte (§9) |
 | Interação | Hover para detalhe, cursor preciso para slots pequenos, teclado preservado |
 | Postprocessing | `Outline` entra (seleção na fase B); `N8AO` opcional para ler a treliça |
 | `<AdaptiveDpr>` | Vira opcional |
@@ -519,10 +750,43 @@ Registro do efeito das duas respostas, para não reabrir discussão já fechada.
 | Adoção | O 3D fica **descartável sem efeito colateral** — facilitador que não abrir a tela tem a mesma sessão de hoje. Isso permite liberar por evento (pergunta 8) e torna o rollout quase sem risco |
 | Pedagogia | Os alertas de coerência podem ser mostrados com todo o detalhe, sem o receio de "entregar pontos" |
 
+### Cenários 3D + personagens pixel art + câmera isométrica
+
+A decisão de maior alcance das quatro. Detalhe em [§4](#4-direção-de-arte-isométrico-21--pixel-art).
+
+| Área | Efeito |
+|---|---|
+| Risco nº 1 do projeto | **Desarmado.** "Esforço de arte vira o projeto" e "CC0 de autores diferentes fica feio" se resolvem: pixel art lê inconsistência como estilo, e paleta fixa costura o resto |
+| Personagens | Deixam de ser modelo 3D rigado e passam a **sprite**. Morre o pipeline de rig/animação, morre a dependência de KayKit. 16 cargos = 1 sprite base + paleta + overlay de EPI |
+| Viabilidade interna | **Desenhar 32×32 com 4 quadros é trabalho de um dia**, não de semanas de especialista. É o desbloqueio prático |
+| Câmera | `OrthographicCamera` **2:1 dimétrico — pitch 30°, yaw 45°**, não isometria verdadeira (35,264°, diagonal suja). Sem órbita livre; rotação em 4 passos |
+| Performance | **Deixa de ser restrição.** Framebuffer de ~640×360 = ~9× menos fragmento que 1080p. Orçamento v3 na [§9](#9-performance-o-assunto-praticamente-fechou) |
+| Postprocessing | **Reverti a rodada anterior:** `Outline` e `N8AO` saem — linha suave e AO calculada são o oposto de pixel art. Seleção por troca de paleta. `@react-three/postprocessing` não entra |
+| PBR / HDRI | **Saem.** Flat shading + 1 luz direcional. Poly Haven e ambientCG saem da lista de fontes, e com eles a preocupação de HDRI em wifi ruim |
+| Compressão | Draco e KTX2 **dispensáveis** — e isso mantém o CSP intocado (§5.2) |
+| Torres | Continuam procedurais, mas **"gordas"**: membro fino desaparece em 640×360 |
+| Risco novo | **Oclusão isométrica** — torre alta esconde quem opera o quê (§4.5) |
+| Risco novo | **Setup de pixel-perfect** silenciosamente errado; `<Canvas flat>` é o erro clássico (§4.4) |
+
+### Infra: Vercel + Supabase
+
+Detalhe em [§5](#5-infraestrutura-vercel--supabase). Nenhuma superfície nova de servidor — o 3D
+é 100% cliente.
+
+| Área | Efeito |
+|---|---|
+| **CSP (achado)** | `connect-src 'self' https://*.supabase.co` **já bloqueia asset de CDN externo**. `<Environment preset="city">` seria barrado hoje. A regra "self-hospedar" não é conselho: é política vigente do projeto |
+| **CSP (achado)** | Draco/KTX2 exigiriam `'wasm-unsafe-eval'` em `script-src` e `worker-src 'self' blob:`. Com pixel art, **evitáveis** → não mexer no CSP |
+| Onde os assets moram | `/public` + CDN da Vercel, **não** Supabase Storage: poucos MB, versionado com o deploy, zero bucket para administrar |
+| Limites da Vercel | 100 MB de estático no Hobby / 1 GB no Pro; transferência 100 GB / 1 TB. Com poucos MB, irrelevante |
+| Pendência | **Header de cache** para `/sprites` e `/models` — o Vite não põe hash em arquivos de `/public` (§5.4) |
+| Pendência | **`manualChunks` não existe** no `vite.config.ts` hoje; é o que viabiliza o `React.lazy` da §3.6 |
+| Supabase | **Intocado.** `grupo_comps` já guarda tudo; `useRealtimeComps` segue dando sincronização de graça; zero migração em A e B |
+
 ### O que **não** mudou
 
-Gray-box antes de arte; torre procedural; 16 cargos com 1 modelo rigado; camada pura
-`buildCanteiro()`; `React.lazy` + `manualChunks`; assets self-hospedados (wifi de evento não
-melhora por ser desktop); `docs/ASSETS.md` no momento do download; Rapier continua fora;
-e a regra que vale mais que todas: **todo elemento visual mapeia uma regra de
+Gray-box antes de arte (agora com tentação maior de furar a regra); torre procedural;
+"16 cargos ≠ 16 assets"; camada pura `buildCanteiro()`; `React.lazy` + `manualChunks`;
+assets self-hospedados; `docs/ASSETS.md` no momento do download; Rapier continua fora;
+split view; e a regra que vale mais que todas: **todo elemento visual mapeia uma regra de
 `calculations.ts`, ou não entra.**
